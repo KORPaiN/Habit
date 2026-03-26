@@ -8,6 +8,8 @@
 - `supabase/seed.sql`
 - `lib/types/database.ts`
 - `lib/schemas/backend.ts`
+- `lib/prompts/habit-decomposition.ts`
+- `lib/services/ai.ts`
 - `app/api/onboarding/route.ts`
 - `app/api/plans/route.ts`
 - `app/api/daily-actions/route.ts`
@@ -40,9 +42,10 @@
 
 1. `.env.example`를 `.env.local`로 복사합니다.
 2. Supabase 프로젝트 URL, anon key, service role key를 채웁니다.
-3. Supabase SQL Editor 또는 로컬 Postgres에서 `supabase/schema.sql`을 먼저 실행합니다.
-4. 이어서 `supabase/seed.sql`을 실행합니다.
-5. 앱을 실행합니다.
+3. `OPENAI_API_KEY`를 채웁니다. 필요하면 `OPENAI_MODEL`도 지정합니다.
+4. Supabase SQL Editor 또는 로컬 Postgres에서 `supabase/schema.sql`을 먼저 실행합니다.
+5. 이어서 `supabase/seed.sql`을 실행합니다.
+6. 앱을 실행합니다.
 
 ```bash
 npm run dev
@@ -58,7 +61,7 @@ npm test
 
 ### `POST /api/onboarding`
 
-온보딩 입력을 받아 `anchor`, `goal`, 첫 번째 `habit_plan`을 생성합니다. `microActions`를 생략하면 현재는 플레이스홀더 AI 서비스가 기본 액션을 생성합니다.
+온보딩 입력을 받아 `anchor`, `goal`, 첫 번째 `habit_plan`을 생성합니다. `microActions`를 생략하면 서버가 OpenAI로 habit decomposition을 생성하고, 실패하면 검증된 mock 결과로 안전하게 fallback 합니다.
 
 예시:
 
@@ -69,6 +72,7 @@ npm test
   "goalWhy": "I want reading to feel normal again.",
   "difficulty": "gentle",
   "availableMinutes": 5,
+  "anchorKey": "after-coffee",
   "anchorLabel": "After coffee",
   "anchorCue": "When the mug is on the desk",
   "preferredTime": "morning"

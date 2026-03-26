@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { generateMicroActions } from "@/lib/services/ai";
+import { generateHabitDecomposition } from "@/lib/services/ai";
 import type { Database } from "@/lib/types/database";
 import type {
   AssignDailyActionRequest,
@@ -49,17 +49,15 @@ export async function createOnboardingFlow(client: ServiceClient, input: Onboard
     p_preferred_time: input.preferredTime,
   });
 
-  const generatedActions =
-    input.microActions ??
-    mapGeneratedActionsToPlanInput(
-      await generateMicroActions({
-        goal: input.goalTitle,
-        availableMinutes: input.availableMinutes,
-        difficulty: input.difficulty,
-        preferredTime: input.preferredTime,
-        anchor: "after-coffee",
-      }),
-    );
+  const decomposition = await generateHabitDecomposition({
+    goal: input.goalTitle,
+    availableMinutes: input.availableMinutes,
+    difficulty: input.difficulty,
+    preferredTime: input.preferredTime,
+    anchor: input.anchorKey,
+  });
+
+  const generatedActions = input.microActions ?? mapGeneratedActionsToPlanInput(decomposition.microActions);
 
   const planResult = await runRpc(client, "create_habit_plan", {
     p_user_id: input.userId,
@@ -72,6 +70,7 @@ export async function createOnboardingFlow(client: ServiceClient, input: Onboard
 
   return {
     ...onboardingResult,
+    decomposition,
     initialPlan: planResult,
   };
 }

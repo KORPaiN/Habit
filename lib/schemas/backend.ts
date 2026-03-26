@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const difficultyLevelSchema = z.enum(["gentle", "steady", "hard"]);
 export const preferredTimeSchema = z.enum(["morning", "afternoon", "evening"]);
+export const onboardingAnchorSchema = z.enum(["after-coffee", "after-shower", "before-work", "before-bed"]);
 export const planSourceSchema = z.enum(["ai", "manual", "recovery", "seed"]);
 export const failureReasonSchema = z.enum([
   "too_big",
@@ -51,6 +52,7 @@ export const onboardingRequestSchema = z.object({
   goalWhy: z.string().max(300).optional().nullable(),
   difficulty: difficultyLevelSchema,
   availableMinutes: z.coerce.number().int().min(1).max(30),
+  anchorKey: onboardingAnchorSchema.optional().default("after-coffee"),
   anchorLabel: z.string().min(2).max(80),
   anchorCue: z.string().min(2).max(160),
   preferredTime: preferredTimeSchema,
