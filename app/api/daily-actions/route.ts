@@ -1,7 +1,7 @@
-import { assignDailyActionRequestSchema } from "@/lib/schemas/backend";
-import { fail, ok, readJson } from "@/lib/server/api";
-import { assignDailyAction } from "@/lib/server/habit-service";
-import { getSupabaseAdminClient } from "@/lib/services/supabase";
+import { assignDailyActionRequestSchema } from "@/lib/validators/backend";
+import { fail, ok, readJson } from "@/lib/utils/api";
+import { assignDailyAction } from "@/lib/supabase/habit-service";
+import { getSupabaseAdminClient } from "@/lib/supabase/client";
 
 export async function POST(request: Request) {
   try {

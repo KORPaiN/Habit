@@ -3,8 +3,9 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { minutesLabel } from "@/lib/habit";
-import type { MicroAction } from "@/lib/schemas/habit";
+import { minutesLabel } from "@/lib/utils/habit";
+import type { MicroAction } from "@/lib/validators/habit";
+import { demoBackendIds } from "@/lib/utils/mock-habit";
 
 type ActionCardProps = {
   action: MicroAction;
@@ -26,9 +27,19 @@ export function ActionCard({ action }: ActionCardProps) {
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </Link>
-        <Link href="/recovery" className="sm:flex-1">
+        <Link
+          href={{
+            pathname: "/recover",
+            query: {
+              dailyActionId: demoBackendIds.dailyActionId,
+              goalId: demoBackendIds.goalId,
+              reason: "too_big",
+            },
+          }}
+          className="sm:flex-1"
+        >
           <Button variant="secondary" fullWidth>
-            I need a smaller version
+            This feels too difficult
             <RotateCcw className="ml-2 h-4 w-4" />
           </Button>
         </Link>

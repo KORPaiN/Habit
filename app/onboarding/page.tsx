@@ -1,14 +1,14 @@
 import Link from "next/link";
 
-import { OnboardingPreview } from "@/components/habit/onboarding-preview";
-import { PageShell } from "@/components/layout/page-shell";
+import { OnboardingPreview } from "@/components/onboarding/onboarding-preview";
+import { PageShell } from "@/components/ui/page-shell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { mockOnboardingData } from "@/lib/data/mock-habit";
-import { minutesLabel } from "@/lib/habit";
-import { generateHabitDecomposition } from "@/lib/services/ai";
+import { mockOnboardingData } from "@/lib/utils/mock-habit";
+import { minutesLabel } from "@/lib/utils/habit";
+import { generateHabitDecomposition } from "@/lib/ai";
 
 export default async function OnboardingPage() {
   const decomposition = await generateHabitDecomposition(mockOnboardingData);

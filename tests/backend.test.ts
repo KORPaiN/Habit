@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { onboardingRequestSchema, planMicroActionsSchema } from "@/lib/schemas/backend";
-import { buildRecoveryPreview, mapGeneratedActionsToPlanInput } from "@/lib/server/habit-rules";
+import { onboardingRequestSchema, planMicroActionsSchema } from "@/lib/validators/backend";
+import { buildRecoveryPreview, mapGeneratedActionsToPlanInput, prioritizeSelectedMicroAction } from "@/lib/utils/habit-rules";
 
 test("planMicroActionsSchema rejects duplicate positions", () => {
   const result = planMicroActionsSchema.safeParse([
@@ -83,4 +83,34 @@ test("onboardingRequestSchema accepts the backend MVP payload", () => {
   });
 
   assert.equal(result.goalTitle, "Build a reading habit");
+});
+
+test("prioritizeSelectedMicroAction moves the chosen action to position one", () => {
+  const result = prioritizeSelectedMicroAction(
+    [
+      {
+        position: 1,
+        title: "Read one page",
+        details: null,
+        durationMinutes: 2,
+        fallbackTitle: "Read one sentence",
+        fallbackDetails: null,
+        fallbackDurationMinutes: 1,
+      },
+      {
+        position: 2,
+        title: "Highlight one line",
+        details: null,
+        durationMinutes: 2,
+        fallbackTitle: "Touch the book",
+        fallbackDetails: null,
+        fallbackDurationMinutes: 1,
+      },
+    ],
+    2,
+  );
+
+  assert.equal(result[0]?.title, "Highlight one line");
+  assert.equal(result[0]?.position, 1);
+  assert.equal(result[1]?.position, 2);
 });

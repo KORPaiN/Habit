@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
-import { buildAnchorLabel, minutesLabel } from "@/lib/habit";
-import type { OnboardingInput } from "@/lib/schemas/habit";
+import { buildAnchorLabel, minutesLabel } from "@/lib/utils/habit";
+import type { OnboardingInput } from "@/lib/validators/habit";
 
 type OnboardingPreviewProps = {
   values: OnboardingInput;

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { buildAnchorLabel, minutesLabel, shrinkAction } from "@/lib/habit";
+import { buildAnchorLabel, minutesLabel, shrinkAction } from "@/lib/utils/habit";
 
 test("minutesLabel formats singular and plural labels", () => {
   assert.equal(minutesLabel(1), "1 minute");

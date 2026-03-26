@@ -1,14 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { generateHabitDecomposition } from "@/lib/services/ai";
-import type { Database } from "@/lib/types/database";
+import { generateHabitDecomposition } from "@/lib/ai";
+import type { Database } from "@/types";
 import type {
   AssignDailyActionRequest,
   CreatePlanRequest,
   OnboardingRequest,
   WeeklyReviewRequest,
-} from "@/lib/schemas/backend";
-import { mapGeneratedActionsToPlanInput } from "@/lib/server/habit-rules";
+} from "@/lib/validators/backend";
+import { mapGeneratedActionsToPlanInput } from "@/lib/utils/habit-rules";
 
 type ServiceClient = SupabaseClient<Database>;
 

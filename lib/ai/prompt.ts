@@ -1,5 +1,5 @@
-import type { OnboardingInput } from "@/lib/schemas/habit";
-import type { FailureReason } from "@/lib/types/database";
+import type { OnboardingInput } from "@/lib/validators/habit";
+import type { FailureReason } from "@/types";
 
 const anchorLabels: Record<OnboardingInput["anchor"], string> = {
   "after-coffee": "After coffee",

@@ -1,4 +1,4 @@
-import type { MicroAction, OnboardingInput } from "@/lib/schemas/habit";
+import type { MicroAction, OnboardingInput } from "@/lib/validators/habit";
 
 export function minutesLabel(minutes: number) {
   return `${minutes} minute${minutes === 1 ? "" : "s"}`;

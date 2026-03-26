@@ -1,12 +1,35 @@
-import { ActionCard } from "@/components/habit/action-card";
-import { StatPill } from "@/components/habit/stat-pill";
-import { PageShell } from "@/components/layout/page-shell";
+import { ActionCard } from "@/components/today/action-card";
+import { StatPill } from "@/components/review/stat-pill";
+import { PageShell } from "@/components/ui/page-shell";
 import { Card } from "@/components/ui/card";
-import { mockOnboardingData, mockPlan } from "@/lib/data/mock-habit";
-import { buildAnchorLabel, minutesLabel } from "@/lib/habit";
+import { mockOnboardingData, mockPlan } from "@/lib/utils/mock-habit";
+import { buildAnchorLabel, minutesLabel } from "@/lib/utils/habit";
+import { microActionSchema } from "@/lib/validators/habit";
 
-export default function TodayPage() {
-  const action = mockPlan[0];
+type TodayPageProps = {
+  searchParams?: Promise<{
+    title?: string;
+    reason?: string;
+    duration?: string;
+    fallback?: string;
+    recovered?: string;
+  }>;
+};
+
+export default async function TodayPage({ searchParams }: TodayPageProps) {
+  const params = (await searchParams) ?? {};
+
+  const action =
+    params.title && params.reason && params.duration && params.fallback
+      ? microActionSchema.parse({
+          title: params.title,
+          reason: params.reason,
+          durationMinutes: Number(params.duration),
+          fallbackAction: params.fallback,
+        })
+      : mockPlan[0];
+
+  const isRecovered = params.recovered === "1";
 
   return (
     <PageShell
@@ -15,7 +38,17 @@ export default function TodayPage() {
       description="This screen keeps the focus tight: one action, one fallback, one calm reminder that partial progress still counts."
       className="grid gap-6 lg:grid-cols-[1fr_0.85fr]"
     >
-      <ActionCard action={action} />
+      <div className="grid gap-6">
+        {isRecovered ? (
+          <Card className="bg-[var(--primary-soft)]">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">Smaller step ready</p>
+            <p className="mt-3 text-sm leading-6 text-[var(--foreground)]">
+              You adjusted the plan instead of forcing it. This lighter version is your new action for today.
+            </p>
+          </Card>
+        ) : null}
+        <ActionCard action={action} />
+      </div>
 
       <div className="grid gap-6">
         <Card>

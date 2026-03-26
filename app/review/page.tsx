@@ -1,7 +1,7 @@
-import { PageShell } from "@/components/layout/page-shell";
-import { StatPill } from "@/components/habit/stat-pill";
+import { PageShell } from "@/components/ui/page-shell";
+import { StatPill } from "@/components/review/stat-pill";
 import { Card } from "@/components/ui/card";
-import { mockWeeklySummary } from "@/lib/data/mock-habit";
+import { mockWeeklySummary } from "@/lib/utils/mock-habit";
 
 export default function ReviewPage() {
   return (

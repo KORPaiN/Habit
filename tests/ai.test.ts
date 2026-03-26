@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { buildHabitDecompositionPrompt } from "@/lib/prompts/habit-decomposition";
-import { buildMockHabitDecomposition } from "@/lib/services/ai";
-import { microActionSchema } from "@/lib/schemas/habit";
+import { buildHabitDecompositionPrompt } from "@/lib/ai/prompt";
+import { buildMockHabitDecomposition } from "@/lib/ai";
+import { microActionSchema } from "@/lib/validators/habit";
 
 test("microActionSchema rejects vague action text", () => {
   const result = microActionSchema.safeParse({

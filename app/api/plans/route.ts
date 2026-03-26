@@ -1,7 +1,7 @@
-import { createPlanRequestSchema } from "@/lib/schemas/backend";
-import { fail, ok, readJson } from "@/lib/server/api";
-import { createPlanVersion } from "@/lib/server/habit-service";
-import { getSupabaseAdminClient } from "@/lib/services/supabase";
+import { createPlanRequestSchema } from "@/lib/validators/backend";
+import { fail, ok, readJson } from "@/lib/utils/api";
+import { createPlanVersion } from "@/lib/supabase/habit-service";
+import { getSupabaseAdminClient } from "@/lib/supabase/client";
 
 export async function POST(request: Request) {
   try {

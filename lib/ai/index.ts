@@ -1,7 +1,7 @@
-import { buildAnchorLabel } from "@/lib/habit";
-import { buildHabitDecompositionPrompt, habitDecompositionJsonSchema } from "@/lib/prompts/habit-decomposition";
-import { habitDecompositionSchema, microActionSchema, type HabitDecomposition, type MicroAction, type OnboardingInput } from "@/lib/schemas/habit";
-import type { FailureReason } from "@/lib/types/database";
+import { buildAnchorLabel } from "@/lib/utils/habit";
+import { buildHabitDecompositionPrompt, habitDecompositionJsonSchema } from "@/lib/ai/prompt";
+import { habitDecompositionSchema, microActionSchema, type HabitDecomposition, type MicroAction, type OnboardingInput } from "@/lib/validators/habit";
+import type { FailureReason } from "@/types";
 
 type OpenAIResponsePayload = {
   output_text?: string;

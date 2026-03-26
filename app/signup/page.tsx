@@ -1,16 +1,16 @@
 import Link from "next/link";
 
-import { PageShell } from "@/components/layout/page-shell";
+import { PageShell } from "@/components/ui/page-shell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
-export default function LoginPage() {
+export default function SignupPage() {
   return (
     <PageShell
-      eyebrow="Welcome back"
-      title="Step in gently."
-      description="Sign in to return to today’s small action. Auth is scaffolded with placeholder fields until Supabase credentials are connected."
+      eyebrow="Create account"
+      title="Set up a softer starting point."
+      description="Create an account to save your goals, plan versions, and weekly reviews. Supabase auth can plug into this form when the backend is ready."
       className="mx-auto max-w-xl"
     >
       <Card>
@@ -21,16 +21,20 @@ export default function LoginPage() {
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium">Password</label>
-            <Input type="password" placeholder="Your password" />
+            <Input type="password" placeholder="Choose a password" />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium">What goal brings you here?</label>
+            <Input type="text" placeholder="Example: start writing again" />
           </div>
           <Button type="submit" fullWidth>
-            Sign in
+            Create account
           </Button>
         </form>
         <p className="mt-4 text-sm text-[var(--muted)]">
-          New here?{" "}
-          <Link href="/signup" className="font-semibold text-[var(--primary)]">
-            Create an account
+          Already have an account?{" "}
+          <Link href="/login" className="font-semibold text-[var(--primary)]">
+            Sign in
           </Link>
         </p>
       </Card>

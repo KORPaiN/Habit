@@ -1,7 +1,7 @@
-import { failDailyActionRequestSchema } from "@/lib/schemas/backend";
-import { fail, ok, readJson } from "@/lib/server/api";
-import { failDailyAction } from "@/lib/server/habit-service";
-import { getSupabaseAdminClient } from "@/lib/services/supabase";
+import { failDailyActionRequestSchema } from "@/lib/validators/backend";
+import { fail, ok, readJson } from "@/lib/utils/api";
+import { failDailyAction } from "@/lib/supabase/habit-service";
+import { getSupabaseAdminClient } from "@/lib/supabase/client";
 
 interface RouteContext {
   params: Promise<{

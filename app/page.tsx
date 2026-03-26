@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, Sparkles } from "lucide-react";
 
-import { PageShell } from "@/components/layout/page-shell";
-import { StatPill } from "@/components/habit/stat-pill";
+import { PageShell } from "@/components/ui/page-shell";
+import { StatPill } from "@/components/review/stat-pill";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 

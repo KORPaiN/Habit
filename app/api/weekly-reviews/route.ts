@@ -1,7 +1,7 @@
-import { weeklyReviewQuerySchema, weeklyReviewRequestSchema } from "@/lib/schemas/backend";
-import { fail, ok, readJson } from "@/lib/server/api";
-import { getWeeklyReview, upsertWeeklyReview } from "@/lib/server/habit-service";
-import { getSupabaseAdminClient } from "@/lib/services/supabase";
+import { weeklyReviewQuerySchema, weeklyReviewRequestSchema } from "@/lib/validators/backend";
+import { fail, ok, readJson } from "@/lib/utils/api";
+import { getWeeklyReview, upsertWeeklyReview } from "@/lib/supabase/habit-service";
+import { getSupabaseAdminClient } from "@/lib/supabase/client";
 
 export async function GET(request: Request) {
   try {
