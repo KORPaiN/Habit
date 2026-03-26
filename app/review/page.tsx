@@ -1,9 +1,11 @@
 import { PageShell } from "@/components/ui/page-shell";
 import { StatPill } from "@/components/review/stat-pill";
 import { Card } from "@/components/ui/card";
-import { mockWeeklySummary } from "@/lib/utils/mock-habit";
+import { getDemoWeeklyReviewState, isSupabaseConfigured } from "@/lib/supabase/demo-data";
 
-export default function ReviewPage() {
+export default async function ReviewPage() {
+  const weeklySummary = await getDemoWeeklyReviewState();
+
   return (
     <PageShell
       eyebrow="Weekly review"
@@ -14,23 +16,24 @@ export default function ReviewPage() {
       <Card className="h-fit">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">Week at a glance</p>
         <div className="mt-4 grid gap-3">
-          <StatPill label="Completed days" value={`${mockWeeklySummary.completedDays} days`} />
-          <StatPill label="Best streak" value={`${mockWeeklySummary.streakDays} days`} />
+          <StatPill label="Completed days" value={`${weeklySummary.completedDays} days`} />
+          <StatPill label="Best streak" value={`${weeklySummary.streakDays} days`} />
+          <StatPill label="Source" value={isSupabaseConfigured() ? "Supabase" : "Mock"} />
         </div>
       </Card>
 
       <div className="grid gap-6">
         <Card>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">What felt hard</p>
-          <p className="mt-3 text-base leading-7 text-[var(--foreground)]">{mockWeeklySummary.difficultMoments}</p>
+          <p className="mt-3 text-base leading-7 text-[var(--foreground)]">{weeklySummary.difficultMoments}</p>
         </Card>
         <Card>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">What helped</p>
-          <p className="mt-3 text-base leading-7 text-[var(--foreground)]">{mockWeeklySummary.helpfulPattern}</p>
+          <p className="mt-3 text-base leading-7 text-[var(--foreground)]">{weeklySummary.helpfulPattern}</p>
         </Card>
         <Card>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">Next adjustment</p>
-          <p className="mt-3 text-base leading-7 text-[var(--foreground)]">{mockWeeklySummary.nextAdjustment}</p>
+          <p className="mt-3 text-base leading-7 text-[var(--foreground)]">{weeklySummary.nextAdjustment}</p>
         </Card>
       </div>
     </PageShell>

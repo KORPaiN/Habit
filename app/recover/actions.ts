@@ -3,6 +3,7 @@
 import { generateHabitDecomposition } from "@/lib/ai";
 import { demoBackendIds, mockOnboardingData, mockPlan } from "@/lib/utils/mock-habit";
 import { getSupabaseAdminClient } from "@/lib/supabase/client";
+import { getDemoRecoveryContext } from "@/lib/supabase/demo-data";
 import { assignDailyAction, createPlanVersion, failDailyAction } from "@/lib/supabase/habit-service";
 import { mapGeneratedActionsToPlanInput, prioritizeSelectedMicroAction } from "@/lib/utils/habit-rules";
 import { microActionSchema } from "@/lib/validators/habit";
@@ -30,6 +31,7 @@ function canUseSupabase() {
 
 export async function prepareRecoveryOptions(input: { failureReason: RecoveryReason }): Promise<RecoveryPreparationResult> {
   const reason = failureReasonSchema.parse(input.failureReason);
+  const context = await getDemoRecoveryContext();
   let savedFailure = false;
 
   if (canUseSupabase()) {
@@ -46,7 +48,7 @@ export async function prepareRecoveryOptions(input: { failureReason: RecoveryRea
     }
   }
 
-  const decomposition = await generateHabitDecomposition(mockOnboardingData, {
+  const decomposition = await generateHabitDecomposition(context.onboarding ?? mockOnboardingData, {
     failureReason: reason,
   });
 
@@ -129,8 +131,10 @@ export async function saveRecoveryChoice(input: {
 }
 
 export async function getRecoveryPageState() {
+  const context = await getDemoRecoveryContext();
+
   return {
-    currentAction: mockPlan[0],
-    goal: mockOnboardingData.goal,
+    currentAction: context.currentAction ?? mockPlan[0],
+    goal: context.goal ?? mockOnboardingData.goal,
   };
 }

@@ -2,9 +2,10 @@ import { ActionCard } from "@/components/today/action-card";
 import { StatPill } from "@/components/review/stat-pill";
 import { PageShell } from "@/components/ui/page-shell";
 import { Card } from "@/components/ui/card";
-import { mockOnboardingData, mockPlan } from "@/lib/utils/mock-habit";
-import { buildAnchorLabel, minutesLabel } from "@/lib/utils/habit";
+import { mockOnboardingData } from "@/lib/utils/mock-habit";
+import { minutesLabel } from "@/lib/utils/habit";
 import { microActionSchema } from "@/lib/validators/habit";
+import { getDemoTodayState, isSupabaseConfigured } from "@/lib/supabase/demo-data";
 
 type TodayPageProps = {
   searchParams?: Promise<{
@@ -18,6 +19,7 @@ type TodayPageProps = {
 
 export default async function TodayPage({ searchParams }: TodayPageProps) {
   const params = (await searchParams) ?? {};
+  const todayState = await getDemoTodayState();
 
   const action =
     params.title && params.reason && params.duration && params.fallback
@@ -27,7 +29,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
           durationMinutes: Number(params.duration),
           fallbackAction: params.fallback,
         })
-      : mockPlan[0];
+      : todayState.action;
 
   const isRecovered = params.recovered === "1";
 
@@ -54,9 +56,10 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
         <Card>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">Why this fits</p>
           <div className="mt-4 flex flex-wrap gap-3">
-            <StatPill label="Goal" value={mockOnboardingData.goal} />
+            <StatPill label="Goal" value={todayState.goal ?? mockOnboardingData.goal} />
             <StatPill label="Time" value={minutesLabel(action.durationMinutes)} />
-            <StatPill label="Anchor" value={buildAnchorLabel(mockOnboardingData.anchor)} />
+            <StatPill label="Anchor" value={todayState.anchor} />
+            <StatPill label="Source" value={isSupabaseConfigured() ? "Supabase" : "Mock"} />
           </div>
         </Card>
 
