@@ -1,39 +1,78 @@
 import type { Locale } from "@/lib/locale";
-import type { OnboardingInput } from "@/lib/validators/habit";
+import type { HabitDecomposition, OnboardingInput } from "@/lib/validators/habit";
 import type { FailureReason } from "@/types";
 
-export function buildHabitDecompositionPrompt(input: OnboardingInput, failureReason?: FailureReason, locale: Locale = "ko") {
-  const difficultyInstruction =
+export type GoalArchetype = "reading" | "writing" | "study" | "exercise" | "tidy" | "digital" | "self_care" | "generic";
+
+function buildPromptPayload(
+  input: Pick<OnboardingInput, "goal" | "difficulty" | "anchor">,
+  goalCategory: GoalArchetype,
+  failureReason?: FailureReason,
+) {
+  return JSON.stringify({
+    goal: input.goal,
+    difficulty: input.difficulty,
+    anchor: input.anchor,
+    category: goalCategory,
+    failureReason: failureReason ?? "none",
+  });
+}
+
+export function buildAiOnlyHabitDecompositionPrompt(
+  input: OnboardingInput,
+  goalCategory: GoalArchetype,
+  failureReason?: FailureReason,
+  locale: Locale = "ko",
+) {
+  const durationInstruction =
     input.difficulty === "hard"
-      ? "The user feels high difficulty. Make actions extra small, usually 1 to 2 minutes, and make fallback actions even lighter."
-      : "Keep actions small enough to finish in 1 to 5 minutes.";
+      ? "Keep main actions to 1 to 2 minutes. Make fallback actions feel like a 30 to 60 second version."
+      : "Keep main actions to 1 to 5 minutes. Make fallback actions clearly smaller than the main action.";
 
   const failureInstruction =
     failureReason === "too_big"
-      ? 'The last attempt felt too big. Make fallback options noticeably smaller than the main action, often a 30 to 60 second version.'
-      : "Fallback actions should be easier than the main action while still being observable.";
+      ? "The last attempt felt too big. Make the first action and fallback noticeably easier."
+      : "Fallback actions must be easier than the main action while staying observable.";
 
   return [
-    "You are an execution-focused micro-habit coach.",
     "Return JSON only.",
-    "Turn the user's large goal into one tiny action they can actually do today.",
-    "Every action must be concrete, observable, and specific.",
-    'Reject vague phrasing like "do your best", "make progress", "work on it", or "practice".',
-    difficultyInstruction,
+    "You are an execution-focused micro-habit coach.",
+    locale === "ko" ? "Write short, natural Korean. No translation tone." : "Write short, natural English.",
+    "Reject vague phrasing.",
+    "Start every action title with an observable verb.",
+    "Do not add motivation, praise, or mindset coaching.",
+    durationInstruction,
     failureInstruction,
-    "Choose up to 3 micro-actions.",
-    "Select one best anchor based on the user's preferred anchor and time window.",
-    "todayAction must exactly match one item from microActions.",
-    "fallbackAction must be the fallbackAction of todayAction.",
+    "Choose 2 micro-actions by default. Use 3 only if clearly useful.",
+    "todayAction must match microActions[0]. fallbackAction must match todayAction.fallbackAction.",
     locale === "ko" ? "Write all user-facing strings in Korean." : "Write all user-facing strings in English.",
-    "",
-    `Goal: ${input.goal}`,
-    `Available minutes: ${input.availableMinutes}`,
-    `Difficulty: ${input.difficulty}`,
-    `Preferred time: ${input.preferredTime}`,
-    `Preferred anchor cue: ${input.anchor}`,
-    failureReason ? `Failure reason: ${failureReason}` : "Failure reason: none",
+    `DATA: ${buildPromptPayload(input, goalCategory, failureReason)}`,
   ].join("\n");
+}
+
+export function buildHybridRewritePrompt(
+  input: OnboardingInput,
+  goalCategory: GoalArchetype,
+  draft: Omit<HabitDecomposition, "source">,
+  failureReason?: FailureReason,
+  locale: Locale = "ko",
+) {
+  return [
+    "Return JSON only.",
+    "Rewrite the draft plan without changing the JSON shape or action count.",
+    "Keep todayAction equal to microActions[0]. Keep fallbackAction equal to todayAction.fallbackAction.",
+    locale === "ko" ? "Make Korean shorter, more natural, and less translated." : "Make the wording shorter and more natural.",
+    "Keep every action concrete and observable.",
+    "Make fallback actions clearly smaller than the main action.",
+    "Do not add motivation, praise, or long explanations.",
+    locale === "ko" ? "Write all user-facing strings in Korean." : "Write all user-facing strings in English.",
+    `DATA: ${buildPromptPayload(input, goalCategory, failureReason)}`,
+    `DRAFT: ${JSON.stringify(draft)}`,
+  ].join("\n");
+}
+
+export function buildHabitDecompositionPrompt(input: OnboardingInput, failureReason?: FailureReason, locale: Locale = "ko") {
+  return buildAiOnlyHabitDecompositionPrompt(input, "generic", failureReason, locale);
 }
 
 export const habitDecompositionJsonSchema = {

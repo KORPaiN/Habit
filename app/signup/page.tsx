@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { GoogleAuthButton } from "@/components/auth/google-auth-button";
 import { Card } from "@/components/ui/card";
 import { PageShell } from "@/components/ui/page-shell";
 import { getLocale, isLocale, type Locale } from "@/lib/locale";
@@ -93,9 +92,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
                 {locale === "ko" ? "한국어로 계속하기" : "Continue with this language"}
               </button>
             </form>
-          ) : (
-            <GoogleAuthButton locale={locale} signupLocale="ko" nextPath={nextPath} />
-          )}
+          ) : null}
 
           <p className="rounded-2xl bg-white/70 p-4 text-sm leading-6 text-[var(--muted)]">
             {locale === "ko" ? "Google 로그인만 지원합니다." : "This app supports Google sign-in only."}
@@ -106,12 +103,6 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
             {params.error}
           </div>
         ) : null}
-        <p className="mt-4 text-sm text-[var(--muted)]">
-          {locale === "ko" ? "이미 계정이 있나요?" : "Already have an account?"}{" "}
-          <Link href="/login" className="font-semibold text-[var(--primary)]">
-            {locale === "ko" ? "로그인" : "Sign in"}
-          </Link>
-        </p>
       </Card>
     </PageShell>
   );

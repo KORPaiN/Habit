@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { buildHabitDecompositionPrompt } from "@/lib/ai/prompt";
-import { buildMockHabitDecomposition } from "@/lib/ai";
+import { buildAiOnlyHabitDecompositionPrompt, buildHybridRewritePrompt, buildHabitDecompositionPrompt } from "@/lib/ai/prompt";
+import { buildMockHabitDecomposition, detectGoalArchetype, generateHabitDecomposition } from "@/lib/ai";
 import { isLocalizedString, validateDecompositionLocale } from "@/lib/ai/locale-validation";
 import { microActionSchema } from "@/lib/validators/habit";
 
@@ -42,7 +42,7 @@ test('too_big failure reason generates smaller fallback copy', () => {
     "too_big",
   );
 
-  assert.match(result.fallbackAction, /열고|만지|보기/);
+  assert.match(result.fallbackAction, /펴고|열고|만지|보기/);
 });
 
 test("prompt template includes anti-vague and duration instructions", () => {
@@ -57,6 +57,80 @@ test("prompt template includes anti-vague and duration instructions", () => {
   assert.match(prompt, /Return JSON only/i);
   assert.match(prompt, /Reject vague phrasing/i);
   assert.match(prompt, /1 to 2 minutes/i);
+});
+
+test("ai only prompt keeps the payload short and categorized", () => {
+  const prompt = buildAiOnlyHabitDecompositionPrompt(
+    {
+      goal: "독서 습관 만들기",
+      availableMinutes: 5,
+      difficulty: "steady",
+      preferredTime: "morning",
+      anchor: "커피를 마신 뒤",
+    },
+    "reading",
+    undefined,
+    "ko",
+  );
+
+  assert.match(prompt, /DATA:/);
+  assert.match(prompt, /"category":"reading"/);
+  assert.doesNotMatch(prompt, /Available minutes:/);
+});
+
+test("hybrid rewrite prompt keeps structure constraints", () => {
+  const draft = buildMockHabitDecomposition({
+    goal: "독서 습관 만들기",
+    availableMinutes: 5,
+    difficulty: "steady",
+    preferredTime: "morning",
+    anchor: "커피를 마신 뒤",
+  });
+  const prompt = buildHybridRewritePrompt(
+    {
+      goal: "독서 습관 만들기",
+      availableMinutes: 5,
+      difficulty: "steady",
+      preferredTime: "morning",
+      anchor: "커피를 마신 뒤",
+    },
+    "reading",
+    {
+      goalSummary: draft.goalSummary,
+      selectedAnchor: draft.selectedAnchor,
+      microActions: draft.microActions,
+      todayAction: draft.todayAction,
+      fallbackAction: draft.fallbackAction,
+    },
+    undefined,
+    "ko",
+  );
+
+  assert.match(prompt, /without changing the JSON shape or action count/i);
+  assert.match(prompt, /Keep todayAction equal to microActions\[0\]/i);
+});
+
+test("goal archetype detection recognizes reading goals", () => {
+  assert.equal(detectGoalArchetype("독서 습관 만들기"), "reading");
+});
+
+test("rules_only strategy returns a rules source without calling AI", async () => {
+  const result = await generateHabitDecomposition(
+    {
+      goal: "독서 습관 만들기",
+      availableMinutes: 5,
+      difficulty: "steady",
+      preferredTime: "morning",
+      anchor: "커피를 마신 뒤",
+    },
+    {
+      strategy: "rules_only",
+      locale: "ko",
+    },
+  );
+
+  assert.equal(result.source, "rules");
+  assert.equal(result.microActions.length >= 2, true);
 });
 
 test("locale validation accepts Korean strings when locale is ko", () => {

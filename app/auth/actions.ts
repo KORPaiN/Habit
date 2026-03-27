@@ -9,5 +9,5 @@ export async function signOutAction() {
   const client = await getSupabaseServerClient();
   await client.auth.signOut();
   await clearHabitSession();
-  redirect("/login");
+  redirect("/");
 }

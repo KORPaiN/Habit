@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { BookmarkPlus, CircleHelp } from "lucide-react";
 
 import { submitOnboarding } from "@/app/onboarding/actions";
-import { OnboardingPreview } from "@/components/onboarding/onboarding-preview";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,11 +13,13 @@ import { Select } from "@/components/ui/select";
 import type { Locale } from "@/lib/locale";
 import { mockOnboardingData } from "@/lib/utils/mock-habit";
 import type { OnboardingInput } from "@/lib/validators/habit";
+import type { Database } from "@/types";
 
 type OnboardingFormProps = {
   locale: Locale;
   isAuthenticated: boolean;
   error?: string;
+  savedAnchors: Array<Pick<Database["public"]["Tables"]["anchors"]["Row"], "id" | "cue" | "preferred_time">>;
 };
 
 const DRAFT_KEY = "habit_onboarding_draft";
@@ -39,110 +41,7 @@ function OnboardingSubmitButton({ locale }: { locale: Locale }) {
   );
 }
 
-function buildPreviewPlan(values: OnboardingInput, locale: Locale) {
-  const normalizedGoal = values.goal.trim() || mockOnboardingData.goal;
-  const lowerGoal = normalizedGoal.toLowerCase();
-  const isReadGoal = /read|book|독서|책/.test(lowerGoal);
-  const isWriteGoal = /write|note|journal|글|기록|메모/.test(lowerGoal);
-  const shortDuration = values.difficulty === "hard" ? 1 : Math.min(2, values.availableMinutes);
-  const mediumDuration = values.difficulty === "hard" ? 1 : Math.min(3, values.availableMinutes);
-
-  if (isReadGoal) {
-    return {
-      sourceLabel: locale === "ko" ? "입력 미리보기" : "Input preview",
-      goalSummary:
-        locale === "ko"
-          ? `"${normalizedGoal}"을 오늘 읽을 수 있는 작은 단계로 줄였어요.`
-          : `We shrink "${normalizedGoal}" into a tiny reading step you can actually finish today.`,
-      selectedAnchor: values.anchor,
-      todayAction: {
-        title: locale === "ko" ? "책을 펴고 한 페이지 읽기" : "Open your book and read one page",
-        reason: locale === "ko" ? "한 페이지면 바로 시작할 수 있어요." : "One page is small enough to start without friction.",
-        durationMinutes: shortDuration,
-        fallbackAction: locale === "ko" ? "한 문장만 읽기" : "Read one sentence",
-      },
-      microActions: [
-        {
-          title: locale === "ko" ? "책을 펴고 한 페이지 읽기" : "Open your book and read one page",
-          reason: locale === "ko" ? "한 페이지면 바로 시작할 수 있어요." : "One page is small enough to start without friction.",
-          durationMinutes: shortDuration,
-          fallbackAction: locale === "ko" ? "한 문장만 읽기" : "Read one sentence",
-        },
-        {
-          title: locale === "ko" ? "마음에 든 한 줄 표시하기" : "Highlight one useful line",
-          reason: locale === "ko" ? "한 줄만 표시해도 흐름이 이어져요." : "Marking one line keeps the habit visible.",
-          durationMinutes: mediumDuration,
-          fallbackAction: locale === "ko" ? "책만 펼치고 끝내기" : "Touch the book and stop",
-        },
-      ],
-      fallbackAction: locale === "ko" ? "한 문장만 읽기" : "Read one sentence",
-    };
-  }
-
-  if (isWriteGoal) {
-    return {
-      sourceLabel: locale === "ko" ? "입력 미리보기" : "Input preview",
-      goalSummary:
-        locale === "ko"
-          ? `"${normalizedGoal}"을 오늘 쓸 수 있는 작은 단계로 줄였어요.`
-          : `We turn "${normalizedGoal}" into a tiny writing action you can start today.`,
-      selectedAnchor: values.anchor,
-      todayAction: {
-        title: locale === "ko" ? "메모 앱을 열고 한 문장 쓰기" : "Open your notes app and write one sentence",
-        reason: locale === "ko" ? "한 문장이면 시작하기 충분해요." : "One sentence is enough to begin without pressure.",
-        durationMinutes: shortDuration,
-        fallbackAction: locale === "ko" ? "단어 세 개 쓰기" : "Write three words",
-      },
-      microActions: [
-        {
-          title: locale === "ko" ? "메모 앱을 열고 한 문장 쓰기" : "Open your notes app and write one sentence",
-          reason: locale === "ko" ? "한 문장이면 시작하기 충분해요." : "One sentence is enough to begin without pressure.",
-          durationMinutes: shortDuration,
-          fallbackAction: locale === "ko" ? "단어 세 개 쓰기" : "Write three words",
-        },
-        {
-          title: locale === "ko" ? "나중에 이어갈 아이디어 하나 적기" : "List one idea to return to later",
-          reason: locale === "ko" ? "아이디어 하나면 다음 시작이 쉬워져요." : "A single idea lowers friction for the next session.",
-          durationMinutes: mediumDuration,
-          fallbackAction: locale === "ko" ? "문서만 열고 끝내기" : "Open the document and stop",
-        },
-      ],
-      fallbackAction: locale === "ko" ? "단어 세 개 쓰기" : "Write three words",
-    };
-  }
-
-  return {
-    sourceLabel: locale === "ko" ? "입력 미리보기" : "Input preview",
-    goalSummary:
-      locale === "ko"
-        ? `"${normalizedGoal}"을 오늘 할 수 있는 작은 단계로 줄였어요.`
-        : `We shrink "${normalizedGoal}" into the smallest useful first step for today.`,
-    selectedAnchor: values.anchor,
-    todayAction: {
-      title: locale === "ko" ? `"${normalizedGoal}"에 필요한 것 하나 준비하기` : `Prepare one thing you need for "${normalizedGoal}"`,
-      reason: locale === "ko" ? "준비부터 하면 시작이 쉬워져요." : "Preparation lowers the barrier to starting.",
-      durationMinutes: shortDuration,
-      fallbackAction: locale === "ko" ? "도구만 만지고 끝내기" : "Touch the tool and stop",
-    },
-    microActions: [
-      {
-        title: locale === "ko" ? `"${normalizedGoal}"에 필요한 것 하나 준비하기` : `Prepare one thing you need for "${normalizedGoal}"`,
-        reason: locale === "ko" ? "준비부터 하면 시작이 쉬워져요." : "Preparation lowers the barrier to starting.",
-        durationMinutes: shortDuration,
-        fallbackAction: locale === "ko" ? "도구만 만지고 끝내기" : "Touch the tool and stop",
-      },
-      {
-        title: locale === "ko" ? `"${normalizedGoal}"의 첫 단계 열어 보기` : `Open the first step for "${normalizedGoal}"`,
-        reason: locale === "ko" ? "시작점을 보면 다시 하기 쉬워져요." : "Seeing the starting point makes it easier to return.",
-        durationMinutes: mediumDuration,
-        fallbackAction: locale === "ko" ? "도구만 바라보고 끝내기" : "Look at the tool and stop",
-      },
-    ],
-    fallbackAction: locale === "ko" ? "도구만 만지고 끝내기" : "Touch the tool and stop",
-  };
-}
-
-export function OnboardingForm({ locale, isAuthenticated, error }: OnboardingFormProps) {
+export function OnboardingForm({ locale, isAuthenticated, error, savedAnchors }: OnboardingFormProps) {
   const [values, setValues] = useState<OnboardingInput>(mockOnboardingData);
 
   useEffect(() => {
@@ -170,8 +69,6 @@ export function OnboardingForm({ locale, isAuthenticated, error }: OnboardingFor
     window.localStorage.setItem(DRAFT_KEY, JSON.stringify(values));
   }, [values]);
 
-  const preview = buildPreviewPlan(values, locale);
-
   function updateValue<Key extends keyof OnboardingInput>(key: Key, value: OnboardingInput[Key]) {
     setValues((current) => ({
       ...current,
@@ -180,21 +77,26 @@ export function OnboardingForm({ locale, isAuthenticated, error }: OnboardingFor
   }
 
   return (
-    <>
       <Card className="bg-[var(--surface-strong)] text-center">
         <form action={submitOnboarding} className="space-y-5">
+          <div className="flex justify-end gap-2">
+            <Link
+              href="/anchors"
+              className="inline-flex h-10 items-center gap-2 rounded-full border border-white/60 bg-white/76 px-4 text-sm font-medium text-[var(--foreground)] transition hover:bg-white"
+            >
+              <BookmarkPlus className="h-4 w-4" />
+              <span>{locale === "ko" ? "앵커 저장" : "Save anchors"}</span>
+            </Link>
+            <Link
+              href="/onboarding/help"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/60 bg-white/76 text-[var(--foreground)] transition hover:bg-white"
+              aria-label={locale === "ko" ? "온보딩 사용법 보기" : "Open onboarding guide"}
+            >
+              <CircleHelp className="h-5 w-5" />
+            </Link>
+          </div>
           <input type="hidden" name="availableMinutes" value={String(values.availableMinutes)} />
           <input type="hidden" name="preferredTime" value={values.preferredTime} />
-          <div className="rounded-[var(--radius-md)] border border-white/60 bg-[var(--surface-muted)] p-3.5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--primary)]">
-              {locale === "ko" ? "오늘의 기준" : "Today's boundary"}
-            </p>
-            <p className="mt-2 text-sm leading-6 text-[var(--foreground-soft)]">
-              {locale === "ko"
-                ? "오늘 바로 시작할 수 있는 크기로 만듭니다."
-                : "We only build actions that fit into a few minutes. A plan you can begin matters more than an ambitious one."}
-            </p>
-          </div>
           <div>
             <label className="mb-2 block text-sm font-medium text-[var(--foreground-soft)]">
               {locale === "ko" ? "어떤 목표를 시작하고 싶나요?" : "What goal do you want help starting?"}
@@ -243,6 +145,25 @@ export function OnboardingForm({ locale, isAuthenticated, error }: OnboardingFor
                 </button>
               ))}
             </div>
+            {savedAnchors.length > 0 ? (
+              <div className="mt-4 text-left">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted-strong)]">
+                  {locale === "ko" ? "저장된 앵커" : "Saved anchors"}
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  {savedAnchors.map((anchor) => (
+                    <button
+                      key={anchor.id}
+                      type="button"
+                      onClick={() => updateValue("anchor", anchor.cue)}
+                      className="rounded-full border border-[var(--primary-soft)] bg-[var(--primary-soft)] px-4 py-2.5 text-sm font-semibold text-[var(--primary)] transition hover:border-[var(--primary)] hover:bg-white"
+                    >
+                      {anchor.cue}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
           <div className="rounded-[var(--radius-md)] bg-[var(--primary-soft)] p-3.5 text-sm leading-6 text-[var(--primary)]">
             {locale === "ko"
@@ -270,17 +191,9 @@ export function OnboardingForm({ locale, isAuthenticated, error }: OnboardingFor
                   : "This can take a few seconds depending on the AI response."}
               </p>
             </>
-          ) : (
-            <Link href="/login?next=%2Fonboarding">
-              <Button type="button" fullWidth>
-                {locale === "ko" ? "Google로 로그인" : "Sign in with Google"}
-              </Button>
-            </Link>
-          )}
+          ) : null}
         </form>
       </Card>
-
-      <OnboardingPreview values={values} locale={locale} preview={preview} />
-    </>
+    
   );
 }

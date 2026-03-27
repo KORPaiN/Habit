@@ -99,7 +99,14 @@ export function GoogleAuthButton({
 
   return (
     <div className="space-y-3">
-      <Button type="button" fullWidth={fullWidth} onClick={handleClick} disabled={isPending} className={compact ? "px-3 py-2.5" : undefined}>
+      <Button
+        type="button"
+        variant={compact ? "ghost" : "primary"}
+        fullWidth={fullWidth}
+        onClick={handleClick}
+        disabled={isPending}
+        className={compact ? "min-h-10 border-white/55 bg-white/76 px-3 py-2.5 shadow-[var(--shadow-sm)] hover:bg-white" : undefined}
+      >
         {compact ? (
           <>
             <GoogleLogo className="h-5 w-5 shrink-0" />

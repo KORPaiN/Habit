@@ -46,6 +46,7 @@ type MonthlyReviewState = {
     date: string;
     day: number;
     status: DailyActionStatus | "none";
+    completedCount: number;
   }>;
   difficultMoments: string;
   helpfulPattern: string;
@@ -259,6 +260,7 @@ function formatMonthLabel(date = new Date()) {
 
 function buildMonthlyCalendar(
   actions: Array<Pick<DailyActionLookup, "action_date" | "status">>,
+  completedCountsByDate: Map<string, number>,
   now = new Date(),
 ) {
   const start = getMonthStart(now);
@@ -275,13 +277,18 @@ function buildMonthlyCalendar(
       date: iso,
       day,
       status: isFuture ? "none" : statusByDate.get(iso) ?? "none",
+      completedCount: isFuture ? 0 : completedCountsByDate.get(iso) ?? 0,
     });
   }
 
   return calendar;
 }
 
-function buildMonthlyReview(actions: Array<Pick<DailyActionLookup, "action_date" | "status">>, now = new Date()): MonthlyReviewState {
+function buildMonthlyReview(
+  actions: Array<Pick<DailyActionLookup, "action_date" | "status">>,
+  completedCountsByDate: Map<string, number>,
+  now = new Date(),
+): MonthlyReviewState {
   const statuses = actions.map((item) => item.status);
   const completedCount = getStatusCount(statuses, "completed");
   const totalCount = actions.length;
@@ -313,7 +320,7 @@ function buildMonthlyReview(actions: Array<Pick<DailyActionLookup, "action_date"
     totalCount,
     completionRate,
     bestStreak,
-    calendar: buildMonthlyCalendar(actions, now),
+    calendar: buildMonthlyCalendar(actions, completedCountsByDate, now),
     difficultMoments,
     helpfulPattern,
     nextAdjustment,
@@ -483,6 +490,37 @@ export async function getMonthlyReviewStateFromSession(session: HabitSession, ta
   }
 
   const actions = (monthlyActions.data ?? []) as Array<Pick<DailyActionLookup, "action_date" | "status">>;
+  const userGoals = await client.from("goals").select("id").eq("user_id", session.userId);
 
-  return buildMonthlyReview(actions, monthDate);
+  if (userGoals.error) {
+    throw new Error(userGoals.error.message);
+  }
+
+  const goalIds = ((userGoals.data ?? []) as Array<{ id: string }>).map((item) => item.id);
+  const completedCountsByDate = new Map<string, number>();
+
+  if (goalIds.length > 0) {
+    const completedActions = await client
+      .from("daily_actions")
+      .select("action_date")
+      .in("goal_id", goalIds)
+      .eq("status", "completed")
+      .gte("action_date", monthStart)
+      .lte("action_date", monthEnd);
+
+    if (completedActions.error) {
+      throw new Error(completedActions.error.message);
+    }
+
+    for (const action of (completedActions.data ?? []) as Array<{ action_date: string }>) {
+      const actionDate = action.action_date;
+      if (!actionDate) {
+        continue;
+      }
+
+      completedCountsByDate.set(actionDate, (completedCountsByDate.get(actionDate) ?? 0) + 1);
+    }
+  }
+
+  return buildMonthlyReview(actions, completedCountsByDate, monthDate);
 }

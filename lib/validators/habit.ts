@@ -26,6 +26,10 @@ export const onboardingSchema = z.object({
   anchor: z.string().min(2, "Please enter an anchor cue.").max(120),
 });
 
+export const savedAnchorSchema = z.object({
+  cue: z.string().min(2, "Please enter an anchor cue.").max(120),
+});
+
 export const microActionSchema = z.object({
   title: z.string().min(3).refine(isConcreteAction, "Action must be concrete and observable."),
   reason: z.string().min(3),
@@ -39,9 +43,10 @@ export const habitDecompositionSchema = z.object({
   microActions: z.array(microActionSchema).min(1).max(3),
   todayAction: microActionSchema,
   fallbackAction: z.string().min(3).refine(isConcreteAction, "Fallback action must be concrete and observable."),
-  source: z.enum(["openai", "mock"]),
+  source: z.enum(["openai", "mock", "rules", "hybrid"]),
 });
 
 export type OnboardingInput = z.infer<typeof onboardingSchema>;
+export type SavedAnchorInput = z.infer<typeof savedAnchorSchema>;
 export type MicroAction = z.infer<typeof microActionSchema>;
 export type HabitDecomposition = z.infer<typeof habitDecompositionSchema>;

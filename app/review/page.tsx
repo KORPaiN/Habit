@@ -44,6 +44,11 @@ function addMonths(date: Date, diff: number) {
   return new Date(date.getFullYear(), date.getMonth() + diff, 1);
 }
 
+const WEEKDAY_LABELS = {
+  ko: ["월", "화", "수", "목", "금", "토", "일"],
+  en: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+} as const;
+
 export default async function ReviewPage({ searchParams }: ReviewPageProps) {
   const params = (await searchParams) ?? {};
   const locale = await getLocale();
@@ -107,7 +112,7 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
           </div>
         ) : null}
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
-          {locale === "ko" ? `${monthlySummary.monthLabel} 한눈에 보기` : "Month at a glance"}
+          {locale === "ko" ? "한눈에 보기" : "Month at a glance"}
         </p>
         <div className="mt-4 grid gap-3 justify-items-center">
           <StatPill label={locale === "ko" ? "완료" : "Completed"} value={locale === "ko" ? `${monthlySummary.completedCount}회` : `${monthlySummary.completedCount}`} />
@@ -144,9 +149,22 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
               </Button>
             )}
           </div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
-            {locale === "ko" ? "달력으로 보기" : "Calendar"}
-          </p>
+          <div className="mt-2 text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
+              {locale === "ko" ? "달력으로 보기" : "Calendar"}
+            </p>
+            <p className="mt-2 text-lg font-semibold text-[var(--foreground)]">{monthlySummary.monthLabel}</p>
+          </div>
+          <div className="mt-4 grid grid-cols-7 gap-2">
+            {WEEKDAY_LABELS[locale].map((label) => (
+              <div
+                key={label}
+                className="text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--muted-strong)]"
+              >
+                {label}
+              </div>
+            ))}
+          </div>
           <div className="mt-4 grid grid-cols-7 gap-2">
             {monthlySummary.calendar.map((entry) => {
               const tone =
@@ -161,14 +179,26 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
               return (
                 <div
                   key={entry.date}
-                  className={`flex aspect-square items-center justify-center rounded-[var(--radius-md)] border text-sm font-medium ${tone}`}
-                  title={`${entry.day}일`}
+                  className={`flex aspect-square flex-col items-center justify-center rounded-[var(--radius-md)] border px-1 text-sm font-medium ${tone}`}
+                  title={
+                    locale === "ko"
+                      ? `${entry.day}일, 완료 ${entry.completedCount}개`
+                      : `${entry.day}, ${entry.completedCount} completed`
+                  }
                 >
-                  {entry.day}
+                  <span>{entry.day}</span>
+                  {entry.completedCount > 0 ? (
+                    <span className="mt-1 text-[10px] font-semibold leading-none">
+                      {locale === "ko" ? `${entry.completedCount}개` : `${entry.completedCount}`}
+                    </span>
+                  ) : null}
                 </div>
               );
             })}
           </div>
+          <p className="mt-3 text-center text-xs leading-5 text-[var(--muted)]">
+            {locale === "ko" ? "숫자는 그날 완료한 행동 개수예요." : "The number shows how many actions you completed that day."}
+          </p>
           <div className="mt-4 flex flex-wrap justify-center gap-3 text-xs text-[var(--muted)]">
             <span>완료</span>
             <span>실패</span>

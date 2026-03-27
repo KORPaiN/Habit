@@ -40,7 +40,7 @@ export default async function LandingPage() {
               : "This MVP is built around tiny execution loops: choose a goal, set a realistic window, receive a micro-plan, then return each day for one doable step."}
           </p>
           <div className="mt-5 flex flex-col justify-center gap-3 sm:flex-row">
-            <Link href="/onboarding">
+            <Link href={auth.isAuthenticated ? "/onboarding" : "/login?next=%2Fonboarding"}>
               <Button size="lg">
                 {locale === "ko" ? "첫 계획 만들기" : "Start your first plan"}
                 <ArrowRight className="ml-2 h-4 w-4" />

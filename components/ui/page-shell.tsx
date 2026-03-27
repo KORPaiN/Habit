@@ -44,9 +44,8 @@ export function PageShell({
         <div className="absolute left-[-6rem] top-20 h-48 w-48 rounded-full bg-[color:var(--accent-soft)] blur-3xl" />
         <div className="absolute right-[-4rem] top-12 h-56 w-56 rounded-full bg-[color:var(--primary-soft)] blur-3xl" />
       </div>
-      <header className="sticky top-3 z-30 mb-8 rounded-[calc(var(--radius-lg)+6px)] border border-white/55 bg-[var(--background-soft)] px-4 py-4 shadow-[var(--shadow-sm)] backdrop-blur-md sm:px-5 lg:top-4">
-        <div className="flex flex-col gap-6">
-          <div className="flex items-start justify-between gap-4">
+      <header className="sticky top-3 z-30 mb-6 rounded-full border border-white/55 bg-[var(--background-soft)] px-3 py-3 shadow-[var(--shadow-sm)] backdrop-blur-md sm:px-4 lg:top-4">
+        <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 md:gap-4">
             <Link
               href="/"
               className="inline-flex items-center gap-3 rounded-full border border-white/55 bg-white/76 px-3 py-2 text-[var(--foreground)] transition hover:bg-white"
@@ -62,7 +61,19 @@ export function PageShell({
               </span>
             </Link>
 
-            <div className="flex items-center justify-end gap-2">
+          <nav className="hidden items-center justify-center gap-2 text-sm text-[var(--muted)] md:flex">
+            <Link className="rounded-full border border-white/55 bg-white/72 px-4 py-2.5 transition hover:bg-white" href="/today">
+              {copy.navToday}
+            </Link>
+            <Link className="rounded-full border border-white/55 bg-white/72 px-4 py-2.5 transition hover:bg-white" href="/onboarding">
+              {copy.navOnboarding}
+            </Link>
+            <Link className="rounded-full border border-white/55 bg-white/72 px-4 py-2.5 transition hover:bg-white" href="/review">
+              {copy.navReview}
+            </Link>
+          </nav>
+
+          <div className="flex items-center justify-end gap-2">
               {showAuthControls ? (
                 auth?.isAuthenticated ? (
                   <details className="group relative">
@@ -101,27 +112,7 @@ export function PageShell({
                   <GoogleAuthButton locale={locale} nextPath={path} fullWidth={false} compact />
                 )
               ) : null}
-            </div>
           </div>
-
-          <div className="text-center">
-            <div className="mx-auto max-w-3xl">
-              {eyebrow ? <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--muted-strong)]">{eyebrow}</p> : null}
-              <h1 className={cn("max-w-3xl text-3xl font-semibold leading-tight text-balance sm:text-4xl lg:text-[2.8rem]", eyebrow ? "mt-3" : "")}>{title}</h1>
-              {description ? <p className="mt-4 max-w-2xl text-sm leading-7 text-[var(--foreground-soft)] sm:text-base">{description}</p> : null}
-            </div>
-          </div>
-          <nav className="flex flex-wrap justify-center gap-2 text-sm text-[var(--muted)]">
-            <Link className="rounded-full border border-white/55 bg-white/72 px-4 py-2.5 transition hover:bg-white" href="/today">
-              {copy.navToday}
-            </Link>
-            <Link className="rounded-full border border-white/55 bg-white/72 px-4 py-2.5 transition hover:bg-white" href="/onboarding">
-              {copy.navOnboarding}
-            </Link>
-            <Link className="rounded-full border border-white/55 bg-white/72 px-4 py-2.5 transition hover:bg-white" href="/review">
-              {copy.navReview}
-            </Link>
-          </nav>
         </div>
       </header>
       <section className={cn("flex-1", className)}>{children}</section>

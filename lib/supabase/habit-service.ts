@@ -10,6 +10,7 @@ import type {
   WeeklyReviewRequest,
 } from "@/lib/validators/backend";
 import { mapGeneratedActionsToPlanInput } from "@/lib/utils/habit-rules";
+import type { SavedAnchorInput } from "@/lib/validators/habit";
 
 type ServiceClient = SupabaseClient<Database>;
 type AnchorInsert = Database["public"]["Tables"]["anchors"]["Insert"];
@@ -178,6 +179,53 @@ export async function createPlanVersion(client: ServiceClient, input: CreatePlan
     p_based_on_plan_id: input.basedOnPlanId ?? null,
     p_notes: input.notes ?? null,
   });
+}
+
+export async function getUserAnchors(client: ServiceClient, userId: string) {
+  const anchorsTable = client.from("anchors" as never) as any;
+  const { data, error } = await anchorsTable
+    .select("id, label, cue, preferred_time, updated_at")
+    .eq("user_id", userId)
+    .order("updated_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+export async function saveUserAnchor(client: ServiceClient, input: SavedAnchorInput & { userId: string }) {
+  const anchorsTable = client.from("anchors" as never) as any;
+  const { data, error } = await anchorsTable
+    .upsert(
+      {
+        user_id: input.userId,
+        label: input.cue,
+        cue: input.cue,
+        preferred_time: "morning",
+      },
+      {
+        onConflict: "user_id,label,cue",
+      },
+    )
+    .select("id, label, cue, preferred_time, updated_at")
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+export async function deleteUserAnchor(client: ServiceClient, input: { userId: string; anchorId: string }) {
+  const anchorsTable = client.from("anchors" as never) as any;
+  const { error } = await anchorsTable.delete().eq("user_id", input.userId).eq("id", input.anchorId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
 }
 
 export async function assignDailyAction(client: ServiceClient, input: AssignDailyActionRequest) {

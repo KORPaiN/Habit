@@ -24,21 +24,18 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       showAuthControls={false}
       locale={locale}
       path="/login"
-      title={locale === "ko" ? "Google 로그인으로 이동 중..." : "Opening Google sign in..."}
+      title=""
       description=""
       className="mx-auto max-w-xl"
     >
       <Card className="text-center">
-        <div className="space-y-4">
+        <div>
           <GoogleAuthButton autoStart locale={locale} nextPath={params.next?.startsWith("/") ? params.next : "/today"} />
           {params.error ? (
-            <div className="rounded-3xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+            <div className="mt-4 rounded-3xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
               {params.error}
             </div>
           ) : null}
-          <p className="rounded-2xl bg-white/70 p-4 text-sm leading-6 text-[var(--muted)]">
-            {locale === "ko" ? "잠시만 기다리면 Google 로그인 창이 열립니다." : "Your Google sign-in window should open in a moment."}
-          </p>
         </div>
       </Card>
     </PageShell>

@@ -2,7 +2,10 @@ import { OnboardingForm } from "@/components/onboarding/onboarding-form";
 import { Card } from "@/components/ui/card";
 import { PageShell } from "@/components/ui/page-shell";
 import { getLocale } from "@/lib/locale";
-import { getAuthShellState } from "@/lib/supabase/auth";
+import { getAuthenticatedUser, getAuthShellState } from "@/lib/supabase/auth";
+import { getUserAnchors } from "@/lib/supabase/habit-service";
+import { getSupabaseServerClient } from "@/lib/supabase/server-client";
+import type { Database } from "@/types";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +28,9 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
   const params = (await searchParams) ?? {};
   const locale = await getLocale();
   const auth = await getAuthShellState();
+  const user = await getAuthenticatedUser();
+  const savedAnchors: Array<Pick<Database["public"]["Tables"]["anchors"]["Row"], "id" | "cue" | "label" | "preferred_time" | "updated_at">> =
+    user ? await getUserAnchors(await getSupabaseServerClient(), user.id) : [];
   const showAiBanner = isAiAvailabilityError(params.error);
 
   return (
@@ -39,10 +45,10 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
           ? "짧게 답하면 작은 첫 계획을 만듭니다."
           : "Answer a few short questions so the plan starts small enough to actually happen."
       }
-      className="grid gap-6 lg:grid-cols-[1.02fr_0.98fr]"
+      className="mx-auto w-full max-w-2xl"
     >
       {showAiBanner ? (
-        <Card className="border-amber-300 bg-amber-50/90 lg:col-span-2">
+        <Card className="border-amber-300 bg-amber-50/90">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
             {locale === "ko" ? "AI 연결 상태" : "AI availability"}
           </p>
@@ -53,7 +59,7 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
           </p>
         </Card>
       ) : null}
-      <OnboardingForm locale={locale} isAuthenticated={auth.isAuthenticated} error={params.error} />
+      <OnboardingForm locale={locale} isAuthenticated={auth.isAuthenticated} error={params.error} savedAnchors={savedAnchors} />
     </PageShell>
   );
 }
