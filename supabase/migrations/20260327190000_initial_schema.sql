@@ -490,17 +490,26 @@ declare
   v_recovery_micro_actions jsonb := '[]'::jsonb;
   v_action record;
 begin
-  select da.*, g.*, hp.*
-  into v_daily_action, v_goal, v_old_plan
+  select da.*
+  into v_daily_action
   from daily_actions da
   join goals g on g.id = da.goal_id
-  join habit_plans hp on hp.id = da.plan_id
   where da.id = p_daily_action_id
     and g.user_id = p_user_id;
 
   if not found then
     raise exception 'Daily action % not found for user %', p_daily_action_id, p_user_id;
   end if;
+
+  select *
+  into v_goal
+  from goals
+  where id = v_daily_action.goal_id;
+
+  select *
+  into v_old_plan
+  from habit_plans
+  where id = v_daily_action.plan_id;
 
   v_previous_status := v_daily_action.status;
   v_selected_micro_action_id := v_daily_action.micro_action_id;
