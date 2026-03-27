@@ -147,7 +147,7 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", l
 
   return (
     <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-      <Card>
+      <Card className="bg-[var(--surface-strong)]">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
           {locale === "ko" ? "현재 행동" : "Current action"}
         </p>
@@ -156,14 +156,14 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", l
         <div className="mt-5 inline-flex rounded-full bg-[var(--primary-soft)] px-4 py-2 text-sm font-medium text-[var(--primary)]">
           {minutesLabel(currentAction.durationMinutes, locale)}
         </div>
-        <p className="mt-5 rounded-2xl bg-white/70 p-4 text-sm leading-6 text-[var(--muted)]">
+        <p className="mt-5 rounded-[var(--radius-md)] border border-white/60 bg-[var(--surface-muted)] p-4 text-sm leading-6 text-[var(--muted)]">
           {locale === "ko"
             ? "이건 자책의 순간이 아니라 재설계의 순간이에요. 다음 단계가 시작할 수 있을 만큼만 편하면 됩니다."
             : "This is a redesign moment, not a guilt moment. We only need the next step to feel safe enough to begin."}
         </p>
       </Card>
 
-      <Card className="bg-[var(--danger-soft)]">
+      <Card className="bg-[linear-gradient(180deg,rgba(247,226,218,0.92)_0%,rgba(255,251,246,0.92)_100%)]">
         {step === "reason" ? (
           <>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9a3412]">
@@ -182,7 +182,9 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", l
                 <label
                   key={option.value}
                   className={`block rounded-3xl border p-4 transition ${
-                    failureReason === option.value ? "border-[#fb923c] bg-white" : "border-white/60 bg-white/70"
+                    failureReason === option.value
+                      ? "border-[color:var(--accent)] bg-white shadow-[var(--shadow-sm)]"
+                      : "border-white/60 bg-white/70"
                   }`}
                 >
                   <input
@@ -199,7 +201,7 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", l
               ))}
             </div>
             <div className="mt-6">
-              <Button fullWidth onClick={handleReasonSubmit} disabled={isPending}>
+              <Button fullWidth size="lg" onClick={handleReasonSubmit} disabled={isPending}>
                 {isPending ? (locale === "ko" ? "더 작게 바꾸는 중..." : "Making it smaller...") : locale === "ko" ? "더 작은 옵션 보기" : "Show smaller options"}
               </Button>
             </div>
@@ -222,7 +224,9 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", l
                 <label
                   key={option.position}
                   className={`block rounded-3xl border p-4 transition ${
-                    selectedPosition === option.position ? "border-[#fb923c] bg-white" : "border-white/60 bg-white/70"
+                    selectedPosition === option.position
+                      ? "border-[color:var(--accent)] bg-white shadow-[var(--shadow-sm)]"
+                      : "border-white/60 bg-white/70"
                   }`}
                 >
                   <input
@@ -249,7 +253,7 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", l
               ))}
             </div>
             <div className="mt-6">
-              <Button fullWidth onClick={handleChoiceSubmit} disabled={isPending || !selectedOption}>
+              <Button fullWidth size="lg" onClick={handleChoiceSubmit} disabled={isPending || !selectedOption}>
                 {isPending ? (locale === "ko" ? "더 작은 단계를 저장하는 중..." : "Saving your smaller step...") : locale === "ko" ? "이 더 작은 단계 사용하기" : "Use this smaller step"}
               </Button>
             </div>

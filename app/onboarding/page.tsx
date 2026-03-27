@@ -39,10 +39,10 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
           ? "몇 가지 짧은 질문에 답하면 실제로 시작할 수 있을 만큼 작은 첫 계획을 만듭니다."
           : "Answer a few short questions so the plan starts small enough to actually happen."
       }
-      className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]"
+      className="grid gap-6 lg:grid-cols-[1.02fr_0.98fr]"
     >
       {showAiBanner ? (
-        <Card className="border-amber-300 bg-amber-50 lg:col-span-2">
+        <Card className="border-amber-300 bg-amber-50/90 lg:col-span-2">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
             {locale === "ko" ? "AI 연결 상태" : "AI availability"}
           </p>

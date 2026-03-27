@@ -23,7 +23,7 @@ export const onboardingSchema = z.object({
   availableMinutes: z.coerce.number().min(1).max(30),
   difficulty: z.enum(["gentle", "steady", "hard"]),
   preferredTime: z.enum(["morning", "afternoon", "evening"]),
-  anchor: z.enum(["after-coffee", "after-shower", "before-work", "before-bed"]),
+  anchor: z.string().min(2, "Please enter an anchor cue.").max(120),
 });
 
 export const microActionSchema = z.object({

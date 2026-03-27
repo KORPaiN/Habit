@@ -1,6 +1,6 @@
 "use server";
 
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 
 import { getHabitSession, hasActiveHabitSelection } from "@/lib/habit-session";
 import { completeDailyAction, generateWeeklyReview } from "@/lib/supabase/habit-service";
@@ -33,6 +33,7 @@ export async function completeTodayAction() {
 
     redirect("/review?completed=1");
   } catch (error) {
+    unstable_rethrow(error);
     const message = error instanceof Error ? error.message : "이 행동을 완료 처리하지 못했어요.";
     redirect(`/today?error=${encodeURIComponent(message)}`);
   }

@@ -6,7 +6,7 @@ export function Card({ children, className, ...props }: PropsWithChildren<HTMLAt
   return (
     <div
       className={cn(
-        "rounded-[28px] border border-[var(--border)] bg-[var(--card)] p-6 shadow-[0_20px_80px_-40px_rgba(15,23,42,0.35)] backdrop-blur",
+        "rounded-[var(--radius-lg)] border border-[color:var(--border)] bg-[var(--surface)] p-6 shadow-[var(--shadow-md)] backdrop-blur-sm sm:p-7",
         className,
       )}
       {...props}

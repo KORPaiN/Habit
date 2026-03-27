@@ -1,5 +1,4 @@
 import type { Locale } from "@/lib/locale";
-import { buildAnchorLabel } from "@/lib/utils/habit";
 import { buildHabitDecompositionPrompt, habitDecompositionJsonSchema } from "@/lib/ai/prompt";
 import { validateDecompositionLocale } from "@/lib/ai/locale-validation";
 import { habitDecompositionSchema, microActionSchema, type HabitDecomposition, type MicroAction, type OnboardingInput } from "@/lib/validators/habit";
@@ -188,7 +187,7 @@ export function buildMockHabitDecomposition(
       locale === "ko"
         ? `"${input.goal}"을 더 가볍게 시작해 오늘은 눈에 보이는 아주 작은 단계 하나만 하도록 합니다.`
         : `Start a lighter version of "${input.goal}" so today only asks for a tiny visible step.`,
-    selectedAnchor: buildAnchorLabel(input.anchor, locale),
+    selectedAnchor: input.anchor,
     microActions: [
       firstAction,
       {

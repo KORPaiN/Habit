@@ -1,25 +1,13 @@
 "use server";
 
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 
 import { getLocale } from "@/lib/locale";
 import { assignDailyAction, createOnboardingFlow } from "@/lib/supabase/habit-service";
 import { getAuthenticatedUser, syncAuthenticatedUser } from "@/lib/supabase/auth";
 import { getSupabaseAdminClient } from "@/lib/supabase/client";
 import { setHabitSession } from "@/lib/habit-session";
-import { buildAnchorLabel } from "@/lib/utils/habit";
 import { onboardingSchema } from "@/lib/validators/habit";
-
-function buildAnchorCue(anchor: ReturnType<typeof onboardingSchema.parse>["anchor"]) {
-  const cues: Record<ReturnType<typeof onboardingSchema.parse>["anchor"], string> = {
-    "after-coffee": "첫 커피를 한 모금 마신 직후",
-    "after-shower": "샤워를 마친 직후",
-    "before-work": "일을 시작하기 직전",
-    "before-bed": "침대에 눕기 직전",
-  };
-
-  return cues[anchor];
-}
 
 export async function submitOnboarding(formData: FormData) {
   const locale = await getLocale();
@@ -48,9 +36,8 @@ export async function submitOnboarding(formData: FormData) {
       goalWhy: null,
       difficulty: parsed.difficulty,
       availableMinutes: parsed.availableMinutes,
-      anchorKey: parsed.anchor,
-      anchorLabel: buildAnchorLabel(parsed.anchor, locale),
-      anchorCue: buildAnchorCue(parsed.anchor),
+      anchorLabel: parsed.anchor,
+      anchorCue: parsed.anchor,
       preferredTime: parsed.preferredTime,
       locale,
     })) as {
@@ -83,6 +70,7 @@ export async function submitOnboarding(formData: FormData) {
       dailyActionId: dailyAction.id,
     });
   } catch (error) {
+    unstable_rethrow(error);
     const message = error instanceof Error ? error.message : locale === "ko" ? "첫 계획을 만들지 못했어요." : "We could not create your first plan.";
     redirect(`/onboarding?error=${encodeURIComponent(message)}`);
   }

@@ -12,6 +12,8 @@ import type {
 import { mapGeneratedActionsToPlanInput } from "@/lib/utils/habit-rules";
 
 type ServiceClient = SupabaseClient<Database>;
+type AnchorInsert = Database["public"]["Tables"]["anchors"]["Insert"];
+type GoalInsert = Database["public"]["Tables"]["goals"]["Insert"];
 
 type OnboardingResult = {
   goal: { id: string };
@@ -48,8 +50,10 @@ async function createOnboardingGoalWithAnchorReuse(
   client: ServiceClient,
   input: OnboardingRequest,
 ): Promise<OnboardingResult> {
-  const existingAnchorQuery = await client
-    .from("anchors")
+  const anchorsTable = client.from("anchors" as never) as any;
+  const goalsTable = client.from("goals" as never) as any;
+
+  const existingAnchorQuery = await anchorsTable
     .select("id")
     .eq("user_id", input.userId)
     .eq("label", input.anchorLabel)
@@ -63,14 +67,13 @@ async function createOnboardingGoalWithAnchorReuse(
   let anchorId = existingAnchorQuery.data?.id;
 
   if (!anchorId) {
-    const insertedAnchor = await client
-      .from("anchors")
+    const insertedAnchor = await anchorsTable
       .insert({
         user_id: input.userId,
         label: input.anchorLabel,
         cue: input.anchorCue,
         preferred_time: input.preferredTime,
-      })
+      } satisfies AnchorInsert)
       .select("id")
       .single();
 
@@ -80,11 +83,10 @@ async function createOnboardingGoalWithAnchorReuse(
 
     anchorId = insertedAnchor.data.id;
   } else {
-    const updatedAnchor = await client
-      .from("anchors")
+    const updatedAnchor = await anchorsTable
       .update({
         preferred_time: input.preferredTime,
-      })
+      } satisfies Partial<AnchorInsert>)
       .eq("id", anchorId)
       .select("id")
       .single();
@@ -94,8 +96,7 @@ async function createOnboardingGoalWithAnchorReuse(
     }
   }
 
-  const insertedGoal = await client
-    .from("goals")
+  const insertedGoal = await goalsTable
     .insert({
       user_id: input.userId,
       anchor_id: anchorId,
@@ -103,7 +104,7 @@ async function createOnboardingGoalWithAnchorReuse(
       why: input.goalWhy ?? null,
       difficulty: input.difficulty,
       available_minutes: input.availableMinutes,
-    })
+    } satisfies GoalInsert)
     .select("id")
     .single();
 
@@ -144,7 +145,7 @@ export async function createOnboardingFlow(client: ServiceClient, input: Onboard
     availableMinutes: input.availableMinutes,
     difficulty: input.difficulty,
     preferredTime: input.preferredTime,
-    anchor: input.anchorKey,
+    anchor: input.anchorCue,
   }, {
     locale: input.locale,
     allowMockFallback: false,

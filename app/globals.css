@@ -1,16 +1,29 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f4efe6;
-  --foreground: #1f2937;
-  --card: rgba(255, 252, 247, 0.9);
-  --card-strong: #fffaf2;
-  --muted: #6b7280;
-  --border: rgba(148, 163, 184, 0.18);
-  --primary: #1f5c4a;
-  --primary-soft: #d9ede6;
-  --accent: #f6c177;
-  --danger-soft: #fde5dd;
+  --background: #f6f1e8;
+  --background-soft: rgba(255, 250, 243, 0.72);
+  --surface: rgba(255, 251, 246, 0.9);
+  --surface-strong: #fffdf9;
+  --surface-muted: rgba(246, 239, 231, 0.86);
+  --foreground: #22313a;
+  --foreground-soft: #3f5058;
+  --muted: #667681;
+  --muted-strong: #52616b;
+  --border: rgba(124, 143, 154, 0.18);
+  --border-strong: rgba(92, 111, 121, 0.28);
+  --primary: #295f55;
+  --primary-strong: #214f46;
+  --primary-soft: #deebe5;
+  --accent: #dca46a;
+  --accent-soft: #f6e7d2;
+  --danger-soft: #f7e2da;
+  --success-soft: #deebe5;
+  --shadow-sm: 0 12px 30px -24px rgba(34, 49, 58, 0.3);
+  --shadow-md: 0 28px 80px -42px rgba(34, 49, 58, 0.35);
+  --radius-lg: 28px;
+  --radius-md: 20px;
+  --radius-sm: 14px;
 }
 
 * {
@@ -25,10 +38,14 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(circle at top, rgba(246, 193, 119, 0.24), transparent 30%),
-    linear-gradient(180deg, #f8f3ea 0%, #f2ece2 45%, #efe8dc 100%);
+    radial-gradient(circle at top left, rgba(220, 164, 106, 0.2), transparent 26%),
+    radial-gradient(circle at top right, rgba(41, 95, 85, 0.14), transparent 28%),
+    linear-gradient(180deg, #faf5ee 0%, #f5efe6 45%, #f2ebe1 100%);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Segoe UI", "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 a {
@@ -36,11 +53,24 @@ a {
   text-decoration: none;
 }
 
+::selection {
+  background: rgba(220, 164, 106, 0.28);
+}
+
 button,
 input,
 select,
 textarea {
   font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: color-mix(in srgb, var(--muted) 72%, white);
 }
 
 .text-balance {

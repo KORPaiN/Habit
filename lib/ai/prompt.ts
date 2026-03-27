@@ -2,21 +2,6 @@ import type { Locale } from "@/lib/locale";
 import type { OnboardingInput } from "@/lib/validators/habit";
 import type { FailureReason } from "@/types";
 
-const anchorLabels: Record<Locale, Record<OnboardingInput["anchor"], string>> = {
-  en: {
-    "after-coffee": "After coffee",
-    "after-shower": "After your shower",
-    "before-work": "Before work",
-    "before-bed": "Before bed",
-  },
-  ko: {
-    "after-coffee": "커피 마신 뒤",
-    "after-shower": "샤워한 뒤",
-    "before-work": "일 시작 전",
-    "before-bed": "잠들기 전",
-  },
-};
-
 export function buildHabitDecompositionPrompt(input: OnboardingInput, failureReason?: FailureReason, locale: Locale = "ko") {
   const difficultyInstruction =
     input.difficulty === "hard"
@@ -46,7 +31,7 @@ export function buildHabitDecompositionPrompt(input: OnboardingInput, failureRea
     `Available minutes: ${input.availableMinutes}`,
     `Difficulty: ${input.difficulty}`,
     `Preferred time: ${input.preferredTime}`,
-    `Preferred anchor: ${anchorLabels[locale][input.anchor]}`,
+    `Preferred anchor cue: ${input.anchor}`,
     failureReason ? `Failure reason: ${failureReason}` : "Failure reason: none",
   ].join("\n");
 }

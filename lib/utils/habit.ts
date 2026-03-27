@@ -1,5 +1,5 @@
 import type { Locale } from "@/lib/locale";
-import type { MicroAction, OnboardingInput } from "@/lib/validators/habit";
+import type { MicroAction } from "@/lib/validators/habit";
 
 export function minutesLabel(minutes: number, locale: Locale = "ko") {
   if (locale === "ko") {
@@ -7,25 +7,6 @@ export function minutesLabel(minutes: number, locale: Locale = "ko") {
   }
 
   return `${minutes} minute${minutes === 1 ? "" : "s"}`;
-}
-
-export function buildAnchorLabel(anchor: OnboardingInput["anchor"], locale: Locale = "ko") {
-  const labels: Record<Locale, Record<OnboardingInput["anchor"], string>> = {
-    en: {
-      "after-coffee": "After coffee",
-      "after-shower": "After your shower",
-      "before-work": "Before work",
-      "before-bed": "Before bed",
-    },
-    ko: {
-      "after-coffee": "커피 마신 뒤",
-      "after-shower": "샤워한 뒤",
-      "before-work": "일 시작 전",
-      "before-bed": "잠들기 전",
-    },
-  };
-
-  return labels[locale][anchor];
 }
 
 export function shrinkAction(action: MicroAction, locale: Locale = "ko"): MicroAction {

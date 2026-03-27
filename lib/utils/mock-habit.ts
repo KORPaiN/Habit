@@ -5,7 +5,7 @@ export const mockOnboardingData: OnboardingInput = {
   availableMinutes: 5,
   difficulty: "gentle",
   preferredTime: "morning",
-  anchor: "after-coffee",
+  anchor: "아침에 커피를 마신 직후",
 };
 
 export const mockPlan: MicroAction[] = [

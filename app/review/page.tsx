@@ -40,7 +40,7 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
             : "The review is generated from real completions, failures, and skips instead of placeholder summaries."
         }
       >
-        <Card>
+        <Card className="bg-[var(--surface-strong)]">
           <p className="text-sm leading-6 text-[var(--muted)]">
             {locale === "ko"
               ? "아직 리뷰할 활성 목표가 없어요. 온보딩을 완료하고 주중에 행동을 수행하면 첫 요약이 만들어집니다."
@@ -68,9 +68,9 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
       }
       className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]"
     >
-      <Card className="h-fit">
+      <Card className="h-fit bg-[var(--surface-muted)]">
         {params.completed === "1" ? (
-          <div className="mb-4 rounded-2xl bg-[var(--primary-soft)] px-4 py-3 text-sm leading-6 text-[var(--primary)]">
+          <div className="mb-4 rounded-[var(--radius-md)] bg-[var(--primary-soft)] px-4 py-3 text-sm leading-6 text-[var(--primary)]">
             {locale === "ko"
               ? "오늘의 행동을 완료로 표시했어요. 주간 데이터가 저장되면 다음 리뷰에 반영됩니다."
               : "Today's action was marked complete. The next review will catch up as weekly data is saved."}
@@ -85,15 +85,15 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
       </Card>
 
       <div className="grid gap-6">
-        <Card>
+        <Card className="bg-[var(--surface-strong)]">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">{locale === "ko" ? "어떤 점이 어려웠는지" : "What felt hard"}</p>
           <p className="mt-3 text-base leading-7 text-[var(--foreground)]">{weeklySummary.difficultMoments}</p>
         </Card>
-        <Card>
+        <Card className="bg-[var(--surface-strong)]">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">{locale === "ko" ? "무엇이 도움이 됐는지" : "What helped"}</p>
           <p className="mt-3 text-base leading-7 text-[var(--foreground)]">{weeklySummary.helpfulPattern}</p>
         </Card>
-        <Card>
+        <Card className="bg-[var(--surface-strong)]">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">{locale === "ko" ? "다음 조정" : "Next adjustment"}</p>
           <p className="mt-3 text-base leading-7 text-[var(--foreground)]">{weeklySummary.nextAdjustment}</p>
         </Card>

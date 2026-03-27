@@ -43,23 +43,6 @@ export function isSupabaseConfigured() {
   return isConfigured();
 }
 
-function mapAnchorLabelToKey(label?: string | null): OnboardingInput["anchor"] {
-  switch (label) {
-    case "After coffee":
-    case "커피 마신 뒤":
-      return "after-coffee";
-    case "After your shower":
-    case "After shower":
-    case "샤워한 뒤":
-      return "after-shower";
-    case "Before work":
-    case "일 시작 전":
-      return "before-work";
-    default:
-      return "before-bed";
-  }
-}
-
 function mapRowToMicroAction(row: Pick<MicroActionLookup, "title" | "details" | "duration_minutes" | "fallback_title">): MicroAction {
   return {
     title: row.title,
@@ -297,7 +280,7 @@ export async function getRecoveryContextFromSession(session: HabitSession): Prom
       availableMinutes: goal.available_minutes,
       difficulty: goal.difficulty,
       preferredTime: anchor?.preferred_time ?? "morning",
-      anchor: mapAnchorLabelToKey(anchor?.label),
+      anchor: anchor?.cue ?? anchor?.label ?? "아침 커피를 마신 직후",
     },
     currentAction: todayState.action,
   };
