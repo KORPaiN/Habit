@@ -3,7 +3,7 @@
 import { redirect, unstable_rethrow } from "next/navigation";
 
 import { getLocale } from "@/lib/locale";
-import { assignDailyAction, createOnboardingFlow } from "@/lib/supabase/habit-service";
+import { createOnboardingFlow } from "@/lib/supabase/habit-service";
 import { getAuthenticatedUser, syncAuthenticatedUser } from "@/lib/supabase/auth";
 import { getSupabaseServerClient } from "@/lib/supabase/server-client";
 import { setHabitSession } from "@/lib/habit-session";
@@ -48,26 +48,10 @@ export async function submitOnboarding(formData: FormData) {
       };
     };
 
-    const selectedMicroAction = result.initialPlan.micro_actions.find((action) => action.position === 1);
-
-    if (!selectedMicroAction) {
-      throw new Error("온보딩 플랜에 첫 행동이 포함되지 않았어요.");
-    }
-
-    const dailyAction = (await assignDailyAction(client, {
-      userId,
-      goalId: result.goal.id,
-      planId: result.initialPlan.plan.id,
-      microActionId: selectedMicroAction.id,
-      actionDate: new Date().toISOString().slice(0, 10),
-    })) as { id: string };
-
     await setHabitSession({
       userId,
       goalId: result.goal.id,
       planId: result.initialPlan.plan.id,
-      microActionId: selectedMicroAction.id,
-      dailyActionId: dailyAction.id,
     });
   } catch (error) {
     unstable_rethrow(error);
@@ -75,5 +59,5 @@ export async function submitOnboarding(formData: FormData) {
     redirect(`/onboarding?error=${encodeURIComponent(message)}`);
   }
 
-  redirect("/today");
+  redirect("/onboarding/review");
 }
