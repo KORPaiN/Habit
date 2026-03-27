@@ -68,6 +68,7 @@ export async function prepareRecoveryOptions(input: { failureReason: RecoveryRea
   const decomposition = await generateHabitDecomposition(context.onboarding, {
     failureReason: reason,
     locale,
+    allowMockFallback: false,
   });
 
   const options = decomposition.microActions.map((action, index) => ({

@@ -69,6 +69,7 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", l
   const [selectedPosition, setSelectedPosition] = useState(1);
   const [step, setStep] = useState<"reason" | "options">("reason");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [statusTone, setStatusTone] = useState<"neutral" | "error">("neutral");
   const [isPending, setIsPending] = useState(false);
 
   const selectedOption = useMemo(
@@ -79,6 +80,7 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", l
   async function handleReasonSubmit() {
     setIsPending(true);
     setStatusMessage(null);
+    setStatusTone("neutral");
 
     startTransition(async () => {
       try {
@@ -91,12 +93,14 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", l
             ? "더 힘을 내려고 하지 않아도 돼요. 가장 시작하기 쉬운 버전을 고르세요."
             : "You do not need more force. Pick the version that feels easiest to start.",
         );
+        setStatusTone("neutral");
       } catch {
         setStatusMessage(
           locale === "ko"
-            ? "아직 더 작은 단계로 바꾸지 못했어요. 다시 시도해 주세요."
+            ? "지금은 AI가 더 작은 단계를 만들 수 없어요. OpenAI 결제 또는 quota를 확인한 뒤 다시 시도해 주세요."
             : "We could not reshape the step just yet. Please try again.",
         );
+        setStatusTone("error");
       } finally {
         setIsPending(false);
       }
@@ -110,6 +114,7 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", l
 
     setIsPending(true);
     setStatusMessage(null);
+    setStatusTone("neutral");
 
     startTransition(async () => {
       try {
@@ -134,6 +139,7 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", l
             ? "더 작은 단계를 저장하지 못했어요. 다시 시도해 주세요."
             : "We could not save that smaller step. Please try again.",
         );
+        setStatusTone("error");
         setIsPending(false);
       }
     });
@@ -250,7 +256,17 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", l
           </>
         )}
 
-        {statusMessage ? <p className="mt-4 text-sm leading-6 text-slate-700">{statusMessage}</p> : null}
+        {statusMessage ? (
+          <div
+            className={
+              statusTone === "error"
+                ? "mt-4 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900"
+                : "mt-4 text-sm leading-6 text-slate-700"
+            }
+          >
+            {statusMessage}
+          </div>
+        ) : null}
       </Card>
     </div>
   );

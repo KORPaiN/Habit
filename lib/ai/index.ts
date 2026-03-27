@@ -288,12 +288,46 @@ async function callOpenAI(prompt: string) {
   return (await response.json()) as OpenAIResponsePayload;
 }
 
+function buildAiUnavailableMessage(error: unknown, locale: Locale) {
+  const fallback =
+    locale === "ko"
+      ? "지금은 AI 마이크로 플랜을 만들 수 없어요. OpenAI 설정이나 사용 한도를 확인해 주세요."
+      : "We could not generate an AI micro-plan right now. Please check your OpenAI setup or quota.";
+
+  if (!(error instanceof Error)) {
+    return fallback;
+  }
+
+  const message = error.message.toLowerCase();
+
+  if (message.includes("insufficient_quota") || message.includes("quota")) {
+    return locale === "ko"
+      ? "OpenAI 사용 한도를 초과해 AI 플랜을 만들 수 없어요. 결제 또는 quota 상태를 확인해 주세요."
+      : "OpenAI quota was exceeded, so we could not generate an AI plan.";
+  }
+
+  if (message.includes("missing openai_api_key")) {
+    return locale === "ko"
+      ? "OPENAI_API_KEY가 없어 AI 플랜을 만들 수 없어요."
+      : "OPENAI_API_KEY is missing, so we could not generate an AI plan.";
+  }
+
+  if (message.includes("openai request failed")) {
+    return locale === "ko"
+      ? "OpenAI 요청이 실패해 AI 플랜을 만들 수 없어요. 잠시 후 다시 시도해 주세요."
+      : "The OpenAI request failed, so we could not generate an AI plan.";
+  }
+
+  return fallback;
+}
+
 export async function generateHabitDecomposition(
   input: OnboardingInput,
-  options?: { failureReason?: FailureReason; locale?: Locale },
+  options?: { failureReason?: FailureReason; locale?: Locale; allowMockFallback?: boolean },
 ): Promise<HabitDecomposition> {
   const failureReason = options?.failureReason;
   const locale = options?.locale ?? "ko";
+  const allowMockFallback = options?.allowMockFallback ?? true;
 
   try {
     const prompt = buildHabitDecompositionPrompt(input, failureReason, locale);
@@ -303,7 +337,11 @@ export async function generateHabitDecomposition(
     validateDecompositionLocale(parsed, input, locale);
 
     return normalizeDecomposition(parsed, input, "openai", failureReason, locale);
-  } catch {
+  } catch (error) {
+    if (!allowMockFallback) {
+      throw new Error(buildAiUnavailableMessage(error, locale));
+    }
+
     return buildMockHabitDecomposition(input, failureReason, locale);
   }
 }

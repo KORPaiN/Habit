@@ -13,6 +13,15 @@ import { mapGeneratedActionsToPlanInput } from "@/lib/utils/habit-rules";
 
 type ServiceClient = SupabaseClient<Database>;
 
+type OnboardingResult = {
+  goal: { id: string };
+  anchor: { id: string };
+};
+
+function isDuplicateAnchorConstraintError(error: unknown) {
+  return error instanceof Error && error.message.includes('anchors_user_id_label_cue_key');
+}
+
 function toRpcMicroActions(actions: CreatePlanRequest["microActions"]) {
   return actions.map((action) => ({
     position: action.position,
@@ -35,20 +44,100 @@ async function runRpc<T>(client: ServiceClient, fn: string, params: Record<strin
   return data as T;
 }
 
+async function createOnboardingGoalWithAnchorReuse(
+  client: ServiceClient,
+  input: OnboardingRequest,
+): Promise<OnboardingResult> {
+  const existingAnchorQuery = await client
+    .from("anchors")
+    .select("id")
+    .eq("user_id", input.userId)
+    .eq("label", input.anchorLabel)
+    .eq("cue", input.anchorCue)
+    .maybeSingle();
+
+  if (existingAnchorQuery.error) {
+    throw new Error(existingAnchorQuery.error.message);
+  }
+
+  let anchorId = existingAnchorQuery.data?.id;
+
+  if (!anchorId) {
+    const insertedAnchor = await client
+      .from("anchors")
+      .insert({
+        user_id: input.userId,
+        label: input.anchorLabel,
+        cue: input.anchorCue,
+        preferred_time: input.preferredTime,
+      })
+      .select("id")
+      .single();
+
+    if (insertedAnchor.error) {
+      throw new Error(insertedAnchor.error.message);
+    }
+
+    anchorId = insertedAnchor.data.id;
+  } else {
+    const updatedAnchor = await client
+      .from("anchors")
+      .update({
+        preferred_time: input.preferredTime,
+      })
+      .eq("id", anchorId)
+      .select("id")
+      .single();
+
+    if (updatedAnchor.error) {
+      throw new Error(updatedAnchor.error.message);
+    }
+  }
+
+  const insertedGoal = await client
+    .from("goals")
+    .insert({
+      user_id: input.userId,
+      anchor_id: anchorId,
+      title: input.goalTitle,
+      why: input.goalWhy ?? null,
+      difficulty: input.difficulty,
+      available_minutes: input.availableMinutes,
+    })
+    .select("id")
+    .single();
+
+  if (insertedGoal.error) {
+    throw new Error(insertedGoal.error.message);
+  }
+
+  return {
+    goal: { id: insertedGoal.data.id },
+    anchor: { id: anchorId },
+  };
+}
+
 export async function createOnboardingFlow(client: ServiceClient, input: OnboardingRequest & { locale?: Locale }) {
-  const onboardingResult = await runRpc<{
-    goal: { id: string };
-    anchor: { id: string };
-  }>(client, "create_onboarding_goal", {
-    p_user_id: input.userId,
-    p_goal_title: input.goalTitle,
-    p_goal_why: input.goalWhy ?? null,
-    p_difficulty: input.difficulty,
-    p_available_minutes: input.availableMinutes,
-    p_anchor_label: input.anchorLabel,
-    p_anchor_cue: input.anchorCue,
-    p_preferred_time: input.preferredTime,
-  });
+  let onboardingResult: OnboardingResult;
+
+  try {
+    onboardingResult = await runRpc<OnboardingResult>(client, "create_onboarding_goal", {
+      p_user_id: input.userId,
+      p_goal_title: input.goalTitle,
+      p_goal_why: input.goalWhy ?? null,
+      p_difficulty: input.difficulty,
+      p_available_minutes: input.availableMinutes,
+      p_anchor_label: input.anchorLabel,
+      p_anchor_cue: input.anchorCue,
+      p_preferred_time: input.preferredTime,
+    });
+  } catch (error) {
+    if (!isDuplicateAnchorConstraintError(error)) {
+      throw error;
+    }
+
+    onboardingResult = await createOnboardingGoalWithAnchorReuse(client, input);
+  }
 
   const decomposition = await generateHabitDecomposition({
     goal: input.goalTitle,
@@ -58,6 +147,7 @@ export async function createOnboardingFlow(client: ServiceClient, input: Onboard
     anchor: input.anchorKey,
   }, {
     locale: input.locale,
+    allowMockFallback: false,
   });
 
   const generatedActions = input.microActions ?? mapGeneratedActionsToPlanInput(decomposition.microActions);
