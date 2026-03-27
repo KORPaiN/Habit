@@ -83,11 +83,6 @@ export default async function OnboardingReviewPage({ searchParams }: ReviewPageP
       <div className="grid gap-4">
         <Card className="bg-[var(--surface-muted)]">
           <h2 className="text-xl font-semibold">{locale === "ko" ? "생성된 마이크로 행동을 확인해 주세요." : "Review your generated micro-actions."}</h2>
-          <p className="mt-2 text-sm leading-6 text-[var(--foreground-soft)]">
-            {locale === "ko"
-              ? "이 단계에서 행동을 수정하고, 어떤 행동을 오늘 행동으로 쓸지 고를 수 있어요."
-              : "Edit the actions here and choose which one should become today's action."}
-          </p>
           {params.error ? <p className="mt-3 text-sm text-amber-800">{params.error}</p> : null}
         </Card>
         <PlanReviewForm locale={locale} initialActions={initialActions} />

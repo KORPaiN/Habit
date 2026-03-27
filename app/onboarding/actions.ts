@@ -62,6 +62,7 @@ export async function submitOnboarding(formData: FormData) {
       goalId: result.goal.id,
       planId: result.initialPlan.plan.id,
       reviewActions: mapGeneratedActionsToPlanInput(result.decomposition.microActions),
+      reviewDifficulty: parsed.difficulty,
     });
   } catch (error) {
     unstable_rethrow(error);

@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import type { DifficultyLevel } from "@/types";
 import type { PlanMicroActionInput } from "@/lib/validators/backend";
 
 const HABIT_SESSION_COOKIE = "habit_session";
@@ -10,6 +11,7 @@ export type HabitSession = {
   microActionId?: string;
   dailyActionId?: string;
   reviewActions?: PlanMicroActionInput[];
+  reviewDifficulty?: DifficultyLevel;
 };
 
 function getDefaultSession(): HabitSession {
@@ -33,7 +35,8 @@ export async function getHabitSession() {
       (parsed.planId === undefined || typeof parsed.planId === "string") &&
       (parsed.microActionId === undefined || typeof parsed.microActionId === "string") &&
       (parsed.dailyActionId === undefined || typeof parsed.dailyActionId === "string") &&
-      (parsed.reviewActions === undefined || Array.isArray(parsed.reviewActions))
+      (parsed.reviewActions === undefined || Array.isArray(parsed.reviewActions)) &&
+      (parsed.reviewDifficulty === undefined || typeof parsed.reviewDifficulty === "string")
     ) {
       return parsed as HabitSession;
     }
