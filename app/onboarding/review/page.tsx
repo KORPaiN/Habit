@@ -14,6 +14,7 @@ import type { Database } from "@/types";
 type ReviewPageProps = {
   searchParams?: Promise<{
     error?: string;
+    notice?: string;
   }>;
 };
 
@@ -72,20 +73,20 @@ export default async function OnboardingReviewPage({ searchParams }: ReviewPageP
   }
 
   return (
-    <PageShell
-      auth={auth}
-      locale={locale}
-      path="/onboarding/review"
-      title=""
-      description=""
-      className="mx-auto max-w-3xl"
-    >
+    <PageShell auth={auth} locale={locale} path="/onboarding/review" title="" description="" className="mx-auto max-w-3xl">
       <div className="grid gap-4">
         <Card className="bg-[var(--surface-muted)]">
-          <h2 className="text-xl font-semibold">{locale === "ko" ? "생성된 마이크로 행동을 확인해 주세요." : "Review your generated micro-actions."}</h2>
+          <h2 className="text-xl font-semibold">
+            {locale === "ko" ? "오늘 행동을 한 번만 다듬어 볼게요." : "Let's tune today's action once."}
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-[var(--foreground-soft)]">
+            {locale === "ko"
+              ? "더 쉽게와 조금 더 크게는 지금 행동만 바로 바꿔요. 전체 다시 만들기는 플랜을 새로 만들어요."
+              : "Make easier and A bit bigger adjust the current action. Regenerate plan rebuilds the full draft."}
+          </p>
           {params.error ? <p className="mt-3 text-sm text-amber-800">{params.error}</p> : null}
         </Card>
-        <PlanReviewForm locale={locale} initialActions={initialActions} />
+        <PlanReviewForm locale={locale} initialActions={initialActions} notice={params.notice} />
       </div>
     </PageShell>
   );

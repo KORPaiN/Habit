@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "powershell -NoProfile -Command \"$env:NEXT_DISABLE_WEBPACK_CACHE='1'; if (Test-Path .next) { Remove-Item -Recurse -Force .next }; npx next dev -p 3002\"",
+    "dev": "powershell -NoProfile -Command \"if (Test-Path .next) { Remove-Item -Recurse -Force .next }; npx next dev --turbopack -p 3002\"",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
