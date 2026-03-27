@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { commonCopy } from "@/lib/copy";
 import { getLocale } from "@/lib/locale";
+import { getAuthShellState } from "@/lib/supabase/auth";
 import { getWeeklyReviewStateFromSession } from "@/lib/supabase/demo-data";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +21,7 @@ type ReviewPageProps = {
 export default async function ReviewPage({ searchParams }: ReviewPageProps) {
   const params = (await searchParams) ?? {};
   const locale = await getLocale();
+  const auth = await getAuthShellState();
   const common = commonCopy[locale];
   const session = await getHabitSession();
   const weeklySummary = await getWeeklyReviewStateFromSession(session);
@@ -27,6 +29,7 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
   if (!weeklySummary) {
     return (
       <PageShell
+        auth={auth}
         locale={locale}
         path="/review"
         eyebrow={locale === "ko" ? "주간 리뷰" : "Weekly review"}
@@ -53,6 +56,7 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
 
   return (
     <PageShell
+      auth={auth}
       locale={locale}
       path="/review"
       eyebrow={locale === "ko" ? "주간 리뷰" : "Weekly review"}

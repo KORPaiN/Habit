@@ -34,6 +34,11 @@ export async function prepareRecoveryOptions(input: { failureReason: RecoveryRea
   const locale = await getLocale();
   const reason = failureReasonSchema.parse(input.failureReason);
   const session = await getHabitSession();
+
+  if (!session.userId) {
+    throw new Error(locale === "ko" ? "먼저 Google로 로그인해 주세요." : "Please sign in with Google first.");
+  }
+
   const context = await getRecoveryContextFromSession(session);
 
   if (!context) {
@@ -98,6 +103,10 @@ export async function saveRecoveryChoice(input: {
 
   let savedSelection = false;
   const session = await getHabitSession();
+
+  if (!session.userId) {
+    throw new Error("Please sign in with Google first.");
+  }
 
   if (canUseSupabase()) {
     try {

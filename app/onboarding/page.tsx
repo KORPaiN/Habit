@@ -2,13 +2,14 @@ import Link from "next/link";
 
 import { submitOnboarding } from "@/app/onboarding/actions";
 import { OnboardingPreview } from "@/components/onboarding/onboarding-preview";
-import { PageShell } from "@/components/ui/page-shell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PageShell } from "@/components/ui/page-shell";
 import { Select } from "@/components/ui/select";
 import { generateHabitDecomposition } from "@/lib/ai";
 import { getLocale } from "@/lib/locale";
+import { getAuthShellState } from "@/lib/supabase/auth";
 import { minutesLabel } from "@/lib/utils/habit";
 import { mockOnboardingData } from "@/lib/utils/mock-habit";
 
@@ -23,17 +24,19 @@ type OnboardingPageProps = {
 export default async function OnboardingPage({ searchParams }: OnboardingPageProps) {
   const params = (await searchParams) ?? {};
   const locale = await getLocale();
+  const auth = await getAuthShellState();
   const decomposition = await generateHabitDecomposition(mockOnboardingData, { locale });
 
   return (
     <PageShell
+      auth={auth}
       locale={locale}
       path="/onboarding"
       eyebrow={locale === "ko" ? "온보딩" : "Onboarding"}
       title={locale === "ko" ? "목표를 더 가볍게 만들어볼게요." : "Let's make the goal lighter."}
       description={
         locale === "ko"
-          ? "몇 가지 짧은 질문에 답하면 실제로 실행 가능한 만큼 작은 계획으로 시작할 수 있어요. 결과 미리보기는 서버 측 AI 분해 흐름과 안전한 fallback을 사용합니다."
+          ? "몇 가지 짧은 질문만 답하면 실제로 시작 가능한 만큼 작은 계획으로 줄여드려요. 아래 미리보기는 저장할 때와 같은 서버 흐름으로 생성됩니다."
           : "Answer a few short questions so the plan starts small enough to actually happen. The preview below is generated through the same server-side decomposition flow used when the plan is saved."
       }
       className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]"
@@ -41,8 +44,14 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
       <Card>
         <form action={submitOnboarding} className="space-y-5">
           <div>
-            <label className="mb-2 block text-sm font-medium">{locale === "ko" ? "어떤 목표를 시작하는 데 도움을 받고 싶나요?" : "What goal do you want help starting?"}</label>
-            <Input name="goal" defaultValue={mockOnboardingData.goal} placeholder={locale === "ko" ? "예: 독서 습관 만들기" : "Example: build a reading habit"} />
+            <label className="mb-2 block text-sm font-medium">
+              {locale === "ko" ? "어떤 목표를 시작하는 데 도움이 필요하신가요?" : "What goal do you want help starting?"}
+            </label>
+            <Input
+              name="goal"
+              defaultValue={mockOnboardingData.goal}
+              placeholder={locale === "ko" ? "예: 독서 습관 만들기" : "Example: build a reading habit"}
+            />
           </div>
           <div className="grid gap-5 sm:grid-cols-2">
             <div>
@@ -71,7 +80,7 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
               <label className="mb-2 block text-sm font-medium">{locale === "ko" ? "앵커" : "Anchor"}</label>
               <Select name="anchor" defaultValue={mockOnboardingData.anchor}>
                 <option value="after-coffee">{locale === "ko" ? "커피 마신 뒤" : "After coffee"}</option>
-                <option value="after-shower">{locale === "ko" ? "샤워한 뒤" : "After shower"}</option>
+                <option value="after-shower">{locale === "ko" ? "샤워 후" : "After shower"}</option>
                 <option value="before-work">{locale === "ko" ? "일 시작 전" : "Before work"}</option>
                 <option value="before-bed">{locale === "ko" ? "잠들기 전" : "Before bed"}</option>
               </Select>
@@ -79,12 +88,19 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
           </div>
           <div className="rounded-3xl bg-[var(--primary-soft)] p-4 text-sm leading-6 text-[var(--primary)]">
             {locale === "ko"
-              ? "일부러 짧게 묻습니다. 오늘의 첫 아주 작은 단계를 만들 만큼의 정보면 충분해요."
+              ? "질문은 짧게 유지합니다. 오늘의 첫 한 걸음을 만들 정도의 정보면 충분해요."
               : "We keep this short on purpose. You only need enough detail to shape today's first tiny step."}
           </div>
           {params.error ? (
             <div className="rounded-3xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
               {params.error}
+            </div>
+          ) : null}
+          {!auth.isAuthenticated ? (
+            <div className="rounded-3xl border border-[var(--border)] bg-white/70 px-4 py-3 text-sm leading-6 text-[var(--muted)]">
+              {locale === "ko"
+                ? "계획을 실제로 저장하려면 먼저 Google로 로그인해야 합니다."
+                : "Sign in with Google first to save this plan to your account."}
             </div>
           ) : null}
           <div className="flex flex-col gap-3 sm:flex-row">
@@ -93,7 +109,7 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
             </Button>
             <Link href="/login" className="sm:flex-1">
               <Button variant="ghost" fullWidth>
-                {locale === "ko" ? "나중에 저장" : "Save later"}
+                {locale === "ko" ? "Google 로그인" : "Sign in with Google"}
               </Button>
             </Link>
           </div>
@@ -109,7 +125,7 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
               <h3 className="mt-2 text-xl font-semibold">{locale === "ko" ? "오늘을 위한 더 차분한 첫 계획" : "A calmer first plan for today"}</h3>
             </div>
             <span className="rounded-full bg-[var(--primary-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--primary)]">
-              {decomposition.source === "openai" ? (locale === "ko" ? "실시간 AI" : "AI live") : locale === "ko" ? "대체 목 데이터" : "Fallback plan"}
+              {decomposition.source === "openai" ? (locale === "ko" ? "실시간 AI" : "AI live") : locale === "ko" ? "대체 플랜" : "Fallback plan"}
             </span>
           </div>
 
@@ -121,7 +137,7 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
           </div>
 
           <div className="mt-4 rounded-3xl bg-[var(--primary-soft)] p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--primary)]">{locale === "ko" ? "오늘의 행동" : "Today action"}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--primary)]">{locale === "ko" ? "오늘 행동" : "Today action"}</p>
             <p className="mt-2 text-lg font-semibold">{decomposition.todayAction.title}</p>
             <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{decomposition.todayAction.reason}</p>
             <p className="mt-3 inline-flex rounded-full bg-white/80 px-3 py-1 text-sm font-medium text-[var(--primary)]">

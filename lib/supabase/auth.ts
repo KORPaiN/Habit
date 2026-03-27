@@ -20,3 +20,12 @@ export async function syncAuthenticatedUser() {
   await syncAuthUserToAppUser(getSupabaseAdminClient(), user);
   return user;
 }
+
+export async function getAuthShellState() {
+  const user = await getAuthenticatedUser();
+
+  return {
+    isAuthenticated: Boolean(user),
+    email: user?.email ?? null,
+  };
+}

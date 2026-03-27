@@ -4,12 +4,15 @@ import { GoogleAuthButton } from "@/components/auth/google-auth-button";
 import { Card } from "@/components/ui/card";
 import { PageShell } from "@/components/ui/page-shell";
 import { getLocale } from "@/lib/locale";
+import { getAuthShellState } from "@/lib/supabase/auth";
 
 export default async function SignupPage() {
   const locale = await getLocale();
+  const auth = await getAuthShellState();
 
   return (
     <PageShell
+      auth={auth}
       locale={locale}
       path="/signup"
       eyebrow={locale === "ko" ? "계정 만들기" : "Create account"}

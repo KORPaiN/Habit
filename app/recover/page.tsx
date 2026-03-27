@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getRecoveryPageState } from "@/app/recover/actions";
 import { getLocale } from "@/lib/locale";
+import { getAuthShellState } from "@/lib/supabase/auth";
 
 type RecoveryPageProps = {
   searchParams?: Promise<{
@@ -17,10 +18,12 @@ export default async function RecoveryPage({ searchParams }: RecoveryPageProps) 
   const state = await getRecoveryPageState();
   const params = (await searchParams) ?? {};
   const locale = await getLocale();
+  const auth = await getAuthShellState();
 
   if (!state) {
     return (
       <PageShell
+        auth={auth}
         locale={locale}
         path="/recover"
         eyebrow={locale === "ko" ? "리커버리" : "Recovery"}
@@ -43,6 +46,7 @@ export default async function RecoveryPage({ searchParams }: RecoveryPageProps) 
 
   return (
     <PageShell
+      auth={auth}
       locale={locale}
       path="/recover"
       eyebrow={locale === "ko" ? "리커버리" : "Recovery"}

@@ -9,6 +9,10 @@ import { getSupabaseAdminClient } from "@/lib/supabase/client";
 export async function completeTodayAction() {
   const session = await getHabitSession();
 
+  if (!session.userId) {
+    redirect("/login?next=%2Ftoday&error=Sign%20in%20with%20Google%20before%20updating%20today%27s%20action.");
+  }
+
   if (!hasActiveHabitSelection(session) || !session.dailyActionId || !session.goalId) {
     redirect("/onboarding?error=Create your first plan before marking an action complete.");
   }

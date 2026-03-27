@@ -6,9 +6,11 @@ import { StatPill } from "@/components/review/stat-pill";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getLocale } from "@/lib/locale";
+import { getAuthShellState } from "@/lib/supabase/auth";
 
 export default async function LandingPage() {
   const locale = await getLocale();
+  const auth = await getAuthShellState();
   const steps =
     locale === "ko"
       ? [
@@ -24,6 +26,7 @@ export default async function LandingPage() {
 
   return (
     <PageShell
+      auth={auth}
       locale={locale}
       path="/"
       eyebrow={locale === "ko" ? "마이크로 습관 코치" : "Micro-habit coach"}

@@ -67,6 +67,10 @@ function mapRowToMicroAction(row: Pick<MicroActionLookup, "title" | "details" | 
 }
 
 async function getGoalForSession(session: HabitSession) {
+  if (!session.userId) {
+    return null;
+  }
+
   const client = getSupabaseAdminClient();
 
   const query = client
@@ -235,6 +239,10 @@ export async function getTodayStateFromSession(session: HabitSession): Promise<T
     return null;
   }
 
+  if (!session.userId) {
+    return null;
+  }
+
   const goal = await getGoalForSession(session);
 
   if (!goal) {
@@ -294,6 +302,10 @@ export async function getRecoveryContextFromSession(session: HabitSession): Prom
 
 export async function getWeeklyReviewStateFromSession(session: HabitSession): Promise<WeeklyReviewState | null> {
   if (!isConfigured()) {
+    return null;
+  }
+
+  if (!session.userId) {
     return null;
   }
 

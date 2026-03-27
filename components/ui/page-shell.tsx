@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { PropsWithChildren } from "react";
 
+import { signOutAction } from "@/app/auth/actions";
 import { commonCopy } from "@/lib/copy";
 import type { Locale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
@@ -12,9 +13,13 @@ type PageShellProps = PropsWithChildren<{
   className?: string;
   locale: Locale;
   path: string;
+  auth?: {
+    isAuthenticated: boolean;
+    email?: string | null;
+  };
 }>;
 
-export function PageShell({ title, eyebrow, description, className, children, locale, path }: PageShellProps) {
+export function PageShell({ title, eyebrow, description, className, children, locale, path, auth }: PageShellProps) {
   const copy = commonCopy[locale];
 
   return (
@@ -54,6 +59,22 @@ export function PageShell({ title, eyebrow, description, className, children, lo
             >
               {copy.langKorean}
             </Link>
+          </div>
+          <div className="flex items-center justify-end gap-2 text-xs text-[var(--muted)]">
+            {auth?.isAuthenticated ? (
+              <>
+                <span className="rounded-full bg-white/60 px-3 py-2">{auth.email ?? (locale === "ko" ? "로그인됨" : "Signed in")}</span>
+                <form action={signOutAction}>
+                  <button className="rounded-full bg-white/80 px-4 py-2 font-semibold text-[var(--foreground)]" type="submit">
+                    {locale === "ko" ? "로그아웃" : "Log out"}
+                  </button>
+                </form>
+              </>
+            ) : (
+              <Link className="rounded-full bg-white/80 px-4 py-2 font-semibold text-[var(--foreground)]" href={`/login?next=${encodeURIComponent(path)}`}>
+                {locale === "ko" ? "Google 로그인" : "Sign in with Google"}
+              </Link>
+            )}
           </div>
         </div>
       </header>

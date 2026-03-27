@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 
 import { getLocale } from "@/lib/locale";
 import { assignDailyAction, createOnboardingFlow } from "@/lib/supabase/habit-service";
-import { ensureAppUser } from "@/lib/supabase/app-user";
 import { getAuthenticatedUser, syncAuthenticatedUser } from "@/lib/supabase/auth";
 import { getSupabaseAdminClient } from "@/lib/supabase/client";
 import { setHabitSession } from "@/lib/habit-session";
@@ -33,14 +32,16 @@ export async function submitOnboarding(formData: FormData) {
   });
 
   try {
-    const client = getSupabaseAdminClient();
     const authenticatedUser = await getAuthenticatedUser();
 
-    if (authenticatedUser) {
-      await syncAuthenticatedUser();
+    if (!authenticatedUser) {
+      redirect(`/login?next=${encodeURIComponent("/onboarding")}&error=${encodeURIComponent(locale === "ko" ? "Google 로그인 후 계획을 저장할 수 있어요." : "Sign in with Google before saving your plan.")}`);
     }
 
-    const userId = authenticatedUser?.id ?? (await ensureAppUser(client));
+    await syncAuthenticatedUser();
+
+    const client = getSupabaseAdminClient();
+    const userId = authenticatedUser.id;
     const result = (await createOnboardingFlow(client, {
       userId,
       goalTitle: parsed.goal,

@@ -1,11 +1,9 @@
 import { cookies } from "next/headers";
 
-import { getAppUserId } from "@/lib/supabase/app-user";
-
 const HABIT_SESSION_COOKIE = "habit_session";
 
 export type HabitSession = {
-  userId: string;
+  userId?: string;
   goalId?: string;
   planId?: string;
   microActionId?: string;
@@ -13,9 +11,7 @@ export type HabitSession = {
 };
 
 function getDefaultSession(): HabitSession {
-  return {
-    userId: getAppUserId(),
-  };
+  return {};
 }
 
 export async function getHabitSession() {
@@ -30,7 +26,7 @@ export async function getHabitSession() {
     const parsed = JSON.parse(raw) as Partial<HabitSession>;
 
     if (
-      typeof parsed.userId === "string" &&
+      (parsed.userId === undefined || typeof parsed.userId === "string") &&
       (parsed.goalId === undefined || typeof parsed.goalId === "string") &&
       (parsed.planId === undefined || typeof parsed.planId === "string") &&
       (parsed.microActionId === undefined || typeof parsed.microActionId === "string") &&
@@ -56,5 +52,11 @@ export async function setHabitSession(session: HabitSession) {
 }
 
 export function hasActiveHabitSelection(session: HabitSession) {
-  return Boolean(session.goalId && session.planId && session.microActionId && session.dailyActionId);
+  return Boolean(session.userId && session.goalId && session.planId && session.microActionId && session.dailyActionId);
+}
+
+export async function clearHabitSession() {
+  const cookieStore = await cookies();
+
+  cookieStore.delete(HABIT_SESSION_COOKIE);
 }

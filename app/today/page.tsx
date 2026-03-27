@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { commonCopy } from "@/lib/copy";
 import { getLocale } from "@/lib/locale";
+import { getAuthShellState } from "@/lib/supabase/auth";
 import { minutesLabel } from "@/lib/utils/habit";
 import { microActionSchema } from "@/lib/validators/habit";
 import { getTodayStateFromSession } from "@/lib/supabase/demo-data";
@@ -28,6 +29,7 @@ export const dynamic = "force-dynamic";
 export default async function TodayPage({ searchParams }: TodayPageProps) {
   const params = (await searchParams) ?? {};
   const locale = await getLocale();
+  const auth = await getAuthShellState();
   const common = commonCopy[locale];
   const session = await getHabitSession();
   const todayState = await getTodayStateFromSession(session);
@@ -35,6 +37,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
   if (!todayState) {
     return (
       <PageShell
+        auth={auth}
         locale={locale}
         path="/today"
         eyebrow={locale === "ko" ? "오늘" : "Today"}
@@ -73,6 +76,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
 
   return (
     <PageShell
+      auth={auth}
       locale={locale}
       path="/today"
       eyebrow={locale === "ko" ? "오늘" : "Today"}

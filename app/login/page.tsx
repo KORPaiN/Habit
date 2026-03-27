@@ -4,19 +4,23 @@ import { GoogleAuthButton } from "@/components/auth/google-auth-button";
 import { Card } from "@/components/ui/card";
 import { PageShell } from "@/components/ui/page-shell";
 import { getLocale } from "@/lib/locale";
+import { getAuthShellState } from "@/lib/supabase/auth";
 
 type LoginPageProps = {
   searchParams?: Promise<{
     error?: string;
+    next?: string;
   }>;
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const locale = await getLocale();
+  const auth = await getAuthShellState();
   const params = (await searchParams) ?? {};
 
   return (
     <PageShell
+      auth={auth}
       locale={locale}
       path="/login"
       eyebrow={locale === "ko" ? "다시 오신 것을 환영해요" : "Welcome back"}
@@ -30,7 +34,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     >
       <Card>
         <div className="space-y-4">
-          <GoogleAuthButton locale={locale} nextPath="/today" />
+          <GoogleAuthButton locale={locale} nextPath={params.next?.startsWith("/") ? params.next : "/today"} />
           {params.error ? (
             <div className="rounded-3xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
               {params.error}
