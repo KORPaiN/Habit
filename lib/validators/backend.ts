@@ -2,11 +2,14 @@ import { z } from "zod";
 
 export const difficultyLevelSchema = z.enum(["gentle", "steady", "hard"]);
 export const preferredTimeSchema = z.enum(["morning", "afternoon", "evening"]);
+export const anchorTypeSchema = z.enum(["primary", "backup"]);
 export const planSourceSchema = z.enum(["ai", "manual", "recovery", "seed"]);
 export const failureReasonSchema = z.enum([
   "too_big",
   "too_tired",
   "forgot",
+  "forgot_often",
+  "not_wanted",
   "schedule_conflict",
   "low_motivation",
   "other",
@@ -14,6 +17,26 @@ export const failureReasonSchema = z.enum([
 
 export const uuidSchema = z.string().uuid();
 export const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expected YYYY-MM-DD date.");
+const optionalTextSchema = z.string().max(500).optional().nullable();
+
+export const behaviorSwarmCandidateInputSchema = z.object({
+  id: z.string().min(1).max(80).optional(),
+  title: z.string().min(1).max(140),
+  details: z.string().max(240).optional().nullable(),
+  durationMinutes: z.coerce.number().int().min(1).max(5),
+  desireScore: z.coerce.number().int().min(1).max(5),
+  abilityScore: z.coerce.number().int().min(1).max(5),
+  impactScore: z.coerce.number().int().min(1).max(5),
+});
+
+export const behaviorSwarmCandidatesSchema = z.array(behaviorSwarmCandidateInputSchema).min(6).max(10);
+
+export const goalAnchorInputSchema = z.object({
+  cue: z.string().min(2).max(120),
+  anchorType: anchorTypeSchema,
+  sortOrder: z.coerce.number().int().min(0).max(2),
+  preferredTime: preferredTimeSchema.optional(),
+});
 
 export const planMicroActionInputSchema = z.object({
   position: z.coerce.number().int().min(1).max(3),
@@ -49,11 +72,19 @@ export const onboardingRequestSchema = z.object({
   userId: uuidSchema.optional(),
   goalTitle: z.string().min(3).max(120),
   goalWhy: z.string().max(300).optional().nullable(),
+  desiredOutcome: z.string().min(2).max(200),
+  motivationNote: z.string().max(200).optional().nullable(),
   difficulty: difficultyLevelSchema,
   availableMinutes: z.coerce.number().int().min(1).max(30),
   anchorLabel: z.string().min(2).max(80),
   anchorCue: z.string().min(2).max(160),
   preferredTime: preferredTimeSchema,
+  backupAnchors: z.array(z.string().min(2).max(120)).max(2).optional().default([]),
+  selectedBehavior: behaviorSwarmCandidateInputSchema,
+  swarmCandidates: behaviorSwarmCandidatesSchema,
+  recipeText: z.string().min(6).max(220),
+  celebrationText: z.string().min(1).max(120),
+  rehearsalCount: z.coerce.number().int().min(0).max(7).default(0),
   microActions: planMicroActionsSchema.optional(),
 });
 
@@ -62,8 +93,21 @@ export const createPlanRequestSchema = z.object({
   goalId: uuidSchema,
   source: planSourceSchema.default("manual"),
   basedOnPlanId: uuidSchema.optional().nullable(),
-  notes: z.string().max(500).optional().nullable(),
+  notes: optionalTextSchema,
+  recipeText: z.string().max(220).optional().nullable(),
+  celebrationText: z.string().max(120).optional().nullable(),
+  rehearsalCount: z.coerce.number().int().min(0).max(7).optional().default(0),
+  selectedCandidateId: uuidSchema.optional().nullable(),
   microActions: planMicroActionsSchema,
+});
+
+export const behaviorSwarmRequestSchema = z.object({
+  goal: z.string().min(3).max(120),
+  desiredOutcome: z.string().min(2).max(200),
+  motivationNote: z.string().max(200).optional().nullable(),
+  difficulty: difficultyLevelSchema,
+  availableMinutes: z.coerce.number().int().min(1).max(30),
+  preferredTime: preferredTimeSchema,
 });
 
 export const assignDailyActionRequestSchema = z.object({
@@ -108,6 +152,9 @@ export const weeklyReviewQuerySchema = z.object({
 export type PlanMicroActionInput = z.infer<typeof planMicroActionInputSchema>;
 export type OnboardingRequest = z.infer<typeof onboardingRequestSchema>;
 export type CreatePlanRequest = z.infer<typeof createPlanRequestSchema>;
+export type BehaviorSwarmCandidateInput = z.infer<typeof behaviorSwarmCandidateInputSchema>;
+export type GoalAnchorInput = z.infer<typeof goalAnchorInputSchema>;
+export type BehaviorSwarmRequest = z.infer<typeof behaviorSwarmRequestSchema>;
 export type AssignDailyActionRequest = z.infer<typeof assignDailyActionRequestSchema>;
 export type CompleteDailyActionRequest = z.infer<typeof completeDailyActionRequestSchema>;
 export type FailDailyActionRequest = z.infer<typeof failDailyActionRequestSchema>;

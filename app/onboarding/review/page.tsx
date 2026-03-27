@@ -25,15 +25,13 @@ export default async function OnboardingReviewPage({ searchParams }: ReviewPageP
   const session = await getHabitSession();
   const user = await getAuthenticatedUser();
 
-  if (!user || !session.goalId || !session.planId) {
+  if (!user || !session.goalId || !session.planId || !session.reviewMeta) {
     return (
       <PageShell auth={auth} locale={locale} path="/onboarding/review" title="" description="" className="mx-auto max-w-3xl">
         <Card className="bg-[var(--surface-strong)] text-center">
-          <p className="text-sm leading-6 text-[var(--muted)]">
-            {locale === "ko" ? "검토할 플랜이 아직 없어요. 먼저 온보딩을 완료해 주세요." : "There is no plan to review yet. Complete onboarding first."}
-          </p>
+          <p className="text-sm leading-6 text-[var(--muted)]">검토할 계획이 아직 없어요.</p>
           <Link href="/onboarding" className="mt-4 inline-block">
-            <Button>{locale === "ko" ? "온보딩으로" : "Back to onboarding"}</Button>
+            <Button>온보딩으로</Button>
           </Link>
         </Card>
       </PageShell>
@@ -73,20 +71,14 @@ export default async function OnboardingReviewPage({ searchParams }: ReviewPageP
   }
 
   return (
-    <PageShell auth={auth} locale={locale} path="/onboarding/review" title="" description="" className="mx-auto max-w-3xl">
+    <PageShell auth={auth} locale={locale} path="/onboarding/review" title="계획 확인" description="짧게 보고 시작합니다." className="mx-auto max-w-3xl">
       <div className="grid gap-4">
-        <Card className="bg-[var(--surface-muted)]">
-          <h2 className="text-xl font-semibold">
-            {locale === "ko" ? "오늘 행동을 한 번만 다듬어 볼게요." : "Let's tune today's action once."}
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-[var(--foreground-soft)]">
-            {locale === "ko"
-              ? "더 쉽게와 조금 더 크게는 지금 행동만 바로 바꿔요. 전체 다시 만들기는 플랜을 새로 만들어요."
-              : "Make easier and A bit bigger adjust the current action. Regenerate plan rebuilds the full draft."}
-          </p>
-          {params.error ? <p className="mt-3 text-sm text-amber-800">{params.error}</p> : null}
-        </Card>
-        <PlanReviewForm locale={locale} initialActions={initialActions} notice={params.notice} />
+        {params.error ? (
+          <Card className="border-amber-300 bg-amber-50/90">
+            <p className="text-sm text-amber-900">{params.error}</p>
+          </Card>
+        ) : null}
+        <PlanReviewForm locale={locale} initialActions={initialActions} notice={params.notice} reviewMeta={session.reviewMeta} />
       </div>
     </PageShell>
   );

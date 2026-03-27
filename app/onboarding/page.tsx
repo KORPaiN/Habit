@@ -1,6 +1,7 @@
 import { OnboardingForm } from "@/components/onboarding/onboarding-form";
 import { Card } from "@/components/ui/card";
 import { PageShell } from "@/components/ui/page-shell";
+import { getHabitSession } from "@/lib/habit-session";
 import { getLocale } from "@/lib/locale";
 import { getAuthenticatedUser, getAuthShellState } from "@/lib/supabase/auth";
 import { getUserAnchors } from "@/lib/supabase/habit-service";
@@ -12,6 +13,7 @@ export const dynamic = "force-dynamic";
 type OnboardingPageProps = {
   searchParams?: Promise<{
     error?: string;
+    reselect?: string;
   }>;
 };
 
@@ -21,7 +23,7 @@ function isAiAvailabilityError(error?: string) {
   }
 
   const normalized = error.toLowerCase();
-  return normalized.includes("openai") || normalized.includes("quota") || normalized.includes("ai 플랜");
+  return normalized.includes("openai") || normalized.includes("quota");
 }
 
 export default async function OnboardingPage({ searchParams }: OnboardingPageProps) {
@@ -29,37 +31,36 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
   const locale = await getLocale();
   const auth = await getAuthShellState();
   const user = await getAuthenticatedUser();
+  const session = await getHabitSession();
   const savedAnchors: Array<Pick<Database["public"]["Tables"]["anchors"]["Row"], "id" | "cue" | "label" | "preferred_time" | "updated_at">> =
     user ? await getUserAnchors(await getSupabaseServerClient(), user.id) : [];
   const showAiBanner = isAiAvailabilityError(params.error);
+  const isReselect = params.reselect === "1";
 
   return (
     <PageShell
       auth={auth}
       locale={locale}
       path="/onboarding"
-      eyebrow={locale === "ko" ? "온보딩" : "Onboarding"}
-      title={locale === "ko" ? "오늘 할 수 있게 줄여볼게요." : "Let's make the goal lighter."}
-      description={
-        locale === "ko"
-          ? "짧게 답하면 작은 첫 계획을 만듭니다."
-          : "Answer a few short questions so the plan starts small enough to actually happen."
-      }
-      className="mx-auto w-full max-w-2xl"
+      eyebrow="온보딩"
+      title={isReselect ? "행동 다시 고르기" : "작게 시작하기"}
+      description={isReselect ? "다시 고르고 이어갑니다." : "한 단계씩 정합니다."}
+      className="mx-auto w-full max-w-3xl"
     >
       {showAiBanner ? (
         <Card className="border-amber-300 bg-amber-50/90">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
-            {locale === "ko" ? "AI 연결 상태" : "AI availability"}
-          </p>
-          <p className="mt-3 text-sm leading-6 text-amber-900">
-            {locale === "ko"
-              ? "지금은 AI 플랜을 만들 수 없어요. quota를 확인해 주세요."
-              : "AI micro-plan generation is currently unavailable. Restore OpenAI billing or quota and try again."}
-          </p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">AI 상태</p>
+          <p className="mt-3 text-sm leading-6 text-amber-900">지금은 AI가 느립니다. 가능한 범위에서 규칙 기반 후보도 함께 보여줍니다.</p>
         </Card>
       ) : null}
-      <OnboardingForm locale={locale} isAuthenticated={auth.isAuthenticated} error={params.error} savedAnchors={savedAnchors} />
+      <OnboardingForm
+        locale={locale}
+        isAuthenticated={auth.isAuthenticated}
+        error={params.error}
+        savedAnchors={savedAnchors}
+        initialReviewMeta={session.reviewMeta}
+        isReselect={isReselect}
+      />
     </PageShell>
   );
 }

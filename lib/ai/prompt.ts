@@ -1,5 +1,5 @@
 import type { Locale } from "@/lib/locale";
-import type { HabitDecomposition, OnboardingInput } from "@/lib/validators/habit";
+import type { BehaviorSwarmCandidate, HabitDecomposition, OnboardingBaseInput, OnboardingInput } from "@/lib/validators/habit";
 import type { FailureReason } from "@/types";
 
 export type GoalArchetype = "reading" | "writing" | "study" | "exercise" | "tidy" | "digital" | "self_care" | "generic";
@@ -103,6 +103,55 @@ export function buildHabitDecompositionPrompt(input: OnboardingInput, failureRea
   );
 }
 
+export function buildBehaviorSwarmPrompt(input: OnboardingBaseInput, locale: Locale = "ko") {
+  return [
+    "Return JSON only.",
+    "You are an execution-focused micro-habit coach.",
+    locale === "ko" ? "Write short, natural Korean. No translation tone." : "Write short, natural English.",
+    "Generate 6 to 10 tiny behavior candidates.",
+    "Every candidate must be concrete, observable, and easy to start now.",
+    "Keep each candidate to 1 to 5 minutes.",
+    "Do not use vague phrases like do your best, keep going, or work on it.",
+    "Each candidate needs desireScore, abilityScore, and impactScore from 1 to 5.",
+    locale === "ko" ? "Write all user-facing strings in Korean." : "Write all user-facing strings in English.",
+    `DATA: ${JSON.stringify({
+      goal: input.goal,
+      desiredOutcome: input.desiredOutcome,
+      motivationNote: input.motivationNote ?? "",
+      difficulty: input.difficulty,
+      availableMinutes: input.availableMinutes,
+      preferredTime: input.preferredTime,
+    })}`,
+  ].join("\n");
+}
+
+export function buildSelectedBehaviorPlanPrompt(
+  input: Pick<OnboardingInput, "goal" | "difficulty" | "availableMinutes" | "preferredTime" | "anchor">,
+  selectedBehavior: BehaviorSwarmCandidate,
+  failureReason?: FailureReason,
+  locale: Locale = "ko",
+) {
+  return [
+    buildAiOnlyHabitDecompositionPrompt(
+      {
+        goal: input.goal,
+        availableMinutes: input.availableMinutes,
+        difficulty: input.difficulty,
+        preferredTime: input.preferredTime,
+        anchor: input.anchor,
+      },
+      {
+        archetype: "generic",
+        intent: "start",
+      },
+      failureReason,
+      locale,
+    ),
+    `SELECTED_BEHAVIOR: ${JSON.stringify(selectedBehavior)}`,
+    "Keep the selected behavior as today's first action or make it slightly smaller if the failure reason demands it.",
+  ].join("\n");
+}
+
 export const habitDecompositionJsonSchema = {
   name: "habit_decomposition",
   strict: true,
@@ -148,5 +197,35 @@ export const habitDecompositionJsonSchema = {
       },
     },
     required: ["goalSummary", "selectedAnchor", "microActions", "todayAction", "fallbackAction"],
+  },
+} as const;
+
+export const behaviorSwarmJsonSchema = {
+  name: "behavior_swarm",
+  strict: true,
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      candidates: {
+        type: "array",
+        minItems: 6,
+        maxItems: 10,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            title: { type: "string" },
+            details: { type: "string" },
+            durationMinutes: { type: "number" },
+            desireScore: { type: "number" },
+            abilityScore: { type: "number" },
+            impactScore: { type: "number" },
+          },
+          required: ["title", "details", "durationMinutes", "desireScore", "abilityScore", "impactScore"],
+        },
+      },
+    },
+    required: ["candidates"],
   },
 } as const;

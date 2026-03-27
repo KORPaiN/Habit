@@ -1,8 +1,26 @@
 import { cookies } from "next/headers";
-import type { DifficultyLevel } from "@/types";
+import type { DifficultyLevel, PreferredTime } from "@/types";
 import type { PlanMicroActionInput } from "@/lib/validators/backend";
+import type { BehaviorSwarmCandidate } from "@/lib/validators/habit";
 
 const HABIT_SESSION_COOKIE = "habit_session";
+
+export type HabitReviewMeta = {
+  goal: string;
+  desiredOutcome: string;
+  motivationNote?: string;
+  availableMinutes: number;
+  difficulty: DifficultyLevel;
+  preferredTime: PreferredTime;
+  selectedBehavior: BehaviorSwarmCandidate;
+  swarmCandidates: BehaviorSwarmCandidate[];
+  primaryAnchor: string;
+  backupAnchors: string[];
+  recipeText: string;
+  celebrationText: string;
+  rehearsalCount: number;
+  selectedCandidateId?: string;
+};
 
 export type HabitSession = {
   userId?: string;
@@ -12,6 +30,7 @@ export type HabitSession = {
   dailyActionId?: string;
   reviewActions?: PlanMicroActionInput[];
   reviewDifficulty?: DifficultyLevel;
+  reviewMeta?: HabitReviewMeta;
 };
 
 function getDefaultSession(): HabitSession {
@@ -36,7 +55,8 @@ export async function getHabitSession() {
       (parsed.microActionId === undefined || typeof parsed.microActionId === "string") &&
       (parsed.dailyActionId === undefined || typeof parsed.dailyActionId === "string") &&
       (parsed.reviewActions === undefined || Array.isArray(parsed.reviewActions)) &&
-      (parsed.reviewDifficulty === undefined || typeof parsed.reviewDifficulty === "string")
+      (parsed.reviewDifficulty === undefined || typeof parsed.reviewDifficulty === "string") &&
+      (parsed.reviewMeta === undefined || typeof parsed.reviewMeta === "object")
     ) {
       return parsed as HabitSession;
     }

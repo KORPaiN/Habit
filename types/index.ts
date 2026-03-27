@@ -3,6 +3,7 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Locale = "en" | "ko";
 export type DifficultyLevel = "gentle" | "steady" | "hard";
 export type PreferredTime = "morning" | "afternoon" | "evening";
+export type AnchorType = "primary" | "backup";
 export type GoalStatus = "active" | "paused" | "completed" | "archived";
 export type PlanSource = "ai" | "manual" | "recovery" | "seed";
 export type PlanStatus = "draft" | "active" | "archived";
@@ -12,6 +13,8 @@ export type FailureReason =
   | "too_big"
   | "too_tired"
   | "forgot"
+  | "forgot_often"
+  | "not_wanted"
   | "schedule_conflict"
   | "low_motivation"
   | "other";
@@ -87,6 +90,8 @@ export interface Database {
           anchor_id: string | null;
           title: string;
           why: string | null;
+          desired_outcome: string | null;
+          motivation_note: string | null;
           difficulty: DifficultyLevel;
           available_minutes: number;
           status: GoalStatus;
@@ -100,6 +105,8 @@ export interface Database {
           anchor_id?: string | null;
           title: string;
           why?: string | null;
+          desired_outcome?: string | null;
+          motivation_note?: string | null;
           difficulty: DifficultyLevel;
           available_minutes: number;
           status?: GoalStatus;
@@ -113,12 +120,84 @@ export interface Database {
           anchor_id?: string | null;
           title?: string;
           why?: string | null;
+          desired_outcome?: string | null;
+          motivation_note?: string | null;
           difficulty?: DifficultyLevel;
           available_minutes?: number;
           status?: GoalStatus;
           created_at?: string;
           updated_at?: string;
           archived_at?: string | null;
+        };
+      };
+      goal_anchors: {
+        Row: {
+          id: string;
+          goal_id: string;
+          anchor_id: string;
+          anchor_type: AnchorType;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          goal_id: string;
+          anchor_id: string;
+          anchor_type: AnchorType;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          goal_id?: string;
+          anchor_id?: string;
+          anchor_type?: AnchorType;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      behavior_swarm_candidates: {
+        Row: {
+          id: string;
+          goal_id: string;
+          title: string;
+          details: string | null;
+          duration_minutes: number;
+          desire_score: number | null;
+          ability_score: number | null;
+          impact_score: number | null;
+          selected: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          goal_id: string;
+          title: string;
+          details?: string | null;
+          duration_minutes: number;
+          desire_score?: number | null;
+          ability_score?: number | null;
+          impact_score?: number | null;
+          selected?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          goal_id?: string;
+          title?: string;
+          details?: string | null;
+          duration_minutes?: number;
+          desire_score?: number | null;
+          ability_score?: number | null;
+          impact_score?: number | null;
+          selected?: boolean;
+          created_at?: string;
+          updated_at?: string;
         };
       };
       habit_plans: {
@@ -130,6 +209,10 @@ export interface Database {
           status: PlanStatus;
           based_on_plan_id: string | null;
           notes: string | null;
+          recipe_text: string | null;
+          celebration_text: string | null;
+          rehearsal_count: number;
+          selected_candidate_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -141,6 +224,10 @@ export interface Database {
           status?: PlanStatus;
           based_on_plan_id?: string | null;
           notes?: string | null;
+          recipe_text?: string | null;
+          celebration_text?: string | null;
+          rehearsal_count?: number;
+          selected_candidate_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -152,6 +239,10 @@ export interface Database {
           status?: PlanStatus;
           based_on_plan_id?: string | null;
           notes?: string | null;
+          recipe_text?: string | null;
+          celebration_text?: string | null;
+          rehearsal_count?: number;
+          selected_candidate_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -424,6 +515,8 @@ export interface Database {
 export type UserRow = Database["public"]["Tables"]["users"]["Row"];
 export type GoalRow = Database["public"]["Tables"]["goals"]["Row"];
 export type AnchorRow = Database["public"]["Tables"]["anchors"]["Row"];
+export type GoalAnchorRow = Database["public"]["Tables"]["goal_anchors"]["Row"];
+export type BehaviorSwarmCandidateRow = Database["public"]["Tables"]["behavior_swarm_candidates"]["Row"];
 export type HabitPlanRow = Database["public"]["Tables"]["habit_plans"]["Row"];
 export type MicroActionRow = Database["public"]["Tables"]["micro_actions"]["Row"];
 export type DailyActionRow = Database["public"]["Tables"]["daily_actions"]["Row"];

@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { onboardingRequestSchema, planMicroActionsSchema } from "@/lib/validators/backend";
+import {
+  behaviorSwarmCandidatesSchema,
+  failureReasonSchema,
+  onboardingRequestSchema,
+  planMicroActionsSchema,
+} from "@/lib/validators/backend";
 import {
   adjustReviewActions,
   buildRecoveryPreview,
@@ -80,14 +85,98 @@ test("onboardingRequestSchema accepts the backend MVP payload", () => {
   const result = onboardingRequestSchema.parse({
     goalTitle: "Build a reading habit",
     goalWhy: "I want reading to feel normal again.",
+    desiredOutcome: "Read a little each day.",
+    motivationNote: "I want reading to feel normal again.",
     difficulty: "gentle",
     availableMinutes: 5,
     anchorLabel: "After coffee",
     anchorCue: "When the mug is on the desk",
     preferredTime: "morning",
+    backupAnchors: ["After lunch"],
+    selectedBehavior: {
+      title: "Open the book and read one page",
+      details: "A tiny step.",
+      durationMinutes: 2,
+      desireScore: 4,
+      abilityScore: 5,
+      impactScore: 4,
+    },
+    swarmCandidates: [
+      {
+        title: "Open the book and read one page",
+        details: "A tiny step.",
+        durationMinutes: 2,
+        desireScore: 4,
+        abilityScore: 5,
+        impactScore: 4,
+      },
+      {
+        title: "Read one paragraph",
+        details: "Very short.",
+        durationMinutes: 1,
+        desireScore: 4,
+        abilityScore: 5,
+        impactScore: 3,
+      },
+      {
+        title: "Highlight one line",
+        details: "Keep it visible.",
+        durationMinutes: 1,
+        desireScore: 3,
+        abilityScore: 5,
+        impactScore: 4,
+      },
+      {
+        title: "Open the book",
+        details: "Start with setup.",
+        durationMinutes: 1,
+        desireScore: 3,
+        abilityScore: 5,
+        impactScore: 3,
+      },
+      {
+        title: "Read one sentence",
+        details: "Even smaller.",
+        durationMinutes: 1,
+        desireScore: 4,
+        abilityScore: 5,
+        impactScore: 3,
+      },
+      {
+        title: "Put the book on the desk",
+        details: "Prep for later.",
+        durationMinutes: 1,
+        desireScore: 3,
+        abilityScore: 5,
+        impactScore: 3,
+      },
+    ],
+    recipeText: "커피 마신 뒤 책 한 페이지 읽기",
+    celebrationText: "좋아, 했다.",
+    rehearsalCount: 3,
   });
 
   assert.equal(result.goalTitle, "Build a reading habit");
+});
+
+test("behaviorSwarmCandidatesSchema requires 6 to 10 candidates", () => {
+  const result = behaviorSwarmCandidatesSchema.safeParse([
+    {
+      title: "Read one page",
+      details: "Small.",
+      durationMinutes: 2,
+      desireScore: 4,
+      abilityScore: 5,
+      impactScore: 4,
+    },
+  ]);
+
+  assert.equal(result.success, false);
+});
+
+test("failureReasonSchema accepts the new recovery reasons", () => {
+  assert.equal(failureReasonSchema.parse("forgot_often"), "forgot_often");
+  assert.equal(failureReasonSchema.parse("not_wanted"), "not_wanted");
 });
 
 test("prioritizeSelectedMicroAction moves the chosen action to position one", () => {

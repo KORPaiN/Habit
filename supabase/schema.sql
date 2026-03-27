@@ -10,12 +10,13 @@ create extension if not exists pgcrypto;
 
 create type difficulty_level as enum ('gentle', 'steady', 'hard');
 create type preferred_time as enum ('morning', 'afternoon', 'evening');
+create type anchor_type as enum ('primary', 'backup');
 create type goal_status as enum ('active', 'paused', 'completed', 'archived');
 create type plan_source as enum ('ai', 'manual', 'recovery', 'seed');
 create type plan_status as enum ('draft', 'active', 'archived');
 create type daily_action_status as enum ('pending', 'completed', 'skipped', 'failed');
 create type action_log_type as enum ('assigned', 'completed', 'failed', 'skipped', 'rescheduled');
-create type failure_reason as enum ('too_big', 'too_tired', 'forgot', 'schedule_conflict', 'low_motivation', 'other');
+create type failure_reason as enum ('too_big', 'too_tired', 'forgot', 'forgot_often', 'not_wanted', 'schedule_conflict', 'low_motivation', 'other');
 create type subscription_status as enum ('trialing', 'active', 'past_due', 'canceled', 'free');
 create type notification_channel as enum ('email', 'push', 'in_app');
 create type notification_status as enum ('queued', 'sent', 'failed', 'canceled');
@@ -57,12 +58,39 @@ create table if not exists goals (
   anchor_id uuid references anchors(id) on delete set null,
   title text not null,
   why text,
+  desired_outcome text,
+  motivation_note text,
   difficulty difficulty_level not null,
   available_minutes integer not null check (available_minutes between 1 and 30),
   status goal_status not null default 'active',
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now()),
   archived_at timestamptz
+);
+
+create table if not exists goal_anchors (
+  id uuid primary key default gen_random_uuid(),
+  goal_id uuid not null references goals(id) on delete cascade,
+  anchor_id uuid not null references anchors(id) on delete cascade,
+  anchor_type anchor_type not null,
+  sort_order integer not null default 0 check (sort_order between 0 and 2),
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  unique (goal_id, anchor_type, sort_order)
+);
+
+create table if not exists behavior_swarm_candidates (
+  id uuid primary key default gen_random_uuid(),
+  goal_id uuid not null references goals(id) on delete cascade,
+  title text not null,
+  details text,
+  duration_minutes integer not null check (duration_minutes between 1 and 5),
+  desire_score integer check (desire_score between 1 and 5),
+  ability_score integer check (ability_score between 1 and 5),
+  impact_score integer check (impact_score between 1 and 5),
+  selected boolean not null default false,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
 );
 
 create table if not exists habit_plans (
@@ -73,6 +101,10 @@ create table if not exists habit_plans (
   status plan_status not null default 'active',
   based_on_plan_id uuid references habit_plans(id) on delete set null,
   notes text,
+  recipe_text text,
+  celebration_text text,
+  rehearsal_count integer not null default 0 check (rehearsal_count between 0 and 7),
+  selected_candidate_id uuid references behavior_swarm_candidates(id) on delete set null,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now()),
   unique (goal_id, version)
@@ -196,6 +228,8 @@ create table if not exists notifications (
 );
 
 create index if not exists goals_user_id_idx on goals (user_id);
+create index if not exists goal_anchors_goal_id_idx on goal_anchors (goal_id, anchor_type, sort_order);
+create index if not exists behavior_swarm_candidates_goal_id_idx on behavior_swarm_candidates (goal_id, created_at desc);
 create index if not exists habit_plans_goal_id_idx on habit_plans (goal_id, created_at desc);
 create index if not exists micro_actions_plan_id_idx on micro_actions (plan_id, position);
 create index if not exists daily_actions_goal_date_idx on daily_actions (goal_id, action_date desc);
@@ -209,6 +243,10 @@ drop trigger if exists anchors_set_updated_at on anchors;
 create trigger anchors_set_updated_at before update on anchors for each row execute function set_updated_at();
 drop trigger if exists goals_set_updated_at on goals;
 create trigger goals_set_updated_at before update on goals for each row execute function set_updated_at();
+drop trigger if exists goal_anchors_set_updated_at on goal_anchors;
+create trigger goal_anchors_set_updated_at before update on goal_anchors for each row execute function set_updated_at();
+drop trigger if exists behavior_swarm_candidates_set_updated_at on behavior_swarm_candidates;
+create trigger behavior_swarm_candidates_set_updated_at before update on behavior_swarm_candidates for each row execute function set_updated_at();
 drop trigger if exists habit_plans_set_updated_at on habit_plans;
 create trigger habit_plans_set_updated_at before update on habit_plans for each row execute function set_updated_at();
 drop trigger if exists micro_actions_set_updated_at on micro_actions;
@@ -228,6 +266,8 @@ create or replace function create_onboarding_goal(
   p_user_id uuid,
   p_goal_title text,
   p_goal_why text,
+  p_desired_outcome text,
+  p_motivation_note text,
   p_difficulty difficulty_level,
   p_available_minutes integer,
   p_anchor_label text,
@@ -253,8 +293,8 @@ begin
     preferred_time = excluded.preferred_time
   returning id into v_anchor_id;
 
-  insert into goals (user_id, anchor_id, title, why, difficulty, available_minutes)
-  values (p_user_id, v_anchor_id, p_goal_title, p_goal_why, p_difficulty, p_available_minutes)
+  insert into goals (user_id, anchor_id, title, why, desired_outcome, motivation_note, difficulty, available_minutes)
+  values (p_user_id, v_anchor_id, p_goal_title, p_goal_why, p_desired_outcome, p_motivation_note, p_difficulty, p_available_minutes)
   returning * into v_goal;
 
   return jsonb_build_object(
@@ -274,7 +314,11 @@ create or replace function create_habit_plan(
   p_source plan_source,
   p_micro_actions jsonb,
   p_based_on_plan_id uuid default null,
-  p_notes text default null
+  p_notes text default null,
+  p_recipe_text text default null,
+  p_celebration_text text default null,
+  p_rehearsal_count integer default 0,
+  p_selected_candidate_id uuid default null
 )
 returns jsonb
 language plpgsql
@@ -315,8 +359,30 @@ begin
   from habit_plans
   where goal_id = p_goal_id;
 
-  insert into habit_plans (goal_id, version, source, status, based_on_plan_id, notes)
-  values (p_goal_id, v_version, p_source, 'active', p_based_on_plan_id, p_notes)
+  insert into habit_plans (
+    goal_id,
+    version,
+    source,
+    status,
+    based_on_plan_id,
+    notes,
+    recipe_text,
+    celebration_text,
+    rehearsal_count,
+    selected_candidate_id
+  )
+  values (
+    p_goal_id,
+    v_version,
+    p_source,
+    'active',
+    p_based_on_plan_id,
+    p_notes,
+    p_recipe_text,
+    p_celebration_text,
+    coalesce(p_rehearsal_count, 0),
+    p_selected_candidate_id
+  )
   returning * into v_plan;
 
   for v_item in
@@ -691,6 +757,8 @@ $$;
 alter table users enable row level security;
 alter table anchors enable row level security;
 alter table goals enable row level security;
+alter table goal_anchors enable row level security;
+alter table behavior_swarm_candidates enable row level security;
 alter table habit_plans enable row level security;
 alter table micro_actions enable row level security;
 alter table daily_actions enable row level security;
@@ -705,6 +773,34 @@ drop policy if exists "users can manage own anchors" on anchors;
 create policy "users can manage own anchors" on anchors for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 drop policy if exists "users can manage own goals" on goals;
 create policy "users can manage own goals" on goals for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "users can manage own goal anchors" on goal_anchors;
+create policy "users can manage own goal anchors" on goal_anchors for all using (
+  exists (
+    select 1 from goals g
+    where g.id = goal_anchors.goal_id
+      and g.user_id = auth.uid()
+  )
+) with check (
+  exists (
+    select 1 from goals g
+    where g.id = goal_anchors.goal_id
+      and g.user_id = auth.uid()
+  )
+);
+drop policy if exists "users can manage own behavior swarm candidates" on behavior_swarm_candidates;
+create policy "users can manage own behavior swarm candidates" on behavior_swarm_candidates for all using (
+  exists (
+    select 1 from goals g
+    where g.id = behavior_swarm_candidates.goal_id
+      and g.user_id = auth.uid()
+  )
+) with check (
+  exists (
+    select 1 from goals g
+    where g.id = behavior_swarm_candidates.goal_id
+      and g.user_id = auth.uid()
+  )
+);
 drop policy if exists "users can manage own plans" on habit_plans;
 create policy "users can manage own plans" on habit_plans for all using (
   exists (

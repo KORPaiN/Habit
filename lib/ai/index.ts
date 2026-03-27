@@ -1,7 +1,11 @@
 import type { Locale } from "@/lib/locale";
+import { z } from "zod";
 import {
+  buildBehaviorSwarmPrompt,
   buildAiOnlyHabitDecompositionPrompt,
   buildHybridRewritePrompt,
+  buildSelectedBehaviorPlanPrompt,
+  behaviorSwarmJsonSchema,
   habitDecompositionJsonSchema,
   type GoalArchetype,
   type GoalClassification,
@@ -12,11 +16,17 @@ import { logSecurityEvent } from "@/lib/security/events";
 import { API_RATE_LIMITS } from "@/lib/security/route-guard";
 import { consumeRateLimits } from "@/lib/security/rate-limit";
 import {
+  behaviorSwarmCandidateSchema,
+  behaviorSwarmSchema,
   habitDecompositionSchema,
   microActionSchema,
+  onboardingBaseSchema,
+  type BehaviorSwarmCandidate,
   type HabitDecomposition,
+  type OnboardingBaseInput,
   type MicroAction,
   type OnboardingInput,
+  type OnboardingWizardInput,
 } from "@/lib/validators/habit";
 import type { FailureReason } from "@/types";
 
@@ -608,6 +618,8 @@ function applyRecentContext(
       candidate === "too_big" ||
       candidate === "too_tired" ||
       candidate === "forgot" ||
+      candidate === "forgot_often" ||
+      candidate === "not_wanted" ||
       candidate === "schedule_conflict" ||
       candidate === "low_motivation" ||
       candidate === "other",
@@ -615,7 +627,7 @@ function applyRecentContext(
       undefined);
   const shouldShrink =
     normalizedFailureReason === "too_big" || recentContext.recentUsedFallbackCount >= 2 || recentContext.recentStatuses.includes("failed");
-  const shouldMentionAnchor = normalizedFailureReason === "forgot";
+  const shouldMentionAnchor = normalizedFailureReason === "forgot" || normalizedFailureReason === "forgot_often";
   const nextActions = actions.map((action, index) => {
     if (index !== 0) {
       return action;
@@ -712,6 +724,8 @@ export function buildRuleBasedHabitDecomposition(
       candidate === "too_big" ||
       candidate === "too_tired" ||
       candidate === "forgot" ||
+      candidate === "forgot_often" ||
+      candidate === "not_wanted" ||
       candidate === "schedule_conflict" ||
       candidate === "low_motivation" ||
       candidate === "other",
@@ -803,11 +817,253 @@ export function generateDraftTemplates(
   });
 }
 
+function buildCandidateId(title: string, index: number) {
+  const normalized = title
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\u3131-\uD79D]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return `${normalized || "candidate"}-${index + 1}`;
+}
+
+function scoreAbility(durationMinutes: number, difficulty: OnboardingBaseInput["difficulty"]) {
+  const base = durationMinutes <= 1 ? 5 : durationMinutes <= 2 ? 4 : durationMinutes <= 3 ? 3 : 2;
+
+  if (difficulty === "hard") {
+    return Math.min(5, base + 1);
+  }
+
+  if (difficulty === "gentle") {
+    return Math.max(1, base - 1);
+  }
+
+  return base;
+}
+
+function scoreDesire(title: string, durationMinutes: number) {
+  let score = durationMinutes <= 2 ? 4 : 3;
+
+  if (/열|펴|꺼내|한|물|숨|정리|보기|쓰기|읽기|신기/i.test(title)) {
+    score += 1;
+  }
+
+  return Math.max(1, Math.min(5, score));
+}
+
+function scoreImpact(title: string, classification: GoalClassification) {
+  let score = 3;
+
+  if (classification.archetype !== "generic") {
+    score += 1;
+  }
+
+  if (/첫|핵심|한 페이지|한 문장|정리|스트레칭|물 한 잔/i.test(title)) {
+    score += 1;
+  }
+
+  return Math.max(1, Math.min(5, score));
+}
+
+function toBehaviorCandidate(
+  action: MicroAction,
+  index: number,
+  input: OnboardingBaseInput,
+  classification: GoalClassification,
+): BehaviorSwarmCandidate {
+  return behaviorSwarmCandidateSchema.parse({
+    id: buildCandidateId(action.title, index),
+    title: action.title,
+    details: action.reason,
+    durationMinutes: Math.max(1, Math.min(5, action.durationMinutes)),
+    desireScore: scoreDesire(action.title, action.durationMinutes),
+    abilityScore: scoreAbility(action.durationMinutes, input.difficulty),
+    impactScore: scoreImpact(action.title, classification),
+  });
+}
+
+function buildBehaviorSwarmFallbackInput(input: OnboardingBaseInput): OnboardingInput {
+  return onboardingBaseSchema
+    .extend({
+      anchor: z.string().default(input.preferredTime === "evening" ? "잠들기 전" : "커피 마신 뒤"),
+    })
+    .parse({
+      ...input,
+      anchor: input.preferredTime === "evening" ? "잠들기 전" : "커피 마신 뒤",
+    }) as OnboardingInput;
+}
+
+function fillBehaviorCandidates(
+  candidates: BehaviorSwarmCandidate[],
+  input: OnboardingBaseInput,
+  classification: GoalClassification,
+) {
+  if (candidates.length >= 6) {
+    return candidates.slice(0, 8);
+  }
+
+  const fillerActions: MicroAction[] = [
+    {
+      title: `"${input.goal}" 준비물 꺼내기`,
+      reason: "준비만 해도 시작이 쉬워집니다.",
+      durationMinutes: 1,
+      fallbackAction: `"${input.goal}" 준비물 보기`,
+    },
+    {
+      title: "첫 화면 열기",
+      reason: "바로 시작하기 쉬운 준비 행동입니다.",
+      durationMinutes: 1,
+      fallbackAction: "첫 화면 보기",
+    },
+    {
+      title: "한 문장만 보기",
+      reason: "부담 없이 흐름을 다시 엽니다.",
+      durationMinutes: 1,
+      fallbackAction: "한 줄만 보기",
+    },
+    {
+      title: "시작 자리 정하기",
+      reason: "앉을 자리만 정해도 시작이 가벼워집니다.",
+      durationMinutes: 1,
+      fallbackAction: "자리만 보기",
+    },
+  ];
+
+  const existing = new Set(candidates.map((candidate) => candidate.title.trim().toLowerCase()));
+  const nextCandidates = [...candidates];
+
+  fillerActions.forEach((action) => {
+    const normalized = action.title.trim().toLowerCase();
+
+    if (!existing.has(normalized) && nextCandidates.length < 8) {
+      nextCandidates.push(toBehaviorCandidate(action, nextCandidates.length, input, classification));
+      existing.add(normalized);
+    }
+  });
+
+  while (nextCandidates.length < 6) {
+    const index = nextCandidates.length + 1;
+    const filler = toBehaviorCandidate(
+      {
+        title: `${input.goal} 시작 ${index}`,
+        reason: "바로 할 수 있는 작은 시작입니다.",
+        durationMinutes: 1,
+        fallbackAction: `${input.goal} 준비만 하기`,
+      },
+      nextCandidates.length,
+      input,
+      classification,
+    );
+
+    if (existing.has(filler.title.trim().toLowerCase())) {
+      break;
+    }
+
+    nextCandidates.push(filler);
+    existing.add(filler.title.trim().toLowerCase());
+  }
+
+  return nextCandidates.slice(0, 8);
+}
+
+export function buildRuleBasedBehaviorSwarm(input: OnboardingBaseInput, locale: Locale = "ko"): BehaviorSwarmCandidate[] {
+  const classification = getGoalClassification(input.goal);
+  const fallbackInput = buildBehaviorSwarmFallbackInput(input);
+  const templates = generateDraftTemplates(fallbackInput, classification, EMPTY_RECENT_CONTEXT, locale);
+  const unique = new Map<string, BehaviorSwarmCandidate>();
+
+  templates
+    .flatMap((template) => template.microActions)
+    .forEach((action, index) => {
+      const candidate = toBehaviorCandidate(action, index, input, classification);
+      const key = candidate.title.trim().toLowerCase();
+
+      if (!unique.has(key)) {
+        unique.set(key, candidate);
+      }
+    });
+
+  return behaviorSwarmSchema.parse(fillBehaviorCandidates([...unique.values()], input, classification));
+}
+
+function buildSelectedBehaviorReason(input: Pick<OnboardingWizardInput, "desiredOutcome">, selectedBehavior: BehaviorSwarmCandidate, locale: Locale) {
+  if (selectedBehavior.details?.trim()) {
+    return selectedBehavior.details.trim();
+  }
+
+  return locale === "ko"
+    ? `${input.desiredOutcome}에 가까워지기 위한 가장 가벼운 시작입니다.`
+    : `This is the lightest start toward ${input.desiredOutcome}.`;
+}
+
+function deriveSelectedBehaviorFallback(
+  input: Pick<OnboardingWizardInput, "goal">,
+  selectedBehavior: BehaviorSwarmCandidate,
+  baseAction?: MicroAction,
+  locale: Locale = "ko",
+) {
+  if (baseAction?.fallbackAction && baseAction.title !== selectedBehavior.title) {
+    return baseAction.fallbackAction;
+  }
+
+  if (locale === "ko") {
+    if (/읽기|읽어/i.test(selectedBehavior.title)) return "책 펴기";
+    if (/쓰기|적기/i.test(selectedBehavior.title)) return "메모 열기";
+    if (/운동|스트레칭|걷기/i.test(selectedBehavior.title)) return "운동화 꺼내기";
+    if (/정리|치우기/i.test(selectedBehavior.title)) return "물건 하나 집기";
+    return `"${input.goal}" 준비물 꺼내기`;
+  }
+
+  return `Set out what you need for "${input.goal}"`;
+}
+
+export async function generateHabitDecompositionFromSelection(
+  input: OnboardingWizardInput,
+  selectedBehavior: BehaviorSwarmCandidate,
+  options?: {
+    failureReason?: FailureReason;
+    locale?: Locale;
+    strategy?: GenerationStrategy;
+    modelPreference?: ModelPreference;
+    userId?: string;
+    goalId?: string;
+    basedOnPlanId?: string;
+  },
+) {
+  const locale = options?.locale ?? "ko";
+  const base = await generateHabitDecomposition(input, options);
+  const selectedAction = maybeShrinkFallback(
+    {
+      title: selectedBehavior.title,
+      reason: buildSelectedBehaviorReason(input, selectedBehavior, locale),
+      durationMinutes: selectedBehavior.durationMinutes,
+      fallbackAction: deriveSelectedBehaviorFallback(input, selectedBehavior, base.todayAction, locale),
+    },
+    input,
+    options?.failureReason,
+    locale,
+  );
+
+  const remainingActions = base.microActions.filter((action) => action.title !== selectedAction.title).slice(0, 2);
+
+  return habitDecompositionSchema.parse({
+    ...base,
+    microActions: [selectedAction, ...remainingActions].slice(0, 3),
+    todayAction: selectedAction,
+    fallbackAction: selectedAction.fallbackAction,
+    selectedAnchor: input.anchor,
+  });
+}
+
 async function sleep(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function fetchOpenAIOnce(prompt: string, model: string) {
+async function fetchOpenAIOnce(
+  prompt: string,
+  model: string,
+  schema: typeof habitDecompositionJsonSchema | typeof behaviorSwarmJsonSchema = habitDecompositionJsonSchema,
+) {
   const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
@@ -840,7 +1096,7 @@ async function fetchOpenAIOnce(prompt: string, model: string) {
         text: {
           format: {
             type: "json_schema",
-            ...habitDecompositionJsonSchema,
+            ...schema,
           },
         },
       }),
@@ -876,12 +1132,16 @@ async function fetchOpenAIOnce(prompt: string, model: string) {
   }
 }
 
-async function callOpenAI(prompt: string, model: string) {
+async function callOpenAI(
+  prompt: string,
+  model: string,
+  schema: typeof habitDecompositionJsonSchema | typeof behaviorSwarmJsonSchema = habitDecompositionJsonSchema,
+) {
   let lastError: unknown;
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      return await fetchOpenAIOnce(prompt, model);
+      return await fetchOpenAIOnce(prompt, model, schema);
     } catch (error) {
       lastError = error;
 
@@ -971,6 +1231,76 @@ function enforceAiUsageLimit(userId?: string) {
   }
 
   return consumeRateLimits("habit-ai", userId, API_RATE_LIMITS.ai);
+}
+
+export async function generateBehaviorSwarm(
+  rawInput: OnboardingBaseInput,
+  options?: {
+    locale?: Locale;
+    strategy?: GenerationStrategy;
+    modelPreference?: ModelPreference;
+    userId?: string;
+  },
+): Promise<BehaviorSwarmCandidate[]> {
+  const startedAt = Date.now();
+  const input = onboardingBaseSchema.parse(rawInput);
+  const locale = options?.locale ?? "ko";
+  const strategy = options?.strategy ?? readGenerationStrategy();
+  const modelPreference = options?.modelPreference ?? "fast";
+  const draft = buildRuleBasedBehaviorSwarm(input, locale);
+
+  if (strategy === "rules_only") {
+    logGenerationMetrics({
+      strategy,
+      plannerMs: 0,
+      openaiMs: 0,
+      totalMs: Date.now() - startedAt,
+      usedFallback: false,
+    });
+    return draft;
+  }
+
+  const rateLimitResult = enforceAiUsageLimit(options?.userId);
+
+  if (rateLimitResult && !rateLimitResult.allowed) {
+    return draft;
+  }
+
+  const releaseSlot = claimAiGenerationSlot(options?.userId);
+  const model = pickModel(modelPreference);
+  const openAIStartedAt = Date.now();
+
+  try {
+    const payload = await callOpenAI(buildBehaviorSwarmPrompt(input, locale), model, behaviorSwarmJsonSchema);
+    const text = extractTextFromResponse(payload);
+    const parsed = JSON.parse(text) as { candidates: BehaviorSwarmCandidate[] };
+    const candidates = behaviorSwarmSchema.parse(parsed.candidates);
+    const usage = getOpenAIUsage(payload);
+
+    logGenerationMetrics({
+      strategy,
+      model,
+      plannerMs: 0,
+      openaiMs: Date.now() - openAIStartedAt,
+      totalMs: Date.now() - startedAt,
+      usedFallback: false,
+      ...usage,
+    });
+
+    return candidates;
+  } catch {
+    logGenerationMetrics({
+      strategy,
+      model,
+      plannerMs: 0,
+      openaiMs: Date.now() - openAIStartedAt,
+      totalMs: Date.now() - startedAt,
+      usedFallback: true,
+    });
+    return draft;
+  } finally {
+    releaseSlot();
+  }
 }
 
 export async function generateHabitDecomposition(

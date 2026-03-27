@@ -1,286 +1,220 @@
 # Habit
 
-시작이 어려운 사람을 위한 실행 중심 마이크로 습관 코치입니다.
+Habit은 시작이 어려운 사람을 위한 마이크로 습관 코치입니다.  
+큰 목표를 바로 추적하지 않고, 오늘 바로 할 수 있는 1개의 아주 작은 행동으로 줄여 실행하게 돕습니다.
 
-Habit은 일반적인 습관 기록 앱이 아닙니다. 큰 목표를 오늘 바로 할 수 있는 1~5분짜리 작은 행동으로 바꾸고, 실패했을 때는 의지 부족으로 몰아가지 않고 행동 크기를 더 줄여 다시 시작할 수 있게 돕는 서비스입니다.
+## 제품 방향
+
+- 일반적인 habit tracker가 아닙니다.
+- 목표를 1~5분 안에 할 수 있는 행동으로 줄입니다.
+- 실패는 죄책감이 아니라 재설계 신호로 다룹니다.
+- 한 화면에는 한 가지 핵심 행동만 보여줍니다.
+- 문구는 짧고, 차분하고, 구체적으로 유지합니다.
 
 ## 현재 구현 범위
 
-현재 프로젝트에 구현되어 있는 기능:
+### 온보딩
 
-- 랜딩 페이지
-- Google 전용 로그인/회원가입 흐름
-- 회원가입 시 언어 확정 흐름
-- 온보딩
-  - 목표 입력
-  - 체감 난이도 입력
-  - 사용 가능 시간 입력
-  - 선호 시간대 선택
-  - 앵커(anchor) 선택 또는 저장된 앵커 재사용
-- AI 기반 마이크로 액션 계획 생성
-- 온보딩 플랜 검토 단계
-  - 생성된 행동 검토
-  - 더 쉽게 / 더 어렵게 조정
-  - 시작할 행동 확정
-- 오늘의 행동 화면
-- 실패 복구 흐름
-- 월별 리뷰 화면
-- 앵커 저장/삭제 화면
-- Supabase 기반 사용자/목표/플랜/리뷰 데이터 처리
-- API payload Zod 검증
-- 기본 보안 유틸
-  - same-origin 검사
-  - rate limit
-  - idempotency
-  - 보안 헤더
+- 5단계 위저드
+- 목표, 원하는 변화, 이유 입력
+- behavior swarm 후보 6~10개 생성
+- golden behavior 1개 선택
+- primary anchor 1개 + backup anchor 최대 2개 선택
+- recipe, celebration, rehearsal 설정
+- 로컬 스토리지로 위저드 임시 저장
 
-아직 문서상 명확히 구분해둘 점:
+### 리뷰
 
-- README에서 설명하는 기능 중 일부는 mock/demo 데이터 fallback을 사용합니다.
-- 리뷰 문구 생성은 현재 파일 기준으로 AI 요약보다 규칙 기반 상태 조합이 포함되어 있습니다.
-- `.env.example` 파일은 아직 없습니다.
+- 최종 habit recipe 요약
+- 원하는 변화
+- 선택한 행동
+- primary / backup anchor
+- recipe
+- fallback action
+- celebration
+- rehearsal progress
+- `더 쉽게`, `조금 더 크게`, `다시 만들기` 보조 조정
 
-## 핵심 제품 루프
+### Today
 
-1. 사용자가 목표를 입력합니다.
-2. 시스템이 목표를 아주 작은 행동들로 나눕니다.
-3. 오늘 할 행동 하나에 집중합니다.
-4. 행동이 너무 크면 더 작게 줄입니다.
-5. 리뷰에서 패턴을 보고 다음 조정을 정합니다.
+- 오늘의 행동 1개
+- recipe 표시
+- fallback action 표시
+- anchor reminder 표시
+- 완료 후 celebration 표시
+
+### Recovery
+
+- `forgot`: cue 더 잘 보이게, anchor reminder 강화
+- `too_big`: 더 작은 행동으로 축소
+- `forgot_often`: backup anchor 재선택, rehearsal 다시
+- `not_wanted`: 행동 축소 대신 behavior selection으로 복귀
+
+### 기타
+
+- saved anchors 재사용
+- Supabase 기반 데이터 저장
+- OpenAI Responses API + 규칙 기반 fallback
+- Zod 검증
+- 기본 테스트 포함
 
 ## 기술 스택
 
-- Next.js 15 App Router
+- Next.js App Router
 - TypeScript
-- React 19
-- Tailwind CSS v4
+- React
+- Tailwind CSS
 - Supabase
 - Zod
 - OpenAI Responses API
 
-## 주요 경로
+## 로컬 실행
 
-- `/` 랜딩 페이지
-- `/login` 로그인
-- `/signup` 회원가입 및 언어 확정
-- `/onboarding` 온보딩
-- `/onboarding/help` 온보딩 도움말
-- `/onboarding/review` 생성된 플랜 검토 및 확정
-- `/today` 오늘의 행동
-- `/recover` 실패 복구
-- `/review` 월별 리뷰
-- `/anchors` 저장된 앵커 관리
-- `/auth/callback` Google OAuth 콜백
-
-## API 엔드포인트
-
-현재 포함된 Route Handler:
-
-- `GET /api/locale`
-- `POST /api/onboarding`
-- `POST /api/plans`
-- `POST /api/daily-actions`
-- `POST /api/daily-actions/:dailyActionId/complete`
-- `POST /api/daily-actions/:dailyActionId/failure`
-- `GET /api/weekly-reviews`
-- `PUT /api/weekly-reviews`
-
-모든 주요 요청 payload는 `lib/validators` 아래 Zod 스키마로 검증합니다.
-
-## 폴더 구조
-
-```text
-app/
-  api/
-  anchors/
-  auth/
-  login/
-  onboarding/
-  recover/
-  review/
-  signup/
-  today/
-
-components/
-  auth/
-  onboarding/
-  review/
-  today/
-  ui/
-
-lib/
-  ai/
-  security/
-  supabase/
-  utils/
-  validators/
-
-supabase/
-  migrations/
-  schema.sql
-  seed.sql
-
-tests/
-  ai.test.ts
-  backend.test.ts
-  habit.test.ts
-  security.test.ts
-```
-
-## 주요 파일 설명
-
-- `app/onboarding/page.tsx`
-  온보딩 메인 화면입니다.
-- `components/onboarding/onboarding-form.tsx`
-  실제 온보딩 입력 폼입니다.
-- `app/onboarding/review/page.tsx`
-  생성된 마이크로 행동을 검토하고 확정하는 화면입니다.
-- `components/onboarding/plan-review-form.tsx`
-  온보딩 검토 단계에서 행동을 조정하고 저장하는 폼입니다.
-- `app/today/page.tsx`
-  오늘의 행동과 fallback 행동을 보여줍니다.
-- `components/today/recovery-flow.tsx`
-  실패 시 행동을 더 작게 줄이는 흐름을 담당합니다.
-- `app/review/page.tsx`
-  월 선택과 달력형 리뷰를 보여줍니다.
-- `app/anchors/page.tsx`
-  저장된 앵커를 관리합니다.
-- `lib/ai/index.ts`
-  AI 계획 생성 및 fallback decomposition 로직이 들어 있습니다.
-- `lib/supabase/habit-service.ts`
-  Supabase RPC와 데이터 접근 로직의 중심입니다.
-- `lib/security/route-guard.ts`
-  인증, same-origin, rate limit 관련 보호 로직이 들어 있습니다.
-
-## 로컬 실행 방법
-
-1. 의존성을 설치합니다.
+### 1. 의존성 설치
 
 ```bash
 npm install
 ```
 
-2. 프로젝트 루트에 `.env.local` 파일을 만들고 값을 채웁니다.
+### 2. 환경 변수 설정
+
+프로젝트 루트에 `.env.local` 파일을 만듭니다.
+
+필수:
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-SUPABASE_SERVICE_ROLE_KEY=...
-OPENAI_API_KEY=...
-OPENAI_MODEL=gpt-5
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+OPENAI_API_KEY=
 ```
 
-3. Supabase에 스키마와 시드 데이터를 적용합니다.
+권장:
 
-먼저 실행:
-
-- `supabase/migrations/20260327190000_initial_schema.sql`
-- `supabase/migrations/20260327235900_default_locale_ko.sql`
-- `supabase/migrations/20260328103000_add_notification_preferences_example.sql`
-- `supabase/migrations/20260328113000_add_user_locale.sql`
-- `supabase/migrations/20260328123000_reuse_existing_anchors.sql`
-
-필요하면 추가로:
-
-- `supabase/seed.sql`
-
-4. 개발 서버를 실행합니다.
-
-```bash
-npm run dev
+```env
+OPENAI_MODEL=
 ```
 
-포트를 지정해서 실행하려면:
+선택:
 
-```bash
-npm run dev -- -p 3002
+```env
+OPENAI_MODEL_FAST=
+OPENAI_MODEL_QUALITY=
+OPENAI_MODEL_EXPERIMENTAL=
+OPENAI_TIMEOUT_MS=
+OPENAI_GENERATION_STRATEGY=
+AI_REWRITE_ENABLED=
+APP_USER_ID=
+APP_USER_EMAIL=
+APP_USER_NAME=
+APP_USER_TIMEZONE=
 ```
 
-5. 브라우저에서 앱을 확인합니다.
+### 3. 데이터베이스 반영
 
-- 기본: `http://localhost:3000`
-- 예시: `http://localhost:3002`
+`supabase/schema.sql`은 현재 스냅샷입니다.  
+실제 반영은 `supabase/migrations`의 SQL을 순서대로 적용하면 됩니다.
 
-## AI 동작 원칙
-
-현재 코드 기준 AI 계획 생성 로직은 아래 원칙을 따릅니다.
-
-- JSON만 반환하도록 유도
-- 1~5분 내 행동 생성
-- 모호한 표현 방지
-- 관찰 가능한 행동 우선
-- fallback 행동 필수
-- 실패 이유가 `too_big`일 때 더 작은 행동으로 재설계
-
-OpenAI 호출이 실패하거나 설정이 없으면 `lib/ai/index.ts`에서 mock decomposition으로 fallback 합니다.
-
-## 인증과 사용자 흐름
-
-- 인증은 Google OAuth 중심입니다.
-- 회원가입 시 언어를 먼저 확정하는 흐름이 있습니다.
-- Supabase Auth 사용자와 앱 사용자 정보를 동기화하는 로직이 포함되어 있습니다.
-- 서버 전용 Supabase 클라이언트와 브라우저 전용 클라이언트가 분리되어 있습니다.
-
-관련 파일:
-
-- `lib/supabase/server-client.ts`
-- `lib/supabase/browser-client.ts`
-- `lib/supabase/auth.ts`
-- `lib/supabase/app-user.ts`
-
-## 보안 관련 구현
-
-`lib/security` 아래에 기본 보안 유틸이 들어 있습니다.
-
-- `headers.ts`
-  CSP, `X-Frame-Options`, `X-Content-Type-Options` 등 보안 헤더
-- `rate-limit.ts`
-  메모리 기반 rate limit 유틸
-- `idempotency.ts`
-  중복 요청 재처리 방지
-- `route-guard.ts`
-  인증 사용자 확인, same-origin 검사, rate limit 적용
-- `events.ts`
-  보안 이벤트 로깅 유틸
-
-관련 테스트는 `tests/security.test.ts`에 있습니다.
-
-## Supabase 운영 메모
-
-DB 변경은 `supabase/migrations` 기준으로 관리합니다.
-
-현재 포함된 마이그레이션:
+현재 migration:
 
 - `20260327190000_initial_schema.sql`
 - `20260327235900_default_locale_ko.sql`
 - `20260328103000_add_notification_preferences_example.sql`
 - `20260328113000_add_user_locale.sql`
 - `20260328123000_reuse_existing_anchors.sql`
+- `20260328140000_habit_v1_wizard.sql`
 
-참고 파일:
+마지막 migration에는 아래 변경이 포함됩니다.
 
-- `supabase/schema.sql`
-- `supabase/seed.sql`
-- `docs/supabase-github-checklist.md`
+- `goals.desired_outcome`
+- `goals.motivation_note`
+- `goal_anchors`
+- `behavior_swarm_candidates`
+- `habit_plans.recipe_text`
+- `habit_plans.celebration_text`
+- `habit_plans.rehearsal_count`
+- `habit_plans.selected_candidate_id`
+- `failure_reason` enum 확장
+
+### 4. 개발 서버 실행
+
+```bash
+npm run dev
+```
+
+기본 포트는 `3002`입니다.
+
+## 주요 페이지
+
+- `/` 랜딩
+- `/login` 로그인
+- `/signup` 회원가입
+- `/onboarding` 5단계 온보딩 위저드
+- `/onboarding/review` 최종 habit recipe 리뷰
+- `/today` 오늘의 행동
+- `/recover` 실패 후 재설계
+- `/review` 월간 리뷰
+- `/anchors` saved anchors 관리
+
+## 주요 API
+
+- `POST /api/onboarding` 온보딩 저장 + 첫 plan 생성
+- `POST /api/onboarding/swarm` behavior swarm 후보 생성
+- `POST /api/plans` 새 plan version 생성
+- `POST /api/daily-actions` 오늘 행동 할당
+- `POST /api/daily-actions/[dailyActionId]/complete` 완료 처리
+- `POST /api/daily-actions/[dailyActionId]/failure` 실패 처리
+- `GET /api/weekly-reviews` 주간/월간 리뷰 조회
+- `PUT /api/weekly-reviews` 리뷰 저장
+- `GET /api/locale` locale 쿠키 설정
+
+## 핵심 데이터 모델
+
+- 한 사용자 = 여러 goal
+- 한 goal = 여러 plan version
+- 한 plan = 최대 3개 micro-action
+- 한 goal / 날짜 = daily action 1개
+- fallback action은 필수
+- goal anchor는 `primary`, `backup` 역할로 구분
+
+## AI 규칙
+
+- JSON만 반환
+- 1~5분 안에 가능한 행동 우선
+- vague 문구 금지
+- 관찰 가능한 행동 우선
+- fallback action 필수
+- 실패 시 더 작은 행동 또는 더 좋은 anchor로 조정
 
 ## 테스트
 
-실행 명령:
-
 ```bash
 npm test
+```
+
+타입 검사:
+
+```bash
 npx tsc --noEmit
 ```
 
-현재 테스트 범위:
+## UI 원칙
 
-- 습관 유틸 동작
-- AI 프롬프트/행동 제약
-- 백엔드 검증 로직
-- 보안 유틸 동작
+- 웹 문구는 한국어 우선
+- 설명은 짧게
+- 카드/리스트/단일 선택 위주
+- Today와 Recovery는 부담을 낮추는 방향 유지
+- 모바일에서도 한 화면이 복잡해지지 않도록 계속 다듬을 예정
 
-## 참고 사항
+## 참고 파일
 
-- 일부 화면은 Supabase 연결 상태나 세션 상태에 따라 demo/mock 데이터를 사용합니다.
-- dev 서버에서 이전 캐시나 예전 로그 때문에 혼동될 수 있으므로, 오류 확인 시에는 새로 띄운 서버 기준으로 보는 것이 안전합니다.
-- 현재 작업 트리는 이미 다른 수정 사항도 포함하고 있을 수 있으므로 README는 그 상태를 최대한 반영해 재구성했습니다.
+- [components/onboarding/onboarding-form.tsx](components/onboarding/onboarding-form.tsx)
+- [components/onboarding/plan-review-form.tsx](components/onboarding/plan-review-form.tsx)
+- [components/today/action-card.tsx](components/today/action-card.tsx)
+- [components/today/recovery-flow.tsx](components/today/recovery-flow.tsx)
+- [lib/ai/index.ts](lib/ai/index.ts)
+- [lib/validators/habit.ts](lib/validators/habit.ts)
+- [lib/validators/backend.ts](lib/validators/backend.ts)
+- [lib/supabase/habit-service.ts](lib/supabase/habit-service.ts)
+- [supabase/schema.sql](supabase/schema.sql)
+- [supabase/migrations/20260328140000_habit_v1_wizard.sql](supabase/migrations/20260328140000_habit_v1_wizard.sql)

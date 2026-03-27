@@ -12,8 +12,10 @@ import {
   classifyGoal,
   collectRecentContext,
   detectGoalArchetype,
+  generateBehaviorSwarm,
   generateDraftTemplates,
   generateHabitDecomposition,
+  generateHabitDecompositionFromSelection,
 } from "@/lib/ai";
 import { isLocalizedString, validateDecompositionLocale } from "@/lib/ai/locale-validation";
 import { microActionSchema } from "@/lib/validators/habit";
@@ -270,6 +272,118 @@ test("hybrid strategy falls back to rules even when mock fallback is disabled", 
       process.env.OPENAI_API_KEY = originalApiKey;
     }
   }
+});
+
+test("generateBehaviorSwarm returns 6 to 10 concrete candidates", async () => {
+  const result = await generateBehaviorSwarm(
+    {
+      goal: "Build a reading habit",
+      desiredOutcome: "Read a little each day.",
+      motivationNote: "I want reading to feel normal again.",
+      availableMinutes: 5,
+      difficulty: "steady",
+      preferredTime: "morning",
+    },
+    {
+      strategy: "rules_only",
+      locale: "en",
+    },
+  );
+
+  assert.equal(result.length >= 6 && result.length <= 10, true);
+  assert.equal(result.every((candidate) => candidate.durationMinutes <= 5), true);
+});
+
+test("generateHabitDecompositionFromSelection keeps the selected behavior first", async () => {
+  const result = await generateHabitDecompositionFromSelection(
+    {
+      goal: "Build a reading habit",
+      desiredOutcome: "Read a little each day.",
+      motivationNote: "I want reading to feel normal again.",
+      availableMinutes: 5,
+      difficulty: "steady",
+      preferredTime: "morning",
+      anchor: "after coffee",
+      backupAnchors: ["after lunch"],
+      selectedBehavior: {
+        title: "Open the book and read one page",
+        details: "A tiny visible start.",
+        durationMinutes: 2,
+        desireScore: 4,
+        abilityScore: 5,
+        impactScore: 4,
+      },
+      swarmCandidates: [
+        {
+          title: "Open the book and read one page",
+          details: "A tiny visible start.",
+          durationMinutes: 2,
+          desireScore: 4,
+          abilityScore: 5,
+          impactScore: 4,
+        },
+        {
+          title: "Read one sentence",
+          details: "Even lighter.",
+          durationMinutes: 1,
+          desireScore: 4,
+          abilityScore: 5,
+          impactScore: 3,
+        },
+        {
+          title: "Highlight one line",
+          details: "Keep it visible.",
+          durationMinutes: 1,
+          desireScore: 3,
+          abilityScore: 5,
+          impactScore: 4,
+        },
+        {
+          title: "Open the book",
+          details: "Setup only.",
+          durationMinutes: 1,
+          desireScore: 3,
+          abilityScore: 5,
+          impactScore: 3,
+        },
+        {
+          title: "Put the book on the desk",
+          details: "Prep for later.",
+          durationMinutes: 1,
+          desireScore: 3,
+          abilityScore: 5,
+          impactScore: 3,
+        },
+        {
+          title: "Read one paragraph",
+          details: "Still short.",
+          durationMinutes: 1,
+          desireScore: 4,
+          abilityScore: 5,
+          impactScore: 4,
+        },
+      ],
+      recipeText: "After coffee, I will open the book and read one page.",
+      celebrationText: "Nice. I did it.",
+      rehearsalCount: 2,
+      mode: "create",
+    },
+    {
+      title: "Open the book and read one page",
+      details: "A tiny visible start.",
+      durationMinutes: 2,
+      desireScore: 4,
+      abilityScore: 5,
+      impactScore: 4,
+    },
+    {
+      strategy: "rules_only",
+      locale: "en",
+    },
+  );
+
+  assert.equal(result.todayAction.title, "Open the book and read one page");
+  assert.equal(result.fallbackAction.length > 0, true);
 });
 
 test("locale validation accepts Korean strings when locale is ko", () => {
