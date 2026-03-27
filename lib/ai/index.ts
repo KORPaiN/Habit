@@ -389,8 +389,8 @@ export function classifyGoal(goal: string) {
 
 function buildGoalSummary(goal: string, locale: Locale) {
   return locale === "ko"
-    ? `"${goal}"을 오늘 바로 할 수 있는 작은 행동으로 줄였어요.`
-    : `We turned "${goal}" into a tiny action you can do today.`;
+    ? `오늘은 "${goal}" 한 단계만 합니다.`
+    : `Today, we turn "${goal}" into one doable step.`;
 }
 
 function buildRuleActions(
@@ -407,50 +407,50 @@ function buildRuleActions(
     case "reading":
       return [
         {
-          title: locale === "ko" ? "책을 펴고 한 페이지 읽기" : "Open your book and read one page",
-          reason: locale === "ko" ? "한 페이지면 바로 시작할 수 있어요." : "One page is easy enough to start.",
+          title: locale === "ko" ? "책을 펴고 한 줄 읽기" : "Open your book and read one line",
+          reason: locale === "ko" ? "한 줄이면 바로 시작돼요." : "One line is small enough to start now.",
           durationMinutes: primary,
           fallbackAction: tooBig
             ? locale === "ko"
-              ? "책만 펴고 끝내기"
+              ? "책만 펴기"
               : "Open the book and stop"
             : locale === "ko"
-              ? "책을 펴고 한 문장 읽기"
+              ? "책만 펴기"
               : "Open the book and read one sentence",
         },
         {
-          title: locale === "ko" ? "마음에 든 한 줄 표시하기" : "Highlight one useful line",
-          reason: locale === "ko" ? "한 줄만 남겨도 흐름이 이어져요." : "One line is enough to keep the loop going.",
+          title: locale === "ko" ? "책갈피만 꽂아 두기" : "Place a bookmark and stop there",
+          reason: locale === "ko" ? "준비만 해도 다시 오기 쉬워져요." : "Setup alone makes it easier to return.",
           durationMinutes: secondary,
-          fallbackAction: locale === "ko" ? "한 줄만 보기" : "Look at one line only",
+          fallbackAction: locale === "ko" ? "책을 눈에 보이게 두기" : "Leave the book where you can see it",
         },
       ];
     case "writing":
       return [
         {
           title: locale === "ko" ? "메모 앱을 열고 한 문장 쓰기" : "Open your notes app and write one sentence",
-          reason: locale === "ko" ? "한 문장이면 시작하기 충분해요." : "One sentence is enough to begin.",
+          reason: locale === "ko" ? "한 문장이면 충분해요." : "One sentence is enough for today.",
           durationMinutes: primary,
           fallbackAction: tooBig
             ? locale === "ko"
               ? "메모 앱만 열기"
               : "Open your notes app and stop"
             : locale === "ko"
-              ? "단어 세 개 쓰기"
+              ? "메모 앱만 열기"
               : "Write three words",
         },
         {
-          title: locale === "ko" ? "이어 쓸 생각 하나 적기" : "Write down one idea to continue later",
-          reason: locale === "ko" ? "생각 하나면 다음 시작이 쉬워져요." : "One idea makes the next start easier.",
+          title: locale === "ko" ? "이어 쓸 제목 하나 적기" : "Write one title to continue later",
+          reason: locale === "ko" ? "다음 시작점만 남겨 둡니다." : "Leave yourself a small restart point.",
           durationMinutes: secondary,
-          fallbackAction: locale === "ko" ? "제목만 적기" : "Write only a title",
+          fallbackAction: locale === "ko" ? "키워드 하나 적기" : "Write one keyword",
         },
       ];
     case "study":
       return [
         {
-          title: locale === "ko" ? "공부할 페이지를 펴고 핵심 한 줄 읽기" : "Open the page you will study and read one key line",
-          reason: locale === "ko" ? "첫 줄만 봐도 시작 장벽이 낮아져요." : "A single line lowers the barrier to start.",
+          title: locale === "ko" ? "공부할 페이지를 펴고 한 줄 읽기" : "Open the study page and read one line",
+          reason: locale === "ko" ? "첫 줄만 봐도 시작돼요." : "One line is enough to get started.",
           durationMinutes: primary,
           fallbackAction: tooBig
             ? locale === "ko"
@@ -461,17 +461,17 @@ function buildRuleActions(
               : "Open the study page",
         },
         {
-          title: locale === "ko" ? "문제 하나만 보기" : "Look at just one problem",
-          reason: locale === "ko" ? "문제 하나만 봐도 흐름이 다시 잡혀요." : "One problem is enough to restart the flow.",
+          title: locale === "ko" ? "공부 도구만 꺼내 두기" : "Take out your study tools and stop there",
+          reason: locale === "ko" ? "준비만 해도 저항이 줄어요." : "Setup lowers the resistance.",
           durationMinutes: secondary,
-          fallbackAction: locale === "ko" ? "문제 번호만 확인하기" : "Look at the problem number only",
+          fallbackAction: locale === "ko" ? "공부 도구 하나만 꺼내기" : "Take out one study tool",
         },
       ];
     case "exercise":
       return [
         {
           title: locale === "ko" ? "운동화 신고 1분 움직이기" : "Put on your shoes and move for one minute",
-          reason: locale === "ko" ? "1분만 움직여도 시작은 충분해요." : "One minute is enough to begin.",
+          reason: locale === "ko" ? "1분이면 오늘은 충분해요." : "One minute is enough for today.",
           durationMinutes: primary,
           fallbackAction: tooBig
             ? locale === "ko"
@@ -482,38 +482,38 @@ function buildRuleActions(
               : "Put on your shoes",
         },
         {
-          title: locale === "ko" ? "스트레칭 한 동작 5번 하기" : "Do one stretch five times",
-          reason: locale === "ko" ? "동작 하나면 부담이 확 줄어요." : "One movement keeps the effort small.",
+          title: locale === "ko" ? "운동 매트만 펴 두기" : "Roll out the mat and stop there",
+          reason: locale === "ko" ? "준비만 해도 다시 붙기 쉬워요." : "Setup makes it easier to come back.",
           durationMinutes: secondary,
-          fallbackAction: locale === "ko" ? "스트레칭 한 번 하기" : "Stretch once",
+          fallbackAction: locale === "ko" ? "매트만 꺼내기" : "Take out the mat",
         },
       ];
     case "tidy":
       return [
         {
           title: locale === "ko" ? "물건 하나 제자리에 두기" : "Put one item back in its place",
-          reason: locale === "ko" ? "하나만 치워도 시작은 됩니다." : "One item is enough to start.",
+          reason: locale === "ko" ? "하나면 충분해요." : "One item is enough for today.",
           durationMinutes: primary,
           fallbackAction: locale === "ko" ? "물건 하나 집어 들기" : "Pick up one item",
         },
         {
-          title: locale === "ko" ? "책상 한 칸만 정리하기" : "Tidy one small area of your desk",
-          reason: locale === "ko" ? "한 칸만 정리해도 눈에 띄는 변화가 생겨요." : "One small area creates visible progress.",
+          title: locale === "ko" ? "정리할 자리 한 칸만 비우기" : "Clear one small spot",
+          reason: locale === "ko" ? "보이는 자리만 가볍게 정리해요." : "Keep it visible and light.",
           durationMinutes: secondary,
-          fallbackAction: locale === "ko" ? "책상 위 하나만 치우기" : "Put away one thing from your desk",
+          fallbackAction: locale === "ko" ? "정리할 자리만 보기" : "Look at the spot you will clear",
         },
       ];
     case "digital":
       return [
         {
           title: locale === "ko" ? "방해되는 앱 하나 닫기" : "Close one distracting app",
-          reason: locale === "ko" ? "앱 하나만 닫아도 방해가 줄어요." : "Closing one app reduces friction right away.",
+          reason: locale === "ko" ? "하나만 닫아도 훨씬 가벼워져요." : "Closing one app lowers friction right away.",
           durationMinutes: primary,
           fallbackAction: locale === "ko" ? "앱 하나 보기만 하기" : "Look at one app and stop",
         },
         {
           title: locale === "ko" ? "알림 하나 끄기" : "Turn off one notification",
-          reason: locale === "ko" ? "알림 하나만 줄여도 흐름이 달라져요." : "One fewer alert makes the loop lighter.",
+          reason: locale === "ko" ? "작은 방해부터 줄입니다." : "Reduce one small source of friction.",
           durationMinutes: secondary,
           fallbackAction: locale === "ko" ? "알림 설정 열기" : "Open notification settings",
         },
@@ -522,7 +522,7 @@ function buildRuleActions(
       return [
         {
           title: locale === "ko" ? "물 한 컵 마시기" : "Drink one glass of water",
-          reason: locale === "ko" ? "작고 쉬운 돌봄부터 시작하면 됩니다." : "A small act of care is enough to begin.",
+          reason: locale === "ko" ? "가장 쉬운 돌봄부터 갑니다." : "Start with the easiest act of care.",
           durationMinutes: primary,
           fallbackAction: tooBig
             ? locale === "ko"
@@ -534,7 +534,7 @@ function buildRuleActions(
         },
         {
           title: locale === "ko" ? "숨 고르기 세 번 하기" : "Take three slow breaths",
-          reason: locale === "ko" ? "세 번이면 부담 없이 할 수 있어요." : "Three breaths are easy enough to do now.",
+          reason: locale === "ko" ? "세 번이면 부담이 적어요." : "Three breaths keep it light.",
           durationMinutes: secondary,
           fallbackAction: locale === "ko" ? "숨 한 번 크게 쉬기" : "Take one slow breath",
         },
@@ -544,21 +544,21 @@ function buildRuleActions(
       return [
         {
           title: locale === "ko" ? `"${goal}"에 필요한 것 하나 꺼내기` : `Take out one thing you need for "${goal}"`,
-          reason: locale === "ko" ? "준비부터 하면 시작이 쉬워져요." : "Preparation makes starting easier.",
+          reason: locale === "ko" ? "준비부터 하면 저항이 줄어요." : "Preparation lowers resistance.",
           durationMinutes: primary,
           fallbackAction: tooBig
             ? locale === "ko"
-              ? `"${goal}"에 필요한 것 만지기`
+              ? `"${goal}"에 필요한 것 보기`
               : `Touch one thing you need for "${goal}"`
             : locale === "ko"
               ? `"${goal}"에 필요한 것 보기`
               : `Look at one thing you need for "${goal}"`,
         },
         {
-          title: locale === "ko" ? `"${goal}"의 첫 단계 열어 보기` : `Open the first step for "${goal}"`,
-          reason: locale === "ko" ? "첫 단계만 열어도 다시 시작하기 쉬워져요." : "Opening the first step makes it easier to begin.",
+          title: locale === "ko" ? `"${goal}"의 첫 화면만 열기` : `Open the first screen for "${goal}"`,
+          reason: locale === "ko" ? "열어 두기만 해도 다시 붙기 쉬워져요." : "Opening the first screen makes re-entry easier.",
           durationMinutes: secondary,
-          fallbackAction: locale === "ko" ? "첫 단계 제목만 보기" : "Look at the first-step title only",
+          fallbackAction: locale === "ko" ? "첫 화면 제목만 보기" : "Look at the first screen title only",
         },
       ];
   }
@@ -568,38 +568,45 @@ function buildSmallerAction(archetype: GoalArchetype, input: OnboardingInput, lo
   switch (archetype) {
     case "reading":
       return microActionSchema.parse({
-        title: locale === "ko" ? "책을 펴고 한 줄 보기" : "Open the book and look at one line",
-        reason: locale === "ko" ? "한 줄만 보면 다시 시작하기 쉬워져요." : "One line is enough to restart.",
+        title: locale === "ko" ? "책을 펴고 첫 줄 보기" : "Open the book and look at the first line",
+        reason: locale === "ko" ? "오늘은 첫 줄만 보면 충분해요." : "Looking at the first line is enough for today.",
         durationMinutes: 1,
         fallbackAction: locale === "ko" ? "책만 펴기" : "Open the book and stop",
       });
     case "writing":
       return microActionSchema.parse({
-        title: locale === "ko" ? "메모 앱을 열고 단어 하나 쓰기" : "Open your notes app and write one word",
-        reason: locale === "ko" ? "단어 하나면 부담 없이 시작할 수 있어요." : "One word keeps the barrier low.",
+        title: locale === "ko" ? "메모 앱을 열고 커서 두기" : "Open your notes app and place the cursor",
+        reason: locale === "ko" ? "열어 두기만 해도 다시 붙기 쉬워요." : "Leaving the app open makes it easier to return.",
         durationMinutes: 1,
         fallbackAction: locale === "ko" ? "메모 앱만 열기" : "Open your notes app and stop",
       });
+    case "study":
+      return microActionSchema.parse({
+        title: locale === "ko" ? "공부할 페이지 펼치기" : "Open the study page and stop",
+        reason: locale === "ko" ? "펼쳐 두기만 해도 충분해요." : "Opening the page is enough for now.",
+        durationMinutes: 1,
+        fallbackAction: locale === "ko" ? "교재만 꺼내기" : "Take out the study material",
+      });
     case "exercise":
       return microActionSchema.parse({
-        title: locale === "ko" ? "운동화만 꺼내기" : "Take out your shoes",
-        reason: locale === "ko" ? "준비만 해도 다시 이어가기 쉬워져요." : "Preparation alone keeps the habit alive.",
+        title: locale === "ko" ? "운동화만 신기" : "Put on your shoes and stop",
+        reason: locale === "ko" ? "준비까지만 해도 괜찮아요." : "Stopping at setup is okay today.",
         durationMinutes: 1,
         fallbackAction: locale === "ko" ? "운동화 보기" : "Look at your shoes",
       });
     case "tidy":
       return microActionSchema.parse({
-        title: locale === "ko" ? "책상 위 물건 하나 들기" : "Pick up one item from your desk",
-        reason: locale === "ko" ? "한 개만 움직여도 시작은 충분해요." : "Moving one item is enough to begin.",
+        title: locale === "ko" ? "물건 하나만 들기" : "Pick up one item and stop",
+        reason: locale === "ko" ? "하나만 들어도 시작은 남아요." : "Picking up one item is enough for now.",
         durationMinutes: 1,
         fallbackAction: locale === "ko" ? "책상 보기" : "Look at your desk",
       });
     default:
       return microActionSchema.parse({
-        title: locale === "ko" ? `"${input.goal}"에 필요한 것 하나 열기` : `Open one thing you need for "${input.goal}"`,
-        reason: locale === "ko" ? "준비만 해도 다시 시작이 쉬워져요." : "Opening the first thing lowers the barrier.",
+        title: locale === "ko" ? `"${input.goal}"에 필요한 것 하나 꺼내기` : `Take out one thing you need for "${input.goal}"`,
+        reason: locale === "ko" ? "준비만 해도 저항이 줄어요." : "Preparation lowers the resistance.",
         durationMinutes: 1,
-        fallbackAction: locale === "ko" ? "필요한 것 만지기" : "Touch what you need and stop",
+        fallbackAction: locale === "ko" ? "필요한 것 보기" : "Look at what you need and stop",
       });
   }
 }
@@ -653,7 +660,7 @@ function applyRecentContext(
       ...action,
       reason:
         locale === "ko"
-          ? `${input.anchor} 직후에 바로 할 수 있는 짧은 시작이에요.`
+          ? `${input.anchor} 뒤에 바로 붙이면 더 쉬워요.`
           : `Do this right after ${input.anchor} so the cue is easier to notice.`,
     });
   });
@@ -780,9 +787,10 @@ export function generateDraftTemplates(
 ): DraftTemplate[] {
   const intents: GoalIntent[] = [
     classification.intent,
+    "setup",
     "prepare",
-    "continue",
     "review",
+    "continue",
     "surface",
   ];
 
@@ -844,7 +852,7 @@ function scoreAbility(durationMinutes: number, difficulty: OnboardingBaseInput["
 function scoreDesire(title: string, durationMinutes: number) {
   let score = durationMinutes <= 2 ? 4 : 3;
 
-  if (/열|펴|꺼내|한|물|숨|정리|보기|쓰기|읽기|신기/i.test(title)) {
+  if (/열|펴|꺼내|놓|보기|닫기|신기|한 줄|한 문장|한 컵|한 칸|one line|one sentence|open|take out|close|put on/i.test(title)) {
     score += 1;
   }
 
@@ -858,7 +866,7 @@ function scoreImpact(title: string, classification: GoalClassification) {
     score += 1;
   }
 
-  if (/첫|핵심|한 페이지|한 문장|정리|스트레칭|물 한 잔/i.test(title)) {
+  if (/첫|한 줄|한 문장|한 컵|앱 하나|물건 하나|한 칸|one line|one sentence|one glass|one item/i.test(title)) {
     score += 1;
   }
 

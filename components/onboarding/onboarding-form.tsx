@@ -111,7 +111,9 @@ export function OnboardingForm({
   const [currentStep, setCurrentStep] = useState(() => (isReselect && initialReviewMeta?.swarmCandidates.length ? 3 : 1));
   const [isGenerating, setIsGenerating] = useState(false);
   const [swarmError, setSwarmError] = useState<string | null>(null);
+  const [stepError, setStepError] = useState<string | null>(null);
   const [backupInput, setBackupInput] = useState("");
+  const resolvedDesiredOutcome = values.desiredOutcome.trim() || values.goal.trim();
 
   const savedCueOptions = useMemo(
     () => [...savedAnchors.map((anchor) => anchor.cue), ...anchorExamples].filter((cue, index, list) => list.indexOf(cue) === index),
@@ -158,6 +160,7 @@ export function OnboardingForm({
   }, [values.primaryAnchor, values.selectedBehavior]);
 
   function updateValue<Key extends keyof WizardValues>(key: Key, value: WizardValues[Key]) {
+    setStepError(null);
     setValues((current) => ({
       ...current,
       [key]: value,
@@ -166,7 +169,7 @@ export function OnboardingForm({
 
   function canMoveFromStep(step: number) {
     if (step === 1) {
-      return values.goal.trim().length >= 3 && values.desiredOutcome.trim().length >= 2;
+      return values.goal.trim().length >= 3;
     }
 
     if (step === 2) {
@@ -184,7 +187,7 @@ export function OnboardingForm({
     return true;
   }
 
-  async function generateSwarm() {
+  async function generateSwarm(nextStep = 3) {
     if (!isAuthenticated) {
       setSwarmError("로그인 후 후보를 만들 수 있어요.");
       return;
@@ -202,7 +205,7 @@ export function OnboardingForm({
           },
           body: JSON.stringify({
             goal: values.goal,
-            desiredOutcome: values.desiredOutcome,
+            desiredOutcome: resolvedDesiredOutcome,
             motivationNote: values.motivationNote,
             difficulty: values.difficulty,
             availableMinutes: values.availableMinutes,
@@ -222,7 +225,8 @@ export function OnboardingForm({
           swarmCandidates: candidates,
           selectedBehavior: candidates[0],
         }));
-        setCurrentStep(3);
+        setStepError(null);
+        setCurrentStep(nextStep);
       } catch (fetchError) {
         setSwarmError(fetchError instanceof Error ? fetchError.message : "후보를 만들지 못했어요.");
       } finally {
@@ -267,7 +271,7 @@ export function OnboardingForm({
   return (
     <form action={submitOnboarding} className="grid gap-5">
       <input type="hidden" name="goal" value={values.goal} />
-      <input type="hidden" name="desiredOutcome" value={values.desiredOutcome} />
+      <input type="hidden" name="desiredOutcome" value={resolvedDesiredOutcome} />
       <input type="hidden" name="motivationNote" value={values.motivationNote} />
       <input type="hidden" name="difficulty" value={values.difficulty} />
       <input type="hidden" name="availableMinutes" value={String(values.availableMinutes)} />
@@ -389,7 +393,7 @@ export function OnboardingForm({
               </div>
             ) : null}
             {swarmError ? <p className="text-sm text-amber-800">{swarmError}</p> : null}
-            <Button type="button" onClick={generateSwarm} disabled={!canMoveFromStep(1) || isGenerating}>
+            <Button type="button" onClick={() => void generateSwarm()} disabled={!canMoveFromStep(1) || isGenerating}>
               {isGenerating ? "만드는 중" : values.swarmCandidates.length > 0 ? "다시 만들기" : "후보 만들기"}
               <RefreshCw className="h-4 w-4" />
             </Button>
@@ -533,19 +537,38 @@ export function OnboardingForm({
         <Button type="button" variant="ghost" onClick={() => setCurrentStep((step) => Math.max(1, step - 1))} disabled={currentStep === 1}>
           이전
         </Button>
+        {stepError ? <p className="text-sm text-amber-800 sm:ml-auto sm:mr-2 sm:self-center">{stepError}</p> : null}
         {currentStep < STEP_COUNT ? (
           <Button
             type="button"
-            onClick={() => {
-              if (currentStep === 2 && values.swarmCandidates.length === 0) {
+            onClick={async () => {
+              if (currentStep === 1) {
+                if (!canMoveFromStep(1)) {
+                  setStepError("목표를 3글자 이상 적어주세요.");
+                  return;
+                }
+
+                if (values.swarmCandidates.length >= 6) {
+                  setStepError(null);
+                  setCurrentStep(3);
+                  return;
+                }
+
+                await generateSwarm(3);
                 return;
               }
 
+              if (!canMoveFromStep(currentStep)) {
+                setStepError(currentStep === 3 ? "행동 하나를 골라주세요." : "앵커를 먼저 적어주세요.");
+                return;
+              }
+
+              setStepError(null);
               setCurrentStep((step) => Math.min(STEP_COUNT, step + 1));
             }}
-            disabled={!canMoveFromStep(currentStep)}
+            disabled={isGenerating}
           >
-            다음
+            {isGenerating ? "후보 만드는 중" : "다음"}
           </Button>
         ) : (
           <SubmitButton />

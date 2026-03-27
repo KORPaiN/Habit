@@ -386,6 +386,46 @@ test("generateHabitDecompositionFromSelection keeps the selected behavior first"
   assert.equal(result.fallbackAction.length > 0, true);
 });
 
+test("homepage tone is reflected in the AI prompt", () => {
+  const prompt = buildAiOnlyHabitDecompositionPrompt(
+    {
+      goal: "Build a reading habit",
+      availableMinutes: 5,
+      difficulty: "steady",
+      preferredTime: "morning",
+      anchor: "after coffee",
+    },
+    {
+      archetype: "reading",
+      intent: "start",
+    },
+    undefined,
+    "en",
+  );
+
+  assert.match(prompt, /today, one small step is enough/i);
+  assert.match(prompt, /smaller than the user's resistance/i);
+});
+
+test("rule-based decomposition matches the calmer homepage tone", async () => {
+  const result = await buildRuleBasedHabitDecomposition(
+    {
+      goal: "독서 습관 만들기",
+      availableMinutes: 5,
+      difficulty: "steady",
+      preferredTime: "morning",
+      anchor: "커피 마신 뒤",
+    },
+    undefined,
+    {
+      locale: "ko",
+    },
+  );
+
+  assert.equal(result.goalSummary, '오늘은 "독서 습관 만들기" 한 단계만 합니다.');
+  assert.equal(result.todayAction.title.includes("한 줄") || result.todayAction.title.includes("펴"), true);
+});
+
 test("locale validation accepts Korean strings when locale is ko", () => {
   assert.equal(isLocalizedString("책만 펴고 끝내기", "ko", "독서 습관 만들기"), true);
 });

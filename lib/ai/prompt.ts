@@ -38,31 +38,56 @@ function buildPromptPayload(
   });
 }
 
+function buildHomepageToneInstructions(locale: Locale) {
+  if (locale === "ko") {
+    return [
+      "Match this product tone: calm, brief, and concrete.",
+      "The promise is: today, one small step is enough.",
+      "Make actions feel smaller than the user's resistance.",
+      "Prefer setup or entry actions over ambitious progress when the choice is close.",
+      "Do not frame this as a weekly transformation, life reset, or motivation speech.",
+    ];
+  }
+
+  return [
+    "Match this product tone: calm, brief, and concrete.",
+    "The promise is: today, one small step is enough.",
+    "Make actions feel smaller than the user's resistance.",
+    "Prefer setup or entry actions over ambitious progress when the choice is close.",
+    "Do not frame this as a weekly transformation, life reset, or motivation speech.",
+  ];
+}
+
+function buildDurationInstruction(input: OnboardingInput) {
+  return input.difficulty === "hard"
+    ? "Keep main actions to 1 to 2 minutes. Make fallback actions feel like a 30 to 60 second version."
+    : "Keep main actions to 1 to 5 minutes. Make fallback actions clearly smaller than the main action.";
+}
+
+function buildFailureInstruction(failureReason?: FailureReason) {
+  return failureReason === "too_big"
+    ? "The last attempt felt too big. Make the first action and fallback noticeably easier."
+    : "Fallback actions must be easier than the main action while staying observable.";
+}
+
 export function buildAiOnlyHabitDecompositionPrompt(
   input: OnboardingInput,
   classification: GoalClassification | GoalArchetype,
   failureReason?: FailureReason,
   locale: Locale = "ko",
 ) {
-  const durationInstruction =
-    input.difficulty === "hard"
-      ? "Keep main actions to 1 to 2 minutes. Make fallback actions feel like a 30 to 60 second version."
-      : "Keep main actions to 1 to 5 minutes. Make fallback actions clearly smaller than the main action.";
-
-  const failureInstruction =
-    failureReason === "too_big"
-      ? "The last attempt felt too big. Make the first action and fallback noticeably easier."
-      : "Fallback actions must be easier than the main action while staying observable.";
-
   return [
     "Return JSON only.",
     "You are an execution-focused micro-habit coach.",
+    ...buildHomepageToneInstructions(locale),
     locale === "ko" ? "Write short, natural Korean. No translation tone." : "Write short, natural English.",
     "Reject vague phrasing.",
     "Start every action title with an observable verb.",
-    "Do not add motivation, praise, or mindset coaching.",
-    durationInstruction,
-    failureInstruction,
+    "Keep goalSummary and each reason to one short sentence.",
+    "Do not add praise, guilt, mindset coaching, or emotional framing.",
+    "Prefer actions like open, place, read one line, write one sentence, close one app, or take out what you need.",
+    buildDurationInstruction(input),
+    buildFailureInstruction(failureReason),
     "Choose 2 micro-actions by default. Use 3 only if clearly useful.",
     "todayAction must match microActions[0]. fallbackAction must match todayAction.fallbackAction.",
     locale === "ko" ? "Write all user-facing strings in Korean." : "Write all user-facing strings in English.",
@@ -81,8 +106,11 @@ export function buildHybridRewritePrompt(
     "Return JSON only.",
     "Rewrite the draft plan without changing the JSON shape or action count.",
     "Keep todayAction equal to microActions[0]. Keep fallbackAction equal to todayAction.fallbackAction.",
+    ...buildHomepageToneInstructions(locale),
     locale === "ko" ? "Make Korean shorter, more natural, and less translated." : "Make the wording shorter and more natural.",
     "Keep every action concrete and observable.",
+    "Shorten goalSummary and each reason.",
+    "If two options feel similar, prefer the easier entry step.",
     "Make fallback actions clearly smaller than the main action.",
     "Do not add motivation, praise, or long explanations.",
     locale === "ko" ? "Write all user-facing strings in Korean." : "Write all user-facing strings in English.",
@@ -107,9 +135,11 @@ export function buildBehaviorSwarmPrompt(input: OnboardingBaseInput, locale: Loc
   return [
     "Return JSON only.",
     "You are an execution-focused micro-habit coach.",
+    ...buildHomepageToneInstructions(locale),
     locale === "ko" ? "Write short, natural Korean. No translation tone." : "Write short, natural English.",
     "Generate 6 to 10 tiny behavior candidates.",
     "Every candidate must be concrete, observable, and easy to start now.",
+    "Prefer low-resistance entry behaviors over larger outcome behaviors.",
     "Keep each candidate to 1 to 5 minutes.",
     "Do not use vague phrases like do your best, keep going, or work on it.",
     "Each candidate needs desireScore, abilityScore, and impactScore from 1 to 5.",
