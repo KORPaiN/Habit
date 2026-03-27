@@ -10,7 +10,7 @@ type OnboardingPreviewProps = {
 
 export function OnboardingPreview({ values, locale, preview }: OnboardingPreviewProps) {
   return (
-    <Card className="h-full bg-[linear-gradient(180deg,rgba(255,253,249,0.98)_0%,rgba(246,239,231,0.92)_100%)]">
+    <Card className="h-full bg-[linear-gradient(180deg,rgba(255,253,249,0.98)_0%,rgba(246,239,231,0.92)_100%)] text-center">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
         {locale === "ko" ? "미리보기" : "Preview"}
       </p>

@@ -30,7 +30,7 @@ export default async function RecoveryPage({ searchParams }: RecoveryPageProps) 
         title={locale === "ko" ? "먼저 첫 계획이 필요해요." : "Create a first plan before shrinking it."}
         description={locale === "ko" ? "지금 줄일 행동이 없어요." : "Recovery only works once there is a current action to redesign."}
       >
-        <Card>
+        <Card className="text-center">
           <p className="text-sm leading-6 text-[var(--muted)]">
             {locale === "ko"
               ? "먼저 작은 행동을 만든 뒤 다시 와 주세요."

@@ -181,11 +181,11 @@ export function OnboardingForm({ locale, isAuthenticated, error }: OnboardingFor
 
   return (
     <>
-      <Card className="bg-[var(--surface-strong)]">
+      <Card className="bg-[var(--surface-strong)] text-center">
         <form action={submitOnboarding} className="space-y-5">
           <input type="hidden" name="availableMinutes" value={String(values.availableMinutes)} />
           <input type="hidden" name="preferredTime" value={values.preferredTime} />
-          <div className="rounded-[var(--radius-md)] border border-white/60 bg-[var(--surface-muted)] p-4">
+          <div className="rounded-[var(--radius-md)] border border-white/60 bg-[var(--surface-muted)] p-3.5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--primary)]">
               {locale === "ko" ? "오늘의 기준" : "Today's boundary"}
             </p>
@@ -207,9 +207,9 @@ export function OnboardingForm({ locale, isAuthenticated, error }: OnboardingFor
             />
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium text-[var(--foreground-soft)]">
-              {locale === "ko" ? "난이도" : "Perceived difficulty"}
-            </label>
+              <label className="mb-2 block text-sm font-medium text-[var(--foreground-soft)]">
+                {locale === "ko" ? "난이도" : "Perceived difficulty"}
+              </label>
             <Select name="difficulty" value={values.difficulty} onChange={(event) => updateValue("difficulty", event.target.value as OnboardingInput["difficulty"])}>
               <option value="gentle">{locale === "ko" ? "쉬움" : "Gentle"}</option>
               <option value="steady">{locale === "ko" ? "보통" : "Steady"}</option>
@@ -231,7 +231,7 @@ export function OnboardingForm({ locale, isAuthenticated, error }: OnboardingFor
                 ? "이 행동 뒤에 바로 시작할 수 있게 적어 주세요."
                 : "Write the moment after which you'll start the habit."}
             </p>
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap justify-center gap-2">
               {anchorExamples.map((example) => (
                 <button
                   key={example}
@@ -244,7 +244,7 @@ export function OnboardingForm({ locale, isAuthenticated, error }: OnboardingFor
               ))}
             </div>
           </div>
-          <div className="rounded-[var(--radius-md)] bg-[var(--primary-soft)] p-4 text-sm leading-6 text-[var(--primary)]">
+          <div className="rounded-[var(--radius-md)] bg-[var(--primary-soft)] p-3.5 text-sm leading-6 text-[var(--primary)]">
             {locale === "ko"
               ? "오늘 한 걸음만 정하면 충분해요."
               : "We keep this short on purpose. You only need enough detail to shape today's first tiny step."}

@@ -36,6 +36,22 @@ type WeeklyReviewState = {
   source: "Supabase";
 };
 
+type MonthlyReviewState = {
+  monthLabel: string;
+  completedCount: number;
+  totalCount: number;
+  completionRate: number;
+  bestStreak: number;
+  calendar: Array<{
+    date: string;
+    day: number;
+    status: DailyActionStatus | "none";
+  }>;
+  difficultMoments: string;
+  helpfulPattern: string;
+  nextAdjustment: string;
+};
+
 function isConfigured() {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
@@ -166,6 +182,22 @@ function getWeekStart(date = new Date()) {
   return weekStart.toISOString().slice(0, 10);
 }
 
+function getMonthStart(date = new Date()) {
+  const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+  monthStart.setHours(0, 0, 0, 0);
+  return monthStart;
+}
+
+function getMonthEnd(date = new Date()) {
+  const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+  monthEnd.setHours(0, 0, 0, 0);
+  return monthEnd;
+}
+
+function normalizeMonthDate(date = new Date()) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
 function getStatusCount(statuses: DailyActionStatus[], target: DailyActionStatus) {
   return statuses.filter((status) => status === target).length;
 }
@@ -218,6 +250,73 @@ function buildGeneratedReview(statuses: DailyActionStatus[]): WeeklyReviewState 
     helpfulPattern,
     nextAdjustment,
     source: "Supabase",
+  };
+}
+
+function formatMonthLabel(date = new Date()) {
+  return `${date.getFullYear()}년 ${date.getMonth() + 1}월`;
+}
+
+function buildMonthlyCalendar(
+  actions: Array<Pick<DailyActionLookup, "action_date" | "status">>,
+  now = new Date(),
+) {
+  const start = getMonthStart(now);
+  const end = getMonthEnd(now);
+  const statusByDate = new Map(actions.map((action) => [action.action_date, action.status]));
+  const calendar: MonthlyReviewState["calendar"] = [];
+
+  for (let day = 1; day <= end.getDate(); day += 1) {
+    const current = new Date(start.getFullYear(), start.getMonth(), day);
+    const iso = current.toISOString().slice(0, 10);
+    const isFuture = current > now;
+
+    calendar.push({
+      date: iso,
+      day,
+      status: isFuture ? "none" : statusByDate.get(iso) ?? "none",
+    });
+  }
+
+  return calendar;
+}
+
+function buildMonthlyReview(actions: Array<Pick<DailyActionLookup, "action_date" | "status">>, now = new Date()): MonthlyReviewState {
+  const statuses = actions.map((item) => item.status);
+  const completedCount = getStatusCount(statuses, "completed");
+  const totalCount = actions.length;
+  const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+  const bestStreak = getBestStreak(statuses);
+  const failedDays = getStatusCount(statuses, "failed");
+  const skippedDays = getStatusCount(statuses, "skipped");
+
+  const difficultMoments =
+    failedDays > 0
+      ? "막힌 날이 있었다면 아직 더 줄일 여지가 있어요."
+      : skippedDays > 2
+        ? "놓친 날이 많다면 앵커를 더 또렷하게 잡는 편이 좋아요."
+        : "이번 달은 비교적 무리 없는 크기로 이어가고 있어요.";
+
+  const helpfulPattern =
+    completionRate >= 60
+      ? "작게 유지한 날에 완료가 잘 이어졌어요."
+      : "잘된 날의 공통점을 찾으면 다음 달이 더 쉬워져요.";
+
+  const nextAdjustment =
+    completionRate >= 70
+      ? "다음 달에도 지금 크기를 유지해 보세요."
+      : "다음 달에는 첫 행동을 더 눈에 띄고 더 작게 만들어 보세요.";
+
+  return {
+    monthLabel: formatMonthLabel(now),
+    completedCount,
+    totalCount,
+    completionRate,
+    bestStreak,
+    calendar: buildMonthlyCalendar(actions, now),
+    difficultMoments,
+    helpfulPattern,
+    nextAdjustment,
   };
 }
 
@@ -349,4 +448,41 @@ export async function getWeeklyReviewStateFromSession(session: HabitSession): Pr
   const statuses = ((weeklyActions.data ?? []) as Array<{ status: DailyActionStatus }>).map((item) => item.status);
 
   return buildGeneratedReview(statuses);
+}
+
+export async function getMonthlyReviewStateFromSession(session: HabitSession, targetMonth = new Date()): Promise<MonthlyReviewState | null> {
+  if (!isConfigured()) {
+    return null;
+  }
+
+  if (!session.userId) {
+    return null;
+  }
+
+  const goal = await getGoalForSession(session);
+
+  if (!goal) {
+    return null;
+  }
+
+  const client = getSupabaseAdminClient();
+  const monthDate = normalizeMonthDate(targetMonth);
+  const monthStart = getMonthStart(monthDate).toISOString().slice(0, 10);
+  const monthEnd = getMonthEnd(monthDate).toISOString().slice(0, 10);
+
+  const monthlyActions = await client
+    .from("daily_actions")
+    .select("action_date, status")
+    .eq("goal_id", goal.id)
+    .gte("action_date", monthStart)
+    .lte("action_date", monthEnd)
+    .order("action_date", { ascending: true });
+
+  if (monthlyActions.error) {
+    throw new Error(monthlyActions.error.message);
+  }
+
+  const actions = (monthlyActions.data ?? []) as Array<Pick<DailyActionLookup, "action_date" | "status">>;
+
+  return buildMonthlyReview(actions, monthDate);
 }

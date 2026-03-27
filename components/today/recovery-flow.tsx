@@ -146,7 +146,7 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", l
 
   return (
     <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-      <Card className="bg-[var(--surface-strong)]">
+      <Card className="bg-[var(--surface-strong)] text-center">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
           {locale === "ko" ? "현재 행동" : "Current action"}
         </p>
@@ -159,7 +159,7 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", l
         </p>
       </Card>
 
-      <Card className="bg-[linear-gradient(180deg,rgba(247,226,218,0.92)_0%,rgba(255,251,246,0.92)_100%)]">
+      <Card className="bg-[linear-gradient(180deg,rgba(247,226,218,0.92)_0%,rgba(255,251,246,0.92)_100%)] text-center">
         {step === "reason" ? (
           <>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9a3412]">
@@ -233,7 +233,7 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", l
                     checked={selectedPosition === option.position}
                     onChange={() => setSelectedPosition(option.position)}
                   />
-                  <div className="flex items-start gap-4">
+                  <div className="flex flex-col items-center gap-2">
                     <div>
                       <p className="font-medium text-slate-900">{option.title}</p>
                       <p className="mt-1 text-sm leading-6 text-slate-600">{option.reason}</p>

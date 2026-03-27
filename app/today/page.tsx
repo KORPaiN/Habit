@@ -48,7 +48,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
             : "Once onboarding creates a plan, this screen will focus on just one concrete action for today."
         }
       >
-        <Card className="bg-[var(--surface-strong)]">
+        <Card className="bg-[var(--surface-strong)] text-center">
           <p className="text-sm leading-6 text-[var(--muted)]">
             {locale === "ko"
               ? "아직 오늘 할 일이 없어요. 먼저 플랜을 만들어 주세요."
@@ -97,7 +97,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
           </Card>
         ) : null}
         {isRecovered ? (
-          <Card className="bg-[var(--primary-soft)]">
+          <Card className="bg-[var(--primary-soft)] text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">{locale === "ko" ? "더 작은 단계로 바꿨어요" : "Smaller step ready"}</p>
             <p className="mt-3 text-sm leading-6 text-[var(--foreground)]">
               {locale === "ko"
@@ -107,7 +107,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
           </Card>
         ) : null}
         {isCompleted ? (
-          <Card className="border-emerald-300 bg-emerald-50/90">
+          <Card className="border-emerald-300 bg-emerald-50/90 text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">{locale === "ko" ? "완료됨" : "Today's action completed"}</p>
             <p className="mt-3 text-sm leading-6 text-emerald-900">
               {locale === "ko"
@@ -120,7 +120,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
       </div>
 
       <div className="grid gap-6">
-        <Card className="bg-[var(--surface-muted)]">
+        <Card className="bg-[var(--surface-muted)] text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">{locale === "ko" ? "지금 기준" : "Why this fits"}</p>
           <div className="mt-4 flex flex-wrap gap-3">
             <StatPill label={locale === "ko" ? "목표" : "Goal"} value={todayState.goal} />
@@ -129,7 +129,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
           </div>
         </Card>
 
-        <Card className="bg-[var(--surface-strong)]">
+        <Card className="bg-[var(--surface-strong)] text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">{locale === "ko" ? "대체 행동" : "Fallback action"}</p>
           <p className="mt-3 text-2xl font-semibold leading-tight">{action.fallbackAction}</p>
           <p className="mt-3 text-sm leading-6 text-[var(--muted)]">

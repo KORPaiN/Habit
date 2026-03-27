@@ -25,9 +25,23 @@ export async function syncAuthenticatedUser(locale?: Locale) {
 
 export async function getAuthShellState() {
   const user = await getAuthenticatedUser();
+  const displayName =
+    typeof user?.user_metadata?.full_name === "string"
+      ? user.user_metadata.full_name
+      : typeof user?.user_metadata?.name === "string"
+        ? user.user_metadata.name
+        : null;
+  const avatarUrl =
+    typeof user?.user_metadata?.avatar_url === "string"
+      ? user.user_metadata.avatar_url
+      : typeof user?.user_metadata?.picture === "string"
+        ? user.user_metadata.picture
+        : null;
 
   return {
     isAuthenticated: Boolean(user),
+    displayName,
+    avatarUrl,
     email: user?.email ?? null,
   };
 }

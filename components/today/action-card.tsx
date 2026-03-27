@@ -15,7 +15,7 @@ type ActionCardProps = {
 
 export function ActionCard({ action, locale, isCompleted = false }: ActionCardProps) {
   return (
-    <Card className="bg-[var(--surface-strong)] px-6 py-7 sm:px-8">
+    <Card className="bg-[var(--surface-strong)] px-5 py-6 text-center sm:px-6">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
         {locale === "ko" ? "오늘의 한 가지 행동" : "Today's one action"}
       </p>
@@ -24,16 +24,16 @@ export function ActionCard({ action, locale, isCompleted = false }: ActionCardPr
           {locale === "ko" ? "완료됨" : "Completed"}
         </div>
       ) : null}
-      <h2 className="mt-4 max-w-2xl text-3xl font-semibold leading-tight">{action.title}</h2>
-      <p className="mt-4 max-w-2xl text-sm leading-7 text-[var(--foreground-soft)]">{action.reason}</p>
-      <div className="mt-8 rounded-[var(--radius-md)] border border-white/60 bg-[var(--surface-muted)] p-4">
+      <h2 className="mt-3 max-w-2xl text-2xl font-semibold leading-tight sm:text-[1.75rem]">{action.title}</h2>
+      <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--foreground-soft)]">{action.reason}</p>
+      <div className="mt-6 rounded-[var(--radius-md)] border border-white/60 bg-[var(--surface-muted)] p-3.5">
         <p className="text-sm leading-6 text-[var(--foreground-soft)]">
           {locale === "ko"
             ? "잘하는 것보다 시작하는 게 더 중요해요."
             : "The goal is not to do it perfectly, only to make starting feel possible today."}
         </p>
       </div>
-      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+      <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
         <form action={completeTodayAction} className="sm:flex-1">
           <Button type="submit" fullWidth size="lg" disabled={isCompleted}>
             {isCompleted ? (locale === "ko" ? "완료됨" : "Completed") : locale === "ko" ? "완료했어요" : "Mark it done"}

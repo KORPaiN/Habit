@@ -58,13 +58,13 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
       }
       className="mx-auto max-w-xl"
     >
-      <Card>
+      <Card className="text-center">
         <div className="space-y-5">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
               {locale === "ko" ? "언어" : "Choose language"}
             </p>
-            <div className="mt-3 flex flex-wrap gap-3">
+            <div className="mt-3 flex flex-wrap justify-center gap-3">
               {localeOptions.map((option) => (
                 <span
                   key={option}
