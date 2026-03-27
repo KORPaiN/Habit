@@ -64,6 +64,7 @@ export async function finalizeOnboardingReview(formData: FormData) {
     planId: planResult.plan.id,
     microActionId: selectedMicroAction.id,
     dailyActionId: dailyAction.id,
+    reviewActions: undefined,
   });
 
   redirect("/today");

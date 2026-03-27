@@ -35,25 +35,6 @@ export function PlanReviewForm({ locale, initialActions }: PlanReviewFormProps) 
     );
   }
 
-  function addAction() {
-    if (actions.length >= 3) {
-      return;
-    }
-
-    setActions((current) => [
-      ...current,
-      {
-        position: current.length + 1,
-        title: "",
-        details: "",
-        durationMinutes: 1,
-        fallbackTitle: "",
-        fallbackDetails: "",
-        fallbackDurationMinutes: 1,
-      },
-    ]);
-  }
-
   function removeAction(index: number) {
     setActions((current) =>
       current
@@ -122,9 +103,6 @@ export function PlanReviewForm({ locale, initialActions }: PlanReviewFormProps) 
         ))}
       </div>
       <div className="flex flex-col gap-3 sm:flex-row">
-        <Button type="button" variant="ghost" onClick={addAction} disabled={actions.length >= 3}>
-          {locale === "ko" ? "행동 추가" : "Add action"}
-        </Button>
         <Button type="submit" fullWidth disabled={isPending}>
           {isPending ? (locale === "ko" ? "저장 중..." : "Saving...") : locale === "ko" ? "이 플랜으로 시작하기" : "Start with this plan"}
         </Button>

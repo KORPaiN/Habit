@@ -8,6 +8,7 @@ import { getAuthenticatedUser, syncAuthenticatedUser } from "@/lib/supabase/auth
 import { getSupabaseServerClient } from "@/lib/supabase/server-client";
 import { setHabitSession } from "@/lib/habit-session";
 import { onboardingSchema } from "@/lib/validators/habit";
+import { mapGeneratedActionsToPlanInput } from "@/lib/utils/habit-rules";
 
 export async function submitOnboarding(formData: FormData) {
   const locale = await getLocale();
@@ -42,6 +43,14 @@ export async function submitOnboarding(formData: FormData) {
       locale,
     })) as {
       goal: { id: string };
+      decomposition: {
+        microActions: Array<{
+          title: string;
+          reason: string;
+          durationMinutes: number;
+          fallbackAction: string;
+        }>;
+      };
       initialPlan: {
         plan: { id: string };
         micro_actions: Array<{ id: string; position: number }>;
@@ -52,6 +61,7 @@ export async function submitOnboarding(formData: FormData) {
       userId,
       goalId: result.goal.id,
       planId: result.initialPlan.plan.id,
+      reviewActions: mapGeneratedActionsToPlanInput(result.decomposition.microActions),
     });
   } catch (error) {
     unstable_rethrow(error);

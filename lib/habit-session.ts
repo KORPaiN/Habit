@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import type { PlanMicroActionInput } from "@/lib/validators/backend";
 
 const HABIT_SESSION_COOKIE = "habit_session";
 
@@ -8,6 +9,7 @@ export type HabitSession = {
   planId?: string;
   microActionId?: string;
   dailyActionId?: string;
+  reviewActions?: PlanMicroActionInput[];
 };
 
 function getDefaultSession(): HabitSession {
@@ -30,7 +32,8 @@ export async function getHabitSession() {
       (parsed.goalId === undefined || typeof parsed.goalId === "string") &&
       (parsed.planId === undefined || typeof parsed.planId === "string") &&
       (parsed.microActionId === undefined || typeof parsed.microActionId === "string") &&
-      (parsed.dailyActionId === undefined || typeof parsed.dailyActionId === "string")
+      (parsed.dailyActionId === undefined || typeof parsed.dailyActionId === "string") &&
+      (parsed.reviewActions === undefined || Array.isArray(parsed.reviewActions))
     ) {
       return parsed as HabitSession;
     }

@@ -39,33 +39,37 @@ export default async function OnboardingReviewPage({ searchParams }: ReviewPageP
     );
   }
 
-  const client = await getSupabaseServerClient();
-  const { data, error } = await client
-    .from("micro_actions")
-    .select("position, title, details, duration_minutes, fallback_title, fallback_details, fallback_duration_minutes")
-    .eq("plan_id", session.planId)
-    .order("position", { ascending: true });
+  let initialActions: PlanMicroActionInput[] = session.reviewActions ?? [];
 
-  if (error) {
-    throw new Error(error.message);
+  if (initialActions.length === 0) {
+    const client = await getSupabaseServerClient();
+    const { data, error } = await client
+      .from("micro_actions")
+      .select("position, title, details, duration_minutes, fallback_title, fallback_details, fallback_duration_minutes")
+      .eq("plan_id", session.planId)
+      .order("position", { ascending: true });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const microActions = (data ?? []) as Array<
+      Pick<
+        Database["public"]["Tables"]["micro_actions"]["Row"],
+        "position" | "title" | "details" | "duration_minutes" | "fallback_title" | "fallback_details" | "fallback_duration_minutes"
+      >
+    >;
+
+    initialActions = microActions.map((action) => ({
+      position: action.position,
+      title: action.title,
+      details: action.details ?? "",
+      durationMinutes: action.duration_minutes,
+      fallbackTitle: action.fallback_title,
+      fallbackDetails: action.fallback_details ?? "",
+      fallbackDurationMinutes: action.fallback_duration_minutes,
+    }));
   }
-
-  const microActions = (data ?? []) as Array<
-    Pick<
-      Database["public"]["Tables"]["micro_actions"]["Row"],
-      "position" | "title" | "details" | "duration_minutes" | "fallback_title" | "fallback_details" | "fallback_duration_minutes"
-    >
-  >;
-
-  const initialActions: PlanMicroActionInput[] = microActions.map((action) => ({
-    position: action.position,
-    title: action.title,
-    details: action.details ?? "",
-    durationMinutes: action.duration_minutes,
-    fallbackTitle: action.fallback_title,
-    fallbackDetails: action.fallback_details ?? "",
-    fallbackDurationMinutes: action.fallback_duration_minutes,
-  }));
 
   return (
     <PageShell
@@ -81,8 +85,8 @@ export default async function OnboardingReviewPage({ searchParams }: ReviewPageP
           <h2 className="text-xl font-semibold">{locale === "ko" ? "생성된 마이크로 행동을 확인해 주세요." : "Review your generated micro-actions."}</h2>
           <p className="mt-2 text-sm leading-6 text-[var(--foreground-soft)]">
             {locale === "ko"
-              ? "이 단계에서 행동을 수정하거나 하나 더 추가할 수 있어요. 선택한 행동이 오늘 행동이 됩니다."
-              : "You can edit the actions or add one more before you start. The selected action becomes today's action."}
+              ? "이 단계에서 행동을 수정하고, 어떤 행동을 오늘 행동으로 쓸지 고를 수 있어요."
+              : "Edit the actions here and choose which one should become today's action."}
           </p>
           {params.error ? <p className="mt-3 text-sm text-amber-800">{params.error}</p> : null}
         </Card>
