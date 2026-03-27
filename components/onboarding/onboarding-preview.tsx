@@ -24,7 +24,7 @@ export function OnboardingPreview({ values, locale }: OnboardingPreviewProps) {
         </div>
         <div>
           <dt className="text-[var(--muted)]">{locale === "ko" ? "난이도" : "Difficulty"}</dt>
-          <dd className="mt-1 font-medium capitalize">{locale === "ko" ? { gentle: "가벼움", steady: "보통", hard: "어려움" }[values.difficulty] : values.difficulty}</dd>
+          <dd className="mt-1 font-medium capitalize">{locale === "ko" ? { gentle: "쉬움", steady: "보통", hard: "어려움" }[values.difficulty] : values.difficulty}</dd>
         </div>
         <div>
           <dt className="text-[var(--muted)]">{locale === "ko" ? "선호 시간대" : "Preferred window"}</dt>

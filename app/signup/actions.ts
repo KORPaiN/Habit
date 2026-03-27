@@ -12,7 +12,7 @@ export async function completeSignupWithLocale(formData: FormData) {
   const selectedLocale = typeof localeValue === "string" ? localeValue : null;
 
   if (!isLocale(selectedLocale)) {
-    redirect(`/signup?error=${encodeURIComponent("Please choose a language.")}` as never);
+    redirect(`/signup?error=${encodeURIComponent("언어를 확인해 주세요.")}` as never);
   }
 
   const user = await syncAuthenticatedUser(selectedLocale);

@@ -1,7 +1,7 @@
 import type { Locale } from "@/lib/locale";
 import type { MicroAction, OnboardingInput } from "@/lib/validators/habit";
 
-export function minutesLabel(minutes: number, locale: Locale = "en") {
+export function minutesLabel(minutes: number, locale: Locale = "ko") {
   if (locale === "ko") {
     return `${minutes}분`;
   }
@@ -9,7 +9,7 @@ export function minutesLabel(minutes: number, locale: Locale = "en") {
   return `${minutes} minute${minutes === 1 ? "" : "s"}`;
 }
 
-export function buildAnchorLabel(anchor: OnboardingInput["anchor"], locale: Locale = "en") {
+export function buildAnchorLabel(anchor: OnboardingInput["anchor"], locale: Locale = "ko") {
   const labels: Record<Locale, Record<OnboardingInput["anchor"], string>> = {
     en: {
       "after-coffee": "After coffee",
@@ -28,7 +28,7 @@ export function buildAnchorLabel(anchor: OnboardingInput["anchor"], locale: Loca
   return labels[locale][anchor];
 }
 
-export function shrinkAction(action: MicroAction, locale: Locale = "en"): MicroAction {
+export function shrinkAction(action: MicroAction, locale: Locale = "ko"): MicroAction {
   return {
     ...action,
     durationMinutes: Math.max(1, action.durationMinutes - 1),

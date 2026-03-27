@@ -42,7 +42,7 @@ export async function prepareRecoveryOptions(input: { failureReason: RecoveryRea
   const context = await getRecoveryContextFromSession(session);
 
   if (!context) {
-    throw new Error("Create a plan before opening recovery.");
+    throw new Error(locale === "ko" ? "리커버리를 열기 전에 먼저 계획을 만들어 주세요." : "Create a plan before opening recovery.");
   }
 
   let savedFailure = false;
@@ -50,13 +50,13 @@ export async function prepareRecoveryOptions(input: { failureReason: RecoveryRea
   if (canUseSupabase()) {
     try {
       if (!session.dailyActionId) {
-        throw new Error("Missing daily action id");
+        throw new Error("daily action id가 없습니다.");
       }
 
       await failDailyAction(getSupabaseAdminClient(), session.dailyActionId, {
         userId: session.userId,
         failureReason: reason,
-        notes: "User opened recovery flow and asked for a smaller step.",
+        notes: "사용자가 리커버리에서 더 작은 단계를 요청했습니다.",
         createRecoveryPlan: false,
       });
       savedFailure = true;
@@ -98,20 +98,20 @@ export async function saveRecoveryChoice(input: {
   const selectedAction = options.find((option) => option.position === input.selectedPosition) ?? options[0];
 
   if (!selectedAction) {
-    throw new Error("No recovery option was selected.");
+    throw new Error("선택된 리커버리 옵션이 없습니다.");
   }
 
   let savedSelection = false;
   const session = await getHabitSession();
 
   if (!session.userId) {
-    throw new Error("Please sign in with Google first.");
+    throw new Error("먼저 Google로 로그인해 주세요.");
   }
 
   if (canUseSupabase()) {
     try {
       if (!session.goalId) {
-        throw new Error("Missing goal id");
+        throw new Error("goal id가 없습니다.");
       }
 
       const prioritizedActions = prioritizeSelectedMicroAction(
@@ -122,7 +122,7 @@ export async function saveRecoveryChoice(input: {
         userId: session.userId,
         goalId: session.goalId,
         source: "recovery",
-        notes: `Recovery plan created after failure reason: ${reason}.`,
+        notes: `실패 사유 ${reason} 이후 리커버리 플랜을 생성했습니다.`,
         microActions: prioritizedActions,
       });
 
@@ -134,7 +134,7 @@ export async function saveRecoveryChoice(input: {
       const selectedMicroActionId = plan.micro_actions.find((item) => item.position === 1)?.id;
 
       if (!selectedMicroActionId) {
-        throw new Error("Recovery plan did not return a selected micro-action.");
+        throw new Error("리커버리 플랜에서 선택된 마이크로 액션을 찾지 못했습니다.");
       }
 
       const dailyAction = (await assignDailyAction(getSupabaseAdminClient(), {

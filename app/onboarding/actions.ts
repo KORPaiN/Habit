@@ -12,10 +12,10 @@ import { onboardingSchema } from "@/lib/validators/habit";
 
 function buildAnchorCue(anchor: ReturnType<typeof onboardingSchema.parse>["anchor"]) {
   const cues: Record<ReturnType<typeof onboardingSchema.parse>["anchor"], string> = {
-    "after-coffee": "Right after your first sip of coffee.",
-    "after-shower": "As soon as you finish your shower.",
-    "before-work": "Just before you start work.",
-    "before-bed": "Right before getting into bed.",
+    "after-coffee": "첫 커피를 한 모금 마신 직후",
+    "after-shower": "샤워를 마친 직후",
+    "before-work": "일을 시작하기 직전",
+    "before-bed": "침대에 눕기 직전",
   };
 
   return cues[anchor];
@@ -64,7 +64,7 @@ export async function submitOnboarding(formData: FormData) {
     const selectedMicroAction = result.initialPlan.micro_actions.find((action) => action.position === 1);
 
     if (!selectedMicroAction) {
-      throw new Error("The onboarding plan did not include a first action.");
+      throw new Error("온보딩 플랜에 첫 행동이 포함되지 않았어요.");
     }
 
     const dailyAction = (await assignDailyAction(client, {

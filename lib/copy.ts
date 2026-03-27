@@ -21,6 +21,6 @@ export const commonCopy: Record<Locale, Record<string, string>> = {
     langEnglish: "EN",
     langKorean: "KO",
     sourceSupabase: "Supabase",
-    sourceMock: "목 데이터",
+    sourceMock: "데모 데이터",
   },
 };

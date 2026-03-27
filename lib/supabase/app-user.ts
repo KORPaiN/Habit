@@ -13,9 +13,9 @@ type UsersTable = {
 };
 
 const DEFAULT_USER_EMAIL = "demo@tinyhabit.dev";
-const DEFAULT_USER_NAME = "Demo User";
+const DEFAULT_USER_NAME = "데모 사용자";
 const DEFAULT_TIMEZONE = "Asia/Seoul";
-const DEFAULT_LOCALE: Locale = "en";
+const DEFAULT_LOCALE: Locale = "ko";
 
 export function getAppUserId() {
   return process.env.APP_USER_ID ?? demoBackendIds.userId;

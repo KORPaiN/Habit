@@ -17,7 +17,7 @@ const anchorLabels: Record<Locale, Record<OnboardingInput["anchor"], string>> = 
   },
 };
 
-export function buildHabitDecompositionPrompt(input: OnboardingInput, failureReason?: FailureReason, locale: Locale = "en") {
+export function buildHabitDecompositionPrompt(input: OnboardingInput, failureReason?: FailureReason, locale: Locale = "ko") {
   const difficultyInstruction =
     input.difficulty === "hard"
       ? "The user feels high difficulty. Make actions extra small, usually 1 to 2 minutes, and make fallback actions even lighter."

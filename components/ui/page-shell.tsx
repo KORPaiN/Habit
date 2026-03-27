@@ -69,7 +69,7 @@ export function PageShell({
                 </>
               ) : (
                 <Link className="rounded-full bg-white/80 px-4 py-2 font-semibold text-[var(--foreground)]" href={`/login?next=${encodeURIComponent(path)}`}>
-                  {locale === "ko" ? "Google 로그인" : "Sign in with Google"}
+                  {locale === "ko" ? "Google로 로그인" : "Sign in with Google"}
                 </Link>
               )}
             </div>

@@ -23,11 +23,11 @@ export async function getLocale(): Promise<Locale> {
       }
     }
   } catch {
-    // Fall back to English when auth or Supabase is unavailable.
+    // 인증 또는 Supabase를 사용할 수 없으면 한국어를 기본값으로 사용합니다.
   }
 
   await cookies();
-  return "en";
+  return "ko";
 }
 
 export function isLocale(value: string | null | undefined): value is Locale {

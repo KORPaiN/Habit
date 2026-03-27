@@ -68,7 +68,7 @@ export async function createOnboardingFlow(client: ServiceClient, input: Onboard
     p_source: "ai",
     p_micro_actions: toRpcMicroActions(generatedActions),
     p_based_on_plan_id: null,
-    p_notes: "Initial onboarding plan.",
+    p_notes: "초기 온보딩 플랜",
   });
 
   return {
@@ -214,24 +214,24 @@ export async function generateWeeklyReview(client: ServiceClient, input: { userI
 
   const difficultMoments =
     failedDays > 0
-      ? "Some days still asked for too much, so the step should get lighter again."
+      ? "이번 주에는 여전히 버겁게 느껴진 날이 있었어요. 첫 단계는 한 번 더 가볍게 줄일 필요가 있습니다."
       : skippedDays > 1
-        ? "The habit was easy to miss on busier days, which points to a cue problem more than a discipline problem."
-        : "Resistance stayed fairly low this week, so the current step size looks workable.";
+        ? "바쁜 날에 자주 놓쳤다면 의지 문제보다 앵커와 타이밍이 더 선명해져야 한다는 뜻입니다."
+        : "이번 주에는 저항이 비교적 낮아서 현재 단계 크기가 무난해 보입니다.";
 
   const helpfulPattern =
     usedFallbackDays > 0
-      ? "Having a fallback kept the streak alive on lower-energy days."
+      ? "에너지가 낮은 날에도 대체 행동이 흐름을 이어 주었습니다."
       : completedDays >= 4
-        ? "Small, specific actions made it easier to begin without negotiation."
-        : "The easiest days were probably the ones with the least setup friction.";
+        ? "작고 구체적인 행동일수록 망설임 없이 시작하기 쉬웠습니다."
+        : "가장 쉬웠던 날은 준비 마찰이 적었던 날이었을 가능성이 큽니다.";
 
   const nextAdjustment =
     failedDays > 0
-      ? "Lower the starting bar next week and make the fallback even more obvious."
+      ? "다음 주에는 시작 문턱을 더 낮추고 대체 행동을 더 눈에 띄게 만드세요."
       : completedDays >= 4
-        ? "Keep the plan size steady and repeat the same tiny entry point."
-        : "Strengthen the anchor so the action shows up earlier in the day.";
+        ? "지금 크기를 당분간 유지하고 같은 작은 진입점을 반복하세요."
+        : "앵커를 더 분명히 해서 행동이 하루 중 더 이르게 떠오르도록 해보세요.";
 
   return upsertWeeklyReview(client, {
     userId: input.userId,

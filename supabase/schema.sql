@@ -34,7 +34,7 @@ create table if not exists users (
   id uuid primary key,
   email text not null unique,
   display_name text,
-  locale text not null default 'en' check (locale in ('en', 'ko')),
+  locale text not null default 'ko' check (locale in ('en', 'ko')),
   timezone text not null default 'Asia/Seoul',
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
@@ -248,6 +248,9 @@ begin
 
   insert into anchors (user_id, label, cue, preferred_time)
   values (p_user_id, p_anchor_label, p_anchor_cue, p_preferred_time)
+  on conflict (user_id, label, cue)
+  do update set
+    preferred_time = excluded.preferred_time
   returning id into v_anchor_id;
 
   insert into goals (user_id, anchor_id, title, why, difficulty, available_minutes)

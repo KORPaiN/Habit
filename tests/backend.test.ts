@@ -65,7 +65,7 @@ test("buildRecoveryPreview shrinks only the selected action", () => {
     1,
   );
 
-  assert.equal(result[0]?.title, "Smaller step: Read one page");
+  assert.equal(result[0]?.title, "더 작은 단계: Read one page");
   assert.equal(result[0]?.durationMinutes, 1);
   assert.equal(result[1]?.title, "Highlight one line");
 });

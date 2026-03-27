@@ -168,7 +168,7 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", l
             </h2>
             <p className="mt-3 text-sm leading-6 text-slate-700">
               {locale === "ko"
-                ? `${goal.toLowerCase()}를 더 엄격하게가 아니라 더 작게 만들기 위해 가장 가까운 이유를 골라주세요.`
+                ? `"${goal}"을 더 엄격하게가 아니라 더 작게 만들기 위해 가장 가까운 이유를 골라주세요.`
                 : `Pick the closest reason. We will use it to make ${goal.toLowerCase()} feel smaller, not stricter.`}
             </p>
             <div className="mt-6 space-y-3">

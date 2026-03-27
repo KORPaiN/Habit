@@ -33,7 +33,7 @@ test("hard difficulty mock decomposition keeps actions extra small", () => {
 test('too_big failure reason generates smaller fallback copy', () => {
   const result = buildMockHabitDecomposition(
     {
-      goal: "Build a reading habit",
+      goal: "독서 습관 만들기",
       availableMinutes: 5,
       difficulty: "steady",
       preferredTime: "evening",
@@ -42,7 +42,7 @@ test('too_big failure reason generates smaller fallback copy', () => {
     "too_big",
   );
 
-  assert.match(result.fallbackAction, /open|touch|look/i);
+  assert.match(result.fallbackAction, /열고|만지|보기/);
 });
 
 test("prompt template includes anti-vague and duration instructions", () => {

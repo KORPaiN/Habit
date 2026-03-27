@@ -1,7 +1,7 @@
 import type { MicroAction, OnboardingInput } from "@/lib/validators/habit";
 
 export const mockOnboardingData: OnboardingInput = {
-  goal: "Build a reading habit",
+  goal: "독서 습관 만들기",
   availableMinutes: 5,
   difficulty: "gentle",
   preferredTime: "morning",
@@ -10,22 +10,22 @@ export const mockOnboardingData: OnboardingInput = {
 
 export const mockPlan: MicroAction[] = [
   {
-    title: "Open your book and read one page",
-    reason: "One page is small enough to start without pressure.",
+    title: "책을 펴고 한 페이지만 읽기",
+    reason: "한 페이지는 부담 없이 시작하기에 충분히 작습니다.",
     durationMinutes: 2,
-    fallbackAction: "Read one sentence only.",
+    fallbackAction: "한 문장만 읽기",
   },
   {
-    title: "Highlight one useful line",
-    reason: "Marking one line keeps the habit visible on low-energy days.",
+    title: "도움 되는 문장 하나 표시하기",
+    reason: "문장 하나만 표시해도 에너지가 낮은 날에 습관이 눈에 남습니다.",
     durationMinutes: 3,
-    fallbackAction: "Touch the book cover and stop there.",
+    fallbackAction: "책 표지만 만지고 끝내기",
   },
   {
-    title: "Set out tomorrow's book",
-    reason: "Preparing the next step reduces friction tomorrow.",
+    title: "내일 읽을 책 꺼내 두기",
+    reason: "다음 단계를 미리 준비하면 내일의 마찰이 줄어듭니다.",
     durationMinutes: 1,
-    fallbackAction: "Move the book into sight.",
+    fallbackAction: "책을 눈에 보이는 곳으로 옮기기",
   },
 ];
 
@@ -40,7 +40,7 @@ export const demoBackendIds = {
 export const mockWeeklySummary = {
   streakDays: 4,
   completedDays: 5,
-  difficultMoments: "Evening attempts felt harder than morning ones.",
-  helpfulPattern: "Linking the habit to coffee made starting easier.",
-  nextAdjustment: "Keep the habit in the morning and protect the two-minute version.",
+  difficultMoments: "저녁에는 아침보다 시작이 더 어렵게 느껴졌습니다.",
+  helpfulPattern: "커피와 연결했을 때 시작 장벽이 더 낮아졌습니다.",
+  nextAdjustment: "당분간 아침 루틴을 유지하고 2분 버전을 계속 보호합니다.",
 };

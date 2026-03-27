@@ -27,7 +27,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       locale={locale}
       path="/login"
       eyebrow={locale === "ko" ? "다시 오신 것을 환영해요" : "Welcome back"}
-      title={locale === "ko" ? "부드럽게 다시 들어오세요." : "Step in gently."}
+      title={locale === "ko" ? "가볍게 다시 이어가면 됩니다." : "Step in gently."}
       description={
         locale === "ko"
           ? "Google 계정으로만 로그인합니다. 비밀번호를 기억할 필요 없이 바로 이어서 사용할 수 있어요."

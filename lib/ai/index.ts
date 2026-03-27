@@ -53,7 +53,7 @@ function maybeShrinkFallback(
   action: MicroAction,
   input: OnboardingInput,
   failureReason?: FailureReason,
-  locale: Locale = "en",
+  locale: Locale = "ko",
 ): MicroAction {
   const baseDuration = clampDuration(action.durationMinutes, input.difficulty);
   const shouldShrink = input.difficulty === "hard" || failureReason === "too_big";
@@ -78,7 +78,7 @@ function normalizeDecomposition(
   input: OnboardingInput,
   source: HabitDecomposition["source"],
   failureReason?: FailureReason,
-  locale: Locale = "en",
+  locale: Locale = "ko",
 ): HabitDecomposition {
   const microActions = raw.microActions
     .slice(0, 3)
@@ -144,7 +144,7 @@ function extractTextFromResponse(payload: OpenAIResponsePayload) {
 export function buildMockHabitDecomposition(
   input: OnboardingInput,
   failureReason?: FailureReason,
-  locale: Locale = "en",
+  locale: Locale = "ko",
 ): HabitDecomposition {
   const maxDuration = input.difficulty === "hard" ? 2 : Math.min(input.availableMinutes, 5);
   const firstDuration = Math.max(1, Math.min(maxDuration, input.difficulty === "hard" ? 1 : 2));
@@ -293,7 +293,7 @@ export async function generateHabitDecomposition(
   options?: { failureReason?: FailureReason; locale?: Locale },
 ): Promise<HabitDecomposition> {
   const failureReason = options?.failureReason;
-  const locale = options?.locale ?? "en";
+  const locale = options?.locale ?? "ko";
 
   try {
     const prompt = buildHabitDecompositionPrompt(input, failureReason, locale);

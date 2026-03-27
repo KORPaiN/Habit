@@ -46,11 +46,14 @@ export function isSupabaseConfigured() {
 function mapAnchorLabelToKey(label?: string | null): OnboardingInput["anchor"] {
   switch (label) {
     case "After coffee":
+    case "커피 마신 뒤":
       return "after-coffee";
     case "After your shower":
     case "After shower":
+    case "샤워한 뒤":
       return "after-shower";
     case "Before work":
+    case "일 시작 전":
       return "before-work";
     default:
       return "before-bed";
@@ -60,7 +63,7 @@ function mapAnchorLabelToKey(label?: string | null): OnboardingInput["anchor"] {
 function mapRowToMicroAction(row: Pick<MicroActionLookup, "title" | "details" | "duration_minutes" | "fallback_title">): MicroAction {
   return {
     title: row.title,
-    reason: row.details ?? "A tiny visible action is easier to begin.",
+    reason: row.details ?? "눈에 보이는 작은 행동일수록 시작하기 쉽습니다.",
     durationMinutes: row.duration_minutes,
     fallbackAction: row.fallback_title,
   };
@@ -207,22 +210,22 @@ function buildGeneratedReview(statuses: DailyActionStatus[]): WeeklyReviewState 
 
   const difficultMoments =
     failedDays > 0
-      ? "Hard days showed up this week, so the plan still needs a smaller first move."
+      ? "버거운 날이 있었으니 첫 단계는 아직 한 번 더 줄일 여지가 있습니다."
       : skippedDays > 1
-        ? "The habit was easy to miss on some days, which suggests the cue or timing needs to be clearer."
-        : "There was not much visible resistance this week, which is a good sign that the step stayed light enough.";
+        ? "놓친 날이 있었다면 의지보다 앵커나 타이밍이 더 선명해야 한다는 신호입니다."
+        : "이번 주에는 눈에 띄는 저항이 크지 않았고, 그만큼 단계가 충분히 가벼웠다는 뜻입니다.";
 
   const helpfulPattern =
     completedDays >= 4
-      ? "Keeping the step small made it easier to return without overthinking."
-      : "The days that worked were probably the days with the least setup friction.";
+      ? "단계를 작게 유지한 것이 다시 돌아오기 쉽게 만들었습니다."
+      : "잘된 날은 대체로 준비 마찰이 가장 적은 날이었을 가능성이 큽니다.";
 
   const nextAdjustment =
     failedDays > 0
-      ? "Make the first action even more observable next week and protect the fallback."
+      ? "다음 주에는 첫 행동을 더 눈에 띄게 만들고 대체 행동을 더 보호하세요."
       : completedDays >= 4
-        ? "Keep the same size for now and repeat the easiest version."
-        : "Tighten the cue so today's step appears earlier and asks for less energy.";
+        ? "당분간은 지금 크기를 유지하고 가장 쉬운 버전을 반복하세요."
+        : "앵커를 더 또렷하게 해서 오늘의 단계가 더 빨리 떠오르고 덜 힘들게 느껴지도록 해보세요.";
 
   return {
     completedDays,
@@ -263,7 +266,7 @@ export async function getTodayStateFromSession(session: HabitSession): Promise<T
 
   return {
     goal: goal.title,
-    anchor: anchor?.label ?? "No anchor yet",
+    anchor: anchor?.label ?? "아직 앵커 없음",
     action: mapRowToMicroAction(microAction),
     source: "Supabase",
     goalId: goal.id,

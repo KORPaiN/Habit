@@ -10,11 +10,11 @@ export async function completeTodayAction() {
   const session = await getHabitSession();
 
   if (!session.userId) {
-    redirect("/login?next=%2Ftoday&error=Sign%20in%20with%20Google%20before%20updating%20today%27s%20action.");
+    redirect("/login?next=%2Ftoday&error=오늘의 행동을 업데이트하려면 먼저 Google로 로그인해%20주세요.");
   }
 
   if (!hasActiveHabitSelection(session) || !session.dailyActionId || !session.goalId) {
-    redirect("/onboarding?error=Create your first plan before marking an action complete.");
+    redirect("/onboarding?error=오늘의 행동을 완료 처리하기 전에 먼저 첫 계획을 만들어 주세요.");
   }
 
   try {
@@ -23,7 +23,7 @@ export async function completeTodayAction() {
     await completeDailyAction(client, session.dailyActionId, {
       userId: session.userId,
       usedFallback: false,
-      notes: "Completed from the today screen.",
+      notes: "오늘 화면에서 완료 처리했습니다.",
     });
 
     await generateWeeklyReview(client, {
@@ -33,7 +33,7 @@ export async function completeTodayAction() {
 
     redirect("/review?completed=1");
   } catch (error) {
-    const message = error instanceof Error ? error.message : "We could not complete this action.";
+    const message = error instanceof Error ? error.message : "이 행동을 완료 처리하지 못했어요.";
     redirect(`/today?error=${encodeURIComponent(message)}`);
   }
 }

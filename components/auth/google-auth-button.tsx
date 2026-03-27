@@ -59,7 +59,7 @@ export function GoogleAuthButton({ locale, nextPath = "/today", signupLocale }: 
             ? "Google로 이동하는 중..."
             : "Opening Google..."
           : locale === "ko"
-            ? "Google로 계속하기"
+            ? "Google로 로그인하기"
             : "Continue with Google"}
       </Button>
       {errorMessage ? <p className="text-sm leading-6 text-amber-900">{errorMessage}</p> : null}

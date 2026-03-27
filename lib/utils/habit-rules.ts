@@ -8,7 +8,7 @@ export function mapGeneratedActionsToPlanInput(actions: MicroAction[]): PlanMicr
     details: action.reason,
     durationMinutes: action.durationMinutes,
     fallbackTitle: action.fallbackAction,
-    fallbackDetails: "Use the lighter fallback when the main step still feels too heavy.",
+    fallbackDetails: "기본 단계가 여전히 버겁다면 더 가벼운 대체 행동을 사용합니다.",
     fallbackDurationMinutes: 1,
   }));
 }
@@ -21,8 +21,8 @@ export function buildRecoveryPreview(actions: PlanMicroActionInput[], selectedPo
 
     return {
       ...action,
-      title: `Smaller step: ${action.title}`,
-      details: action.details ?? "We lowered the bar so this feels easier to restart.",
+      title: `더 작은 단계: ${action.title}`,
+      details: action.details ?? "다시 시작하기 쉽도록 문턱을 더 낮췄습니다.",
       durationMinutes: Math.max(1, action.durationMinutes - 1),
     };
   });

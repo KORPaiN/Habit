@@ -20,7 +20,7 @@ type SignupPageProps = {
   }>;
 };
 
-const localeOptions: Locale[] = ["en", "ko"];
+const localeOptions: Locale[] = ["ko"];
 
 export default async function SignupPage({ searchParams }: SignupPageProps) {
   const params = (await searchParams) ?? {};
@@ -50,10 +50,10 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
       locale={locale}
       path={`/signup?locale=${locale}`}
       eyebrow={locale === "ko" ? "계정 만들기" : "Create account"}
-      title={locale === "ko" ? "처음 언어를 고르면 이후에는 그대로 이어집니다." : "Choose your language once and keep the flow consistent."}
+      title={locale === "ko" ? "지금은 한국어 기준으로 바로 시작합니다." : "Choose your language once and keep the flow consistent."}
       description={
         locale === "ko"
-          ? "가입할 때 선택한 언어로 계획과 화면이 계속 맞춰집니다. 가입 후에는 앱 안에서 언어를 바꿀 수 없어요."
+          ? "현재 앱은 한국어 흐름에 맞춰 두었습니다. 가입 후에도 계획과 화면이 한국어로 이어집니다."
           : "The language you choose at sign-up becomes the language for your plans and interface. It cannot be changed inside the app later."
       }
       className="mx-auto max-w-xl"
@@ -62,44 +62,39 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
         <div className="space-y-5">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
-              {locale === "ko" ? "언어 선택" : "Choose language"}
+              {locale === "ko" ? "언어" : "Choose language"}
             </p>
             <div className="mt-3 flex flex-wrap gap-3">
-              {localeOptions.map((option) => {
-                const isSelected = option === locale;
-
-                return (
-                  <Link
-                    key={option}
-                    href={`/signup?locale=${option}`}
-                    className={isSelected ? "rounded-full bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white" : "rounded-full bg-white/70 px-4 py-2 text-sm font-semibold text-[var(--foreground)]"}
-                  >
-                    {option === "ko" ? "한국어" : "English"}
-                  </Link>
-                );
-              })}
+              {localeOptions.map((option) => (
+                <span
+                  key={option}
+                  className="rounded-full bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white"
+                >
+                  한국어
+                </span>
+              ))}
             </div>
           </div>
 
           <p className="rounded-2xl bg-white/70 p-4 text-sm leading-6 text-[var(--muted)]">
             {locale === "ko"
-              ? "이 언어 선택은 첫 가입 때만 받습니다. 이후에는 저장된 언어로 AI 계획과 화면 문구가 계속 표시됩니다."
+              ? "영어 분기는 잠시 내려두고 있습니다. 가입 후에는 AI 계획과 화면 문구가 한국어로 표시됩니다."
               : "We ask for this only during sign-up. After that, the saved language keeps both the AI plan and the interface aligned."}
           </p>
 
           {auth.isAuthenticated ? (
             <form action={completeSignupWithLocale} className="space-y-3">
-              <input type="hidden" name="locale" value={locale} />
+              <input type="hidden" name="locale" value="ko" />
               <input type="hidden" name="next" value={nextPath} />
               <button
                 type="submit"
                 className="inline-flex w-full items-center justify-center rounded-full bg-[var(--primary)] px-4 py-3 text-sm font-semibold text-white"
               >
-                {locale === "ko" ? "이 언어로 계속하기" : "Continue with this language"}
+                {locale === "ko" ? "한국어로 계속하기" : "Continue with this language"}
               </button>
             </form>
           ) : (
-            <GoogleAuthButton locale={locale} signupLocale={locale} nextPath={nextPath} />
+            <GoogleAuthButton locale={locale} signupLocale="ko" nextPath={nextPath} />
           )}
 
           <p className="rounded-2xl bg-white/70 p-4 text-sm leading-6 text-[var(--muted)]">
