@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 import { PageShell } from "@/components/ui/page-shell";
 import { StatPill } from "@/components/review/stat-pill";
@@ -15,11 +15,7 @@ export default async function LandingPage() {
   const locale = auth.isAuthenticated ? await getLocale() : "ko";
   const steps =
     locale === "ko"
-      ? [
-          "중요하지만 시작하기 어려운 목표를 하나 적어보세요.",
-          "인생 계획이 아니라 오늘 가능한 아주 작은 행동 하나를 받습니다.",
-          "오늘 놓쳤다면 처음부터 다시가 아니라 더 작게 줄입니다.",
-        ]
+      ? ["목표를 적어요.", "오늘 할 한 가지를 고릅니다.", "버거우면 더 줄입니다."]
       : [
           "Name a goal that feels important but hard to start.",
           "Get one tiny action for today, not a full plan for life.",
@@ -32,40 +28,40 @@ export default async function LandingPage() {
       locale={locale}
       path="/"
       eyebrow={locale === "ko" ? "마이크로 습관 코치" : "Micro-habit coach"}
-      title={locale === "ko" ? "버티기 전에 더 작게 시작하세요." : "Start smaller than your resistance."}
+      title={locale === "ko" ? "작게 시작하면 됩니다." : "Start smaller than your resistance."}
       description={
         locale === "ko"
-          ? "Habit은 무거운 목표를 몇 분 안에 끝낼 수 있는 차분하고 구체적인 한 단계로 바꿉니다. 죄책감도, 거대한 연속 기록 압박도 없이 더 가볍게 시작하도록 돕습니다."
+          ? "큰 목표를 오늘 할 수 있는 작은 행동으로 바꿉니다."
           : "Habit turns a heavy goal into one calm, concrete step you can finish in a few minutes. No shame, no giant streak pressure, just a lighter way to begin."
       }
-      className="grid gap-6 lg:grid-cols-[1.18fr_0.82fr]"
+      className="grid gap-6"
     >
       <Card className="relative overflow-hidden border-white/65 bg-[var(--surface-strong)] px-6 py-7 sm:px-8 sm:py-8">
         <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-r from-[color:var(--accent-soft)] via-transparent to-[color:var(--primary-soft)]" />
         <div className="absolute -right-16 top-12 h-44 w-44 rounded-full bg-[color:var(--primary-soft)]/80 blur-3xl" />
         <div className="relative">
           <div className="flex flex-wrap gap-3">
-            <StatPill label={locale === "ko" ? "집중" : "Focus"} value={locale === "ko" ? "한 가지 행동" : "One action"} />
+            <StatPill label={locale === "ko" ? "집중" : "Focus"} value={locale === "ko" ? "한 가지" : "One action"} />
             <StatPill label={locale === "ko" ? "시간" : "Time"} value={locale === "ko" ? "1~5분" : "1 to 5 minutes"} />
-            <StatPill label={locale === "ko" ? "리커버리" : "Recovery"} value={locale === "ko" ? "더 작게 줄이기" : "Make it smaller"} />
+            <StatPill label={locale === "ko" ? "다시 조정" : "Recovery"} value={locale === "ko" ? "더 작게" : "Make it smaller"} />
           </div>
           <div className="mt-9 max-w-3xl">
             <p className="text-sm font-medium text-[var(--primary)]">
-              {locale === "ko" ? "한 번에 인생 전체를 바꾸지 않아도 됩니다." : "You do not need a whole new life plan today."}
+              {locale === "ko" ? "오늘은 한 단계면 충분해요." : "You do not need a whole new life plan today."}
             </p>
           </div>
           <h2 className="mt-4 max-w-3xl text-4xl font-semibold leading-tight text-balance sm:text-5xl">
-            {locale === "ko" ? "시작선 앞에서 멈춰버리는 사람들을 위한 습관 앱" : "A habit app for people who freeze at the starting line."}
+            {locale === "ko" ? "시작이 어려운 사람을 위한 습관 앱" : "A habit app for people who freeze at the starting line."}
           </h2>
           <p className="mt-5 max-w-2xl text-base leading-8 text-[var(--foreground-soft)]">
             {locale === "ko"
-              ? "이 MVP는 작은 실행 루프를 중심으로 만들어졌습니다. 목표를 정하고, 현실적인 시간을 고르고, 마이크로 플랜을 받은 뒤, 매일 돌아와 오늘 가능한 한 단계만 수행합니다."
+              ? "목표를 정하고, 작은 계획을 만들고, 오늘 할 한 가지만 실행합니다."
               : "This MVP is built around tiny execution loops: choose a goal, set a realistic window, receive a micro-plan, then return each day for one doable step."}
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link href="/onboarding">
               <Button size="lg">
-                {locale === "ko" ? "첫 계획 시작하기" : "Start your first plan"}
+                {locale === "ko" ? "첫 계획 만들기" : "Start your first plan"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
@@ -87,28 +83,6 @@ export default async function LandingPage() {
           </div>
         </div>
       </Card>
-
-      <div className="grid gap-6">
-        <Card className="border-transparent bg-[linear-gradient(135deg,#244c46_0%,#2d6458_100%)] text-white">
-          <Sparkles className="h-5 w-5 text-[color:var(--accent)]" />
-          <h3 className="mt-4 text-2xl font-semibold">{locale === "ko" ? "압박을 낮추도록 설계했어요" : "Designed to lower pressure"}</h3>
-          <p className="mt-3 text-sm leading-7 text-white/78">
-            {locale === "ko"
-              ? "차분한 문구, 화면마다 하나의 주요 행동, 그리고 힘든 날을 위한 대체 경로를 제공합니다."
-              : "Calm copy, one primary action per screen, and a fallback path for rough days."}
-          </p>
-        </Card>
-
-        <Card className="bg-[var(--surface-muted)]">
-          <CheckCircle2 className="h-5 w-5 text-[var(--primary)]" />
-          <h3 className="mt-4 text-xl font-semibold">{locale === "ko" ? "현재 스캐폴드에 포함된 항목" : "Included in this scaffold"}</h3>
-          <ul className="mt-5 space-y-3 text-sm leading-7 text-[var(--foreground-soft)]">
-            <li>{locale === "ko" ? "랜딩과 인증 화면" : "Landing and auth screens"}</li>
-            <li>{locale === "ko" ? "AI 기반 온보딩과 플랜 생성" : "Onboarding flow with live AI plan generation"}</li>
-            <li>{locale === "ko" ? "오늘, 리커버리, 주간 리뷰 화면" : "Today, recovery, and weekly review pages"}</li>
-          </ul>
-        </Card>
-      </div>
     </PageShell>
   );
 }

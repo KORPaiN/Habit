@@ -26,11 +26,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       showAuthControls={false}
       locale={locale}
       path="/login"
-      eyebrow={locale === "ko" ? "다시 오신 것을 환영해요" : "Welcome back"}
-      title={locale === "ko" ? "가볍게 다시 이어가면 됩니다." : "Step in gently."}
+      eyebrow={locale === "ko" ? "로그인" : "Welcome back"}
+      title={locale === "ko" ? "다시 시작해요." : "Step in gently."}
       description={
         locale === "ko"
-          ? "Google 계정으로만 로그인합니다. 비밀번호를 기억할 필요 없이 바로 이어서 사용할 수 있어요."
+          ? "Google 계정으로 바로 로그인할 수 있어요."
           : "Sign in only with Google. No password to remember, just a quick way back in."
       }
       className="mx-auto max-w-xl"
@@ -44,7 +44,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             </div>
           ) : null}
           <p className="rounded-2xl bg-white/70 p-4 text-sm leading-6 text-[var(--muted)]">
-            {locale === "ko" ? "Google 계정 하나로 바로 들어올 수 있어요." : "Use your Google account to get back in quickly."}
+            {locale === "ko" ? "비밀번호 없이 바로 들어올 수 있어요." : "Use your Google account to get back in quickly."}
           </p>
         </div>
         <p className="mt-4 text-sm text-[var(--muted)]">

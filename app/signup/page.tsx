@@ -50,10 +50,10 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
       locale={locale}
       path={`/signup?locale=${locale}`}
       eyebrow={locale === "ko" ? "계정 만들기" : "Create account"}
-      title={locale === "ko" ? "지금은 한국어 기준으로 바로 시작합니다." : "Choose your language once and keep the flow consistent."}
+      title={locale === "ko" ? "한국어로 시작해요." : "Choose your language once and keep the flow consistent."}
       description={
         locale === "ko"
-          ? "현재 앱은 한국어 흐름에 맞춰 두었습니다. 가입 후에도 계획과 화면이 한국어로 이어집니다."
+          ? "가입 후에도 한국어로 이어집니다."
           : "The language you choose at sign-up becomes the language for your plans and interface. It cannot be changed inside the app later."
       }
       className="mx-auto max-w-xl"
@@ -78,7 +78,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
 
           <p className="rounded-2xl bg-white/70 p-4 text-sm leading-6 text-[var(--muted)]">
             {locale === "ko"
-              ? "영어 분기는 잠시 내려두고 있습니다. 가입 후에는 AI 계획과 화면 문구가 한국어로 표시됩니다."
+              ? "지금은 한국어만 지원합니다."
               : "We ask for this only during sign-up. After that, the saved language keeps both the AI plan and the interface aligned."}
           </p>
 
@@ -98,7 +98,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
           )}
 
           <p className="rounded-2xl bg-white/70 p-4 text-sm leading-6 text-[var(--muted)]">
-            {locale === "ko" ? "이 앱은 Google 로그인만 지원합니다." : "This app supports Google sign-in only."}
+            {locale === "ko" ? "Google 로그인만 지원합니다." : "This app supports Google sign-in only."}
           </p>
         </div>
         {params.error ? (

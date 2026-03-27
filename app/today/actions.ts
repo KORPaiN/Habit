@@ -31,7 +31,7 @@ export async function completeTodayAction() {
       goalId: session.goalId,
     });
 
-    redirect("/review?completed=1");
+    redirect("/today?completed=1");
   } catch (error) {
     unstable_rethrow(error);
     const message = error instanceof Error ? error.message : "이 행동을 완료 처리하지 못했어요.";

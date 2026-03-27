@@ -14,6 +14,7 @@ type TodayState = {
   anchor: string;
   action: MicroAction;
   source: "Supabase";
+  status: DailyActionStatus;
   goalId: string;
   planId: string;
   microActionId: string;
@@ -252,6 +253,7 @@ export async function getTodayStateFromSession(session: HabitSession): Promise<T
     anchor: anchor?.label ?? "아직 앵커 없음",
     action: mapRowToMicroAction(microAction),
     source: "Supabase",
+    status: dailyAction.status,
     goalId: goal.id,
     planId: dailyAction.plan_id,
     microActionId: microAction.id,

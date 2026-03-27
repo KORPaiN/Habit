@@ -7,7 +7,6 @@ import { prepareRecoveryOptions, saveRecoveryChoice, type RecoveryOption } from 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { Locale } from "@/lib/locale";
-import { minutesLabel } from "@/lib/utils/habit";
 import type { MicroAction } from "@/lib/validators/habit";
 
 const failureReasonOptions = [
@@ -153,9 +152,6 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", l
         </p>
         <h2 className="mt-3 text-2xl font-semibold">{currentAction.title}</h2>
         <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{currentAction.reason}</p>
-        <div className="mt-5 inline-flex rounded-full bg-[var(--primary-soft)] px-4 py-2 text-sm font-medium text-[var(--primary)]">
-          {minutesLabel(currentAction.durationMinutes, locale)}
-        </div>
         <p className="mt-5 rounded-[var(--radius-md)] border border-white/60 bg-[var(--surface-muted)] p-4 text-sm leading-6 text-[var(--muted)]">
           {locale === "ko"
             ? "이건 자책의 순간이 아니라 재설계의 순간이에요. 다음 단계가 시작할 수 있을 만큼만 편하면 됩니다."
@@ -237,14 +233,11 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", l
                     checked={selectedPosition === option.position}
                     onChange={() => setSelectedPosition(option.position)}
                   />
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-4">
                     <div>
                       <p className="font-medium text-slate-900">{option.title}</p>
                       <p className="mt-1 text-sm leading-6 text-slate-600">{option.reason}</p>
                     </div>
-                    <span className="rounded-full bg-[#fff7ed] px-3 py-1 text-xs font-semibold text-[#c2410c]">
-                      {minutesLabel(option.durationMinutes, locale)}
-                    </span>
                   </div>
                   <p className="mt-3 text-sm text-[#9a3412]">
                     {locale === "ko" ? "대체 행동" : "Fallback"}: {option.fallbackAction}

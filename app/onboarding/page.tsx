@@ -33,10 +33,10 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
       locale={locale}
       path="/onboarding"
       eyebrow={locale === "ko" ? "온보딩" : "Onboarding"}
-      title={locale === "ko" ? "목표를 오늘 가능한 크기로 줄여볼게요." : "Let's make the goal lighter."}
+      title={locale === "ko" ? "오늘 할 수 있게 줄여볼게요." : "Let's make the goal lighter."}
       description={
         locale === "ko"
-          ? "몇 가지 짧은 질문에 답하면 실제로 시작할 수 있을 만큼 작은 첫 계획을 만듭니다."
+          ? "짧게 답하면 작은 첫 계획을 만듭니다."
           : "Answer a few short questions so the plan starts small enough to actually happen."
       }
       className="grid gap-6 lg:grid-cols-[1.02fr_0.98fr]"
@@ -48,7 +48,7 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
           </p>
           <p className="mt-3 text-sm leading-6 text-amber-900">
             {locale === "ko"
-              ? "지금은 실제 AI 마이크로 플랜을 만들 수 없는 상태입니다. OpenAI 결제 또는 quota를 복구한 뒤 다시 시도해 주세요."
+              ? "지금은 AI 플랜을 만들 수 없어요. quota를 확인해 주세요."
               : "AI micro-plan generation is currently unavailable. Restore OpenAI billing or quota and try again."}
           </p>
         </Card>
