@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useState, useTransition } from "react";
+import { useState } from "react";
 
 import { adjustOnboardingReviewDifficulty, finalizeOnboardingReview } from "@/app/onboarding/review/actions";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,8 @@ type PlanReviewFormProps = {
 export function PlanReviewForm({ locale, initialActions }: PlanReviewFormProps) {
   const [actions, setActions] = useState<PlanMicroActionInput[]>(initialActions.slice(0, 1));
   const [isPending, setIsPending] = useState(false);
-  const [isAdjusting, startAdjustTransition] = useTransition();
+  const makeEasierAction = adjustOnboardingReviewDifficulty.bind(null, "easier");
+  const makeHarderAction = adjustOnboardingReviewDifficulty.bind(null, "harder");
 
   function updateAction(index: number, key: keyof PlanMicroActionInput, value: string | number) {
     setActions((current) =>
@@ -66,26 +67,18 @@ export function PlanReviewForm({ locale, initialActions }: PlanReviewFormProps) 
       </div>
       <div className="flex flex-col gap-3 sm:flex-row">
         <Button
-          type="button"
+          type="submit"
           variant="ghost"
-          onClick={() =>
-            startAdjustTransition(() => {
-              void adjustOnboardingReviewDifficulty("easier");
-            })
-          }
-          disabled={isAdjusting || isPending}
+          formAction={makeEasierAction}
+          disabled={isPending}
         >
           {locale === "ko" ? "더 쉽게" : "Easier"}
         </Button>
         <Button
-          type="button"
+          type="submit"
           variant="ghost"
-          onClick={() =>
-            startAdjustTransition(() => {
-              void adjustOnboardingReviewDifficulty("harder");
-            })
-          }
-          disabled={isAdjusting || isPending}
+          formAction={makeHarderAction}
+          disabled={isPending}
         >
           {locale === "ko" ? "더 어렵게" : "Harder"}
         </Button>
