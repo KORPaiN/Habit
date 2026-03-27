@@ -38,7 +38,19 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/login?error=Unable%20to%20load%20user", request.url));
   }
 
-  await syncAuthUserToAppUser(getSupabaseAdminClient(), user, signupLocale);
+  const adminClient = getSupabaseAdminClient();
+  const existingUser = await adminClient.from("users").select("locale").eq("id", user.id).maybeSingle();
+
+  if (existingUser.error) {
+    return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(existingUser.error.message)}`, request.url));
+  }
+
+  if (!existingUser.data && !signupLocale) {
+    await setHabitSession({ userId: user.id });
+    return NextResponse.redirect(new URL(`/signup?next=${encodeURIComponent(next)}`, request.url));
+  }
+
+  await syncAuthUserToAppUser(adminClient, user, signupLocale);
   await setHabitSession({ userId: user.id });
 
   const response = NextResponse.redirect(new URL(next, request.url));

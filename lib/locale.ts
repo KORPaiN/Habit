@@ -8,8 +8,6 @@ export const LOCALE_COOKIE = "habit_locale";
 export type Locale = "en" | "ko";
 
 export async function getLocale(): Promise<Locale> {
-  const cookieStore = await cookies();
-
   try {
     const client = await getSupabaseServerClient();
     const {
@@ -25,10 +23,11 @@ export async function getLocale(): Promise<Locale> {
       }
     }
   } catch {
-    // Fall back to the locale cookie when auth or Supabase is unavailable.
+    // Fall back to English when auth or Supabase is unavailable.
   }
 
-  return cookieStore.get(LOCALE_COOKIE)?.value === "ko" ? "ko" : "en";
+  await cookies();
+  return "en";
 }
 
 export function isLocale(value: string | null | undefined): value is Locale {

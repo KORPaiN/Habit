@@ -1,16 +1,22 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { GoogleAuthButton } from "@/components/auth/google-auth-button";
 import { Card } from "@/components/ui/card";
 import { PageShell } from "@/components/ui/page-shell";
 import { getLocale, isLocale, type Locale } from "@/lib/locale";
-import { getAuthShellState } from "@/lib/supabase/auth";
+import { getAuthShellState, getAuthenticatedUser } from "@/lib/supabase/auth";
+import { getSupabaseAdminClient } from "@/lib/supabase/client";
+import { completeSignupWithLocale } from "@/app/signup/actions";
+import type { Database } from "@/types";
 
 export const dynamic = "force-dynamic";
 
 type SignupPageProps = {
   searchParams?: Promise<{
     locale?: string;
+    next?: string;
+    error?: string;
   }>;
 };
 
@@ -21,6 +27,21 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
   const fallbackLocale = await getLocale();
   const locale = isLocale(params.locale) ? params.locale : fallbackLocale;
   const auth = await getAuthShellState();
+  const nextPath = typeof params.next === "string" && params.next.startsWith("/") ? params.next : "/onboarding";
+  const authenticatedUser = await getAuthenticatedUser();
+  const existingUser =
+    authenticatedUser
+      ? await getSupabaseAdminClient().from("users").select("locale").eq("id", authenticatedUser.id).maybeSingle()
+      : null;
+  const existingLocale = (existingUser?.data as Pick<Database["public"]["Tables"]["users"]["Row"], "locale"> | null)?.locale;
+
+  if (existingUser?.error) {
+    throw new Error(existingUser.error.message);
+  }
+
+  if (existingLocale) {
+    redirect(nextPath as never);
+  }
 
   return (
     <PageShell
@@ -66,12 +87,30 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
               : "We ask for this only during sign-up. After that, the saved language keeps both the AI plan and the interface aligned."}
           </p>
 
-          <GoogleAuthButton locale={locale} signupLocale={locale} nextPath="/onboarding" />
+          {auth.isAuthenticated ? (
+            <form action={completeSignupWithLocale} className="space-y-3">
+              <input type="hidden" name="locale" value={locale} />
+              <input type="hidden" name="next" value={nextPath} />
+              <button
+                type="submit"
+                className="inline-flex w-full items-center justify-center rounded-full bg-[var(--primary)] px-4 py-3 text-sm font-semibold text-white"
+              >
+                {locale === "ko" ? "이 언어로 계속하기" : "Continue with this language"}
+              </button>
+            </form>
+          ) : (
+            <GoogleAuthButton locale={locale} signupLocale={locale} nextPath={nextPath} />
+          )}
 
           <p className="rounded-2xl bg-white/70 p-4 text-sm leading-6 text-[var(--muted)]">
             {locale === "ko" ? "이 앱은 Google 로그인만 지원합니다." : "This app supports Google sign-in only."}
           </p>
         </div>
+        {params.error ? (
+          <div className="mt-4 rounded-3xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+            {params.error}
+          </div>
+        ) : null}
         <p className="mt-4 text-sm text-[var(--muted)]">
           {locale === "ko" ? "이미 계정이 있나요?" : "Already have an account?"}{" "}
           <Link href="/login" className="font-semibold text-[var(--primary)]">
