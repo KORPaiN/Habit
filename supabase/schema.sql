@@ -1,3 +1,11 @@
+-- Snapshot file for reference and manual bootstrap.
+-- Source of truth for ongoing database changes should be:
+--   supabase/migrations/*.sql
+-- When updating the schema:
+-- 1. create a new migration file
+-- 2. apply it to Supabase
+-- 3. optionally refresh this snapshot if you want a full-schema reference
+
 create extension if not exists pgcrypto;
 
 create type difficulty_level as enum ('gentle', 'steady', 'hard');

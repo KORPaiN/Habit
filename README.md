@@ -40,26 +40,29 @@ supabase/
 이제부터는 `supabase/migrations`를 기준으로 DB 변경을 관리합니다.
 
 - `supabase/migrations/20260327190000_initial_schema.sql`
-  초기 스키마 마이그레이션 파일입니다.
+  초기 스키마 마이그레이션 파일
+- `supabase/migrations/20260328103000_add_notification_preferences_example.sql`
+  후속 마이그레이션 예시 파일
 - `supabase/schema.sql`
-  현재 스키마를 한 번에 보기 쉬운 스냅샷 파일입니다.
+  전체 스키마를 한 번에 보기 위한 스냅샷 파일
 - `supabase/seed.sql`
-  로컬 개발과 데모 확인용 시드 데이터입니다.
+  로컬 개발과 데모 확인용 시드 데이터
 
-권장 원칙:
+원칙:
 
-- DB 변경은 Supabase 대시보드에서 직접만 수정하지 말고, 먼저 migration 파일로 남깁니다.
-- PR마다 migration이 같이 올라가도록 Git에 커밋합니다.
-- 운영 반영 전에는 preview branch 또는 staging에서 먼저 확인합니다.
+- DB 변경은 먼저 migration 파일로 남깁니다.
+- 대시보드 수동 수정만으로 끝내지 않습니다.
+- 코드 변경과 migration을 같은 PR에 포함합니다.
+- preview branch 또는 staging에서 먼저 확인합니다.
 
 ## GitHub 연동 기준 업데이트 흐름
 
-1. 스키마를 바꿔야 하면 `supabase/migrations` 아래에 새 SQL 파일을 추가합니다.
-2. 필요한 경우 `supabase/seed.sql`도 같이 갱신합니다.
+1. `supabase/migrations` 아래에 새 SQL 파일을 추가합니다.
+2. 필요하면 `supabase/seed.sql`도 같이 갱신합니다.
 3. 코드와 migration을 함께 커밋합니다.
-4. GitHub PR을 열어 review 합니다.
-5. Supabase GitHub Integration 또는 Branching 환경에서 preview DB에 반영되는지 확인합니다.
-6. `main`에 머지한 뒤 production 반영을 확인합니다.
+4. GitHub PR을 열고 review 합니다.
+5. Supabase GitHub Integration 또는 Branching으로 preview DB 반영을 확인합니다.
+6. `main` 머지 후 production 반영을 확인합니다.
 
 예시 파일 이름:
 
@@ -67,6 +70,12 @@ supabase/
 supabase/migrations/20260328103000_add_reminder_preferences.sql
 supabase/migrations/20260329120000_update_weekly_review_indexes.sql
 ```
+
+## GitHub 연동 체크리스트
+
+자세한 체크리스트는 아래 문서를 참고하세요.
+
+- `docs/supabase-github-checklist.md`
 
 ## 로컬 설정
 
