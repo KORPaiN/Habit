@@ -1,14 +1,15 @@
 "use server";
 
-import { getHabitSession, setHabitSession } from "@/lib/habit-session";
 import { generateHabitDecomposition } from "@/lib/ai";
+import { getHabitSession, setHabitSession } from "@/lib/habit-session";
 import { getLocale } from "@/lib/locale";
-import { getSupabaseAdminClient } from "@/lib/supabase/client";
+import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { getRecoveryContextFromSession } from "@/lib/supabase/demo-data";
 import { assignDailyAction, createPlanVersion, failDailyAction } from "@/lib/supabase/habit-service";
+import { getSupabaseServerClient } from "@/lib/supabase/server-client";
 import { mapGeneratedActionsToPlanInput, prioritizeSelectedMicroAction } from "@/lib/utils/habit-rules";
-import { microActionSchema } from "@/lib/validators/habit";
 import { failureReasonSchema } from "@/lib/validators/backend";
+import { microActionSchema } from "@/lib/validators/habit";
 
 type RecoveryReason = "too_big" | "too_tired" | "forgot" | "schedule_conflict" | "low_motivation" | "other";
 
@@ -27,22 +28,23 @@ export type RecoveryPreparationResult = {
 };
 
 function canUseSupabase() {
-  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 }
 
 export async function prepareRecoveryOptions(input: { failureReason: RecoveryReason }): Promise<RecoveryPreparationResult> {
   const locale = await getLocale();
   const reason = failureReasonSchema.parse(input.failureReason);
   const session = await getHabitSession();
+  const authenticatedUser = await getAuthenticatedUser();
 
-  if (!session.userId) {
-    throw new Error(locale === "ko" ? "먼저 Google로 로그인해 주세요." : "Please sign in with Google first.");
+  if (!authenticatedUser) {
+    throw new Error(locale === "ko" ? "癒쇱? Google濡?濡쒓렇?명빐 二쇱꽭??" : "Please sign in with Google first.");
   }
 
   const context = await getRecoveryContextFromSession(session);
 
   if (!context) {
-    throw new Error(locale === "ko" ? "리커버리를 열기 전에 먼저 계획을 만들어 주세요." : "Create a plan before opening recovery.");
+    throw new Error(locale === "ko" ? "由ъ빱踰꾨━瑜??닿린 ?꾩뿉 癒쇱? 怨꾪쉷??留뚮뱾??二쇱꽭??" : "Create a plan before opening recovery.");
   }
 
   let savedFailure = false;
@@ -50,13 +52,13 @@ export async function prepareRecoveryOptions(input: { failureReason: RecoveryRea
   if (canUseSupabase()) {
     try {
       if (!session.dailyActionId) {
-        throw new Error("daily action id가 없습니다.");
+        throw new Error("daily action id媛 ?놁뒿?덈떎.");
       }
 
-      await failDailyAction(getSupabaseAdminClient(), session.dailyActionId, {
-        userId: session.userId,
+      await failDailyAction(await getSupabaseServerClient(), session.dailyActionId, {
+        userId: authenticatedUser.id,
         failureReason: reason,
-        notes: "사용자가 리커버리에서 더 작은 단계를 요청했습니다.",
+        notes: "?ъ슜?먭? 由ъ빱踰꾨━?먯꽌 ???묒? ?④퀎瑜??붿껌?덉뒿?덈떎.",
         createRecoveryPlan: false,
       });
       savedFailure = true;
@@ -69,6 +71,9 @@ export async function prepareRecoveryOptions(input: { failureReason: RecoveryRea
     failureReason: reason,
     locale,
     allowMockFallback: false,
+    userId: authenticatedUser.id,
+    goalId: session.goalId ?? undefined,
+    basedOnPlanId: session.planId ?? undefined,
   });
 
   const options = decomposition.microActions.map((action, index) => ({
@@ -99,31 +104,34 @@ export async function saveRecoveryChoice(input: {
   const selectedAction = options.find((option) => option.position === input.selectedPosition) ?? options[0];
 
   if (!selectedAction) {
-    throw new Error("선택된 리커버리 옵션이 없습니다.");
+    throw new Error("?좏깮??由ъ빱踰꾨━ ?듭뀡???놁뒿?덈떎.");
+  }
+
+  const session = await getHabitSession();
+  const authenticatedUser = await getAuthenticatedUser();
+
+  if (!authenticatedUser) {
+    throw new Error("癒쇱? Google濡?濡쒓렇?명빐 二쇱꽭??");
   }
 
   let savedSelection = false;
-  const session = await getHabitSession();
-
-  if (!session.userId) {
-    throw new Error("먼저 Google로 로그인해 주세요.");
-  }
 
   if (canUseSupabase()) {
     try {
       if (!session.goalId) {
-        throw new Error("goal id가 없습니다.");
+        throw new Error("goal id媛 ?놁뒿?덈떎.");
       }
 
+      const client = await getSupabaseServerClient();
       const prioritizedActions = prioritizeSelectedMicroAction(
         mapGeneratedActionsToPlanInput(options),
         input.selectedPosition,
       );
-      const planResult = await createPlanVersion(getSupabaseAdminClient(), {
-        userId: session.userId,
+      const planResult = await createPlanVersion(client, {
+        userId: authenticatedUser.id,
         goalId: session.goalId,
         source: "recovery",
-        notes: `실패 사유 ${reason} 이후 리커버리 플랜을 생성했습니다.`,
+        notes: `?ㅽ뙣 ?ъ쑀 ${reason} ?댄썑 由ъ빱踰꾨━ ?뚮옖???앹꽦?덉뒿?덈떎.`,
         microActions: prioritizedActions,
       });
 
@@ -135,11 +143,11 @@ export async function saveRecoveryChoice(input: {
       const selectedMicroActionId = plan.micro_actions.find((item) => item.position === 1)?.id;
 
       if (!selectedMicroActionId) {
-        throw new Error("리커버리 플랜에서 선택된 마이크로 액션을 찾지 못했습니다.");
+        throw new Error("由ъ빱踰꾨━ ?뚮옖?먯꽌 ?좏깮??留덉씠?щ줈 ?≪뀡??李얠? 紐삵뻽?듬땲??");
       }
 
-      const dailyAction = (await assignDailyAction(getSupabaseAdminClient(), {
-        userId: session.userId,
+      const dailyAction = (await assignDailyAction(client, {
+        userId: authenticatedUser.id,
         goalId: session.goalId,
         planId: plan.plan.id,
         microActionId: selectedMicroActionId,

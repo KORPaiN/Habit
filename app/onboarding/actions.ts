@@ -5,7 +5,7 @@ import { redirect, unstable_rethrow } from "next/navigation";
 import { getLocale } from "@/lib/locale";
 import { assignDailyAction, createOnboardingFlow } from "@/lib/supabase/habit-service";
 import { getAuthenticatedUser, syncAuthenticatedUser } from "@/lib/supabase/auth";
-import { getSupabaseAdminClient } from "@/lib/supabase/client";
+import { getSupabaseServerClient } from "@/lib/supabase/server-client";
 import { setHabitSession } from "@/lib/habit-session";
 import { onboardingSchema } from "@/lib/validators/habit";
 
@@ -28,7 +28,7 @@ export async function submitOnboarding(formData: FormData) {
 
     await syncAuthenticatedUser();
 
-    const client = getSupabaseAdminClient();
+    const client = await getSupabaseServerClient();
     const userId = authenticatedUser.id;
     const result = (await createOnboardingFlow(client, {
       userId,

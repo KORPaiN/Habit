@@ -52,7 +52,7 @@ export async function setHabitSession(session: HabitSession) {
 }
 
 export function hasActiveHabitSelection(session: HabitSession) {
-  return Boolean(session.userId && session.goalId && session.planId && session.microActionId && session.dailyActionId);
+  return Boolean(session.goalId && session.planId && session.microActionId && session.dailyActionId);
 }
 
 export async function clearHabitSession() {

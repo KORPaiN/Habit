@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { getHabitSession } from "@/lib/habit-session";
+import { MonthPicker } from "@/components/review/month-picker";
 import { PageShell } from "@/components/ui/page-shell";
 import { StatPill } from "@/components/review/stat-pill";
 import { Button } from "@/components/ui/button";
@@ -131,24 +132,15 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
 
       <div className="grid gap-6">
         <Card className="bg-[var(--surface-strong)] text-center">
-          <div className="flex items-center justify-center gap-3">
-            <Link href={`/review?month=${formatMonthParam(previousMonth)}`}>
-              <Button variant="ghost" size="sm">
-                {locale === "ko" ? "이전 달" : "Previous"}
-              </Button>
-            </Link>
-            {canGoNext ? (
-              <Link href={`/review?month=${formatMonthParam(nextMonth)}`}>
-                <Button variant="ghost" size="sm">
-                  {locale === "ko" ? "다음 달" : "Next"}
-                </Button>
-              </Link>
-            ) : (
-              <Button variant="ghost" size="sm" disabled>
-                {locale === "ko" ? "다음 달" : "Next"}
-              </Button>
-            )}
-          </div>
+          <MonthPicker
+            locale={locale}
+            currentYear={currentMonth.getFullYear()}
+            currentMonth={currentMonth.getMonth()}
+            selectedYear={selectedMonth.getFullYear()}
+            selectedMonth={selectedMonth.getMonth()}
+            previousHref={`/review?month=${formatMonthParam(previousMonth)}`}
+            nextHref={canGoNext ? `/review?month=${formatMonthParam(nextMonth)}` : undefined}
+          />
           <div className="mt-2 text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
               {locale === "ko" ? "달력으로 보기" : "Calendar"}

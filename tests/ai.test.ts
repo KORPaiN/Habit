@@ -1,8 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { buildAiOnlyHabitDecompositionPrompt, buildHybridRewritePrompt, buildHabitDecompositionPrompt } from "@/lib/ai/prompt";
-import { buildMockHabitDecomposition, detectGoalArchetype, generateHabitDecomposition } from "@/lib/ai";
+import {
+  buildAiOnlyHabitDecompositionPrompt,
+  buildHabitDecompositionPrompt,
+  buildHybridRewritePrompt,
+} from "@/lib/ai/prompt";
+import {
+  buildMockHabitDecomposition,
+  buildRuleBasedHabitDecomposition,
+  classifyGoal,
+  collectRecentContext,
+  detectGoalArchetype,
+  generateDraftTemplates,
+  generateHabitDecomposition,
+} from "@/lib/ai";
 import { isLocalizedString, validateDecompositionLocale } from "@/lib/ai/locale-validation";
 import { microActionSchema } from "@/lib/validators/habit";
 
@@ -19,30 +31,31 @@ test("microActionSchema rejects vague action text", () => {
 
 test("hard difficulty mock decomposition keeps actions extra small", () => {
   const result = buildMockHabitDecomposition({
-    goal: "Build a writing habit",
+    goal: "글쓰기 습관 만들기",
     availableMinutes: 10,
     difficulty: "hard",
     preferredTime: "morning",
-    anchor: "after-coffee",
+    anchor: "커피 마신 뒤",
   });
 
   assert.equal(result.microActions.every((action) => action.durationMinutes <= 2), true);
   assert.equal(result.todayAction.durationMinutes <= 2, true);
 });
 
-test('too_big failure reason generates smaller fallback copy', () => {
+test("too_big failure reason generates a clearly smaller fallback", () => {
   const result = buildMockHabitDecomposition(
     {
       goal: "독서 습관 만들기",
       availableMinutes: 5,
       difficulty: "steady",
       preferredTime: "evening",
-      anchor: "before-bed",
+      anchor: "잠들기 전",
     },
     "too_big",
   );
 
-  assert.match(result.fallbackAction, /펴고|열고|만지|보기/);
+  assert.match(result.fallbackAction, /펴|열|꺼내|집어/);
+  assert.notEqual(result.todayAction.title, result.fallbackAction);
 });
 
 test("prompt template includes anti-vague and duration instructions", () => {
@@ -51,7 +64,7 @@ test("prompt template includes anti-vague and duration instructions", () => {
     availableMinutes: 5,
     difficulty: "hard",
     preferredTime: "morning",
-    anchor: "after-coffee",
+    anchor: "after coffee",
   });
 
   assert.match(prompt, /Return JSON only/i);
@@ -66,15 +79,19 @@ test("ai only prompt keeps the payload short and categorized", () => {
       availableMinutes: 5,
       difficulty: "steady",
       preferredTime: "morning",
-      anchor: "커피를 마신 뒤",
+      anchor: "커피 마신 뒤",
     },
-    "reading",
+    {
+      archetype: "reading",
+      intent: "start",
+    },
     undefined,
     "ko",
   );
 
   assert.match(prompt, /DATA:/);
   assert.match(prompt, /"category":"reading"/);
+  assert.match(prompt, /"intent":"start"/);
   assert.doesNotMatch(prompt, /Available minutes:/);
 });
 
@@ -84,7 +101,7 @@ test("hybrid rewrite prompt keeps structure constraints", () => {
     availableMinutes: 5,
     difficulty: "steady",
     preferredTime: "morning",
-    anchor: "커피를 마신 뒤",
+    anchor: "커피 마신 뒤",
   });
   const prompt = buildHybridRewritePrompt(
     {
@@ -92,9 +109,12 @@ test("hybrid rewrite prompt keeps structure constraints", () => {
       availableMinutes: 5,
       difficulty: "steady",
       preferredTime: "morning",
-      anchor: "커피를 마신 뒤",
+      anchor: "커피 마신 뒤",
     },
-    "reading",
+    {
+      archetype: "reading",
+      intent: "start",
+    },
     {
       goalSummary: draft.goalSummary,
       selectedAnchor: draft.selectedAnchor,
@@ -110,8 +130,96 @@ test("hybrid rewrite prompt keeps structure constraints", () => {
   assert.match(prompt, /Keep todayAction equal to microActions\[0\]/i);
 });
 
-test("goal archetype detection recognizes reading goals", () => {
+test("goal archetype and intent classification recognize representative goals", () => {
   assert.equal(detectGoalArchetype("독서 습관 만들기"), "reading");
+  assert.deepEqual(classifyGoal("아침 일기 쓰기"), { archetype: "writing", intent: "journal" });
+  assert.deepEqual(classifyGoal("책상 정리하기"), { archetype: "tidy", intent: "surface" });
+});
+
+test("collectRecentContext returns empty context without ids", async () => {
+  const context = await collectRecentContext({});
+
+  assert.deepEqual(context.recentStatuses, []);
+  assert.equal(context.recentUsedFallbackCount, 0);
+});
+
+test("template library expands each archetype to at least five candidates", () => {
+  const input = {
+    goal: "운동 습관 만들기",
+    availableMinutes: 5,
+    difficulty: "steady" as const,
+    preferredTime: "morning" as const,
+    anchor: "퇴근하고 바로",
+  };
+  const candidates = generateDraftTemplates(
+    input,
+    {
+      archetype: "exercise",
+      intent: "mobility",
+    },
+    {
+      recentStatuses: [],
+      recentFailureReasons: [],
+      recentUsedFallbackCount: 0,
+      recentCompletedStreak: 0,
+      usedUserLevelPattern: false,
+    },
+    "ko",
+  );
+
+  assert.equal(candidates.length >= 5, true);
+  assert.equal(candidates.some((candidate) => candidate.intent === "prepare"), true);
+});
+
+test("recent fallback and too_big signals shrink the main action", async () => {
+  const result = await buildRuleBasedHabitDecomposition(
+    {
+      goal: "독서 습관 만들기",
+      availableMinutes: 10,
+      difficulty: "steady",
+      preferredTime: "evening",
+      anchor: "커피 마신 뒤",
+    },
+    {
+      recentStatuses: ["failed", "failed"],
+      recentFailureReasons: ["too_big"],
+      recentUsedFallbackCount: 3,
+      recentCompletedStreak: 0,
+      usedUserLevelPattern: false,
+    },
+    {
+      locale: "ko",
+      failureReason: "too_big",
+    },
+  );
+
+  assert.match(result.todayAction.title, /펴|꺼내|열/);
+  assert.notEqual(result.todayAction.title, result.fallbackAction);
+});
+
+test("forgot reason makes anchor-friendly copy more direct", async () => {
+  const result = await buildRuleBasedHabitDecomposition(
+    {
+      goal: "책상 정리하기",
+      availableMinutes: 5,
+      difficulty: "steady",
+      preferredTime: "morning",
+      anchor: "아침 커피 뒤",
+    },
+    {
+      recentStatuses: ["failed"],
+      recentFailureReasons: ["forgot"],
+      recentUsedFallbackCount: 0,
+      recentCompletedStreak: 0,
+      usedUserLevelPattern: false,
+    },
+    {
+      locale: "ko",
+      failureReason: "forgot",
+    },
+  );
+
+  assert.match(result.todayAction.reason, /아침 커피 뒤/);
 });
 
 test("rules_only strategy returns a rules source without calling AI", async () => {
@@ -121,7 +229,7 @@ test("rules_only strategy returns a rules source without calling AI", async () =
       availableMinutes: 5,
       difficulty: "steady",
       preferredTime: "morning",
-      anchor: "커피를 마신 뒤",
+      anchor: "커피 마신 뒤",
     },
     {
       strategy: "rules_only",
@@ -133,16 +241,47 @@ test("rules_only strategy returns a rules source without calling AI", async () =
   assert.equal(result.microActions.length >= 2, true);
 });
 
+test("hybrid strategy falls back to rules even when mock fallback is disabled", async () => {
+  const originalApiKey = process.env.OPENAI_API_KEY;
+  process.env.OPENAI_API_KEY = "";
+
+  try {
+    const result = await generateHabitDecomposition(
+      {
+        goal: "정리 루틴 만들기",
+        availableMinutes: 5,
+        difficulty: "steady",
+        preferredTime: "morning",
+        anchor: "가방 내려놓은 뒤",
+      },
+      {
+        strategy: "hybrid",
+        locale: "ko",
+        allowMockFallback: false,
+        failureReason: "too_big",
+      },
+    );
+
+    assert.equal(result.source, "rules");
+  } finally {
+    if (originalApiKey === undefined) {
+      delete process.env.OPENAI_API_KEY;
+    } else {
+      process.env.OPENAI_API_KEY = originalApiKey;
+    }
+  }
+});
+
 test("locale validation accepts Korean strings when locale is ko", () => {
-  assert.equal(isLocalizedString('"' + "독서 습관 만들기" + '"에 필요한 것을 열고 멈추기', "ko", "독서 습관 만들기"), true);
+  assert.equal(isLocalizedString("책만 펴고 끝내기", "ko", "독서 습관 만들기"), true);
 });
 
 test("locale validation accepts English strings when locale is en", () => {
-  assert.equal(isLocalizedString('Open what you need for "독서 습관 만들기" and stop there', "en", "독서 습관 만들기"), true);
+  assert.equal(isLocalizedString('Open what you need for "Build a reading habit" and stop there', "en", "Build a reading habit"), true);
 });
 
 test("locale validation rejects Korean text for English responses", () => {
-  assert.equal(isLocalizedString("한 문장만 읽기", "en", "Build a reading habit"), false);
+  assert.equal(isLocalizedString("책 한 문장만 읽기", "en", "Build a reading habit"), false);
 });
 
 test("validateDecompositionLocale throws on mixed-locale decomposition", () => {
@@ -153,7 +292,7 @@ test("validateDecompositionLocale throws on mixed-locale decomposition", () => {
         selectedAnchor: "Before bed",
         microActions: [
           {
-            title: "책을 펴고 한 페이지만 읽기",
+            title: "책을 펴고 한 페이지 읽기",
             reason: "A visible step is easier to begin.",
             durationMinutes: 1,
             fallbackAction: 'Open what you need for "Build a reading habit" and stop there',

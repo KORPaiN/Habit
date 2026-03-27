@@ -4,9 +4,20 @@ import {
   buildHybridRewritePrompt,
   habitDecompositionJsonSchema,
   type GoalArchetype,
+  type GoalClassification,
+  type GoalIntent,
 } from "@/lib/ai/prompt";
 import { validateDecompositionLocale } from "@/lib/ai/locale-validation";
-import { habitDecompositionSchema, microActionSchema, type HabitDecomposition, type MicroAction, type OnboardingInput } from "@/lib/validators/habit";
+import { logSecurityEvent } from "@/lib/security/events";
+import { API_RATE_LIMITS } from "@/lib/security/route-guard";
+import { consumeRateLimits } from "@/lib/security/rate-limit";
+import {
+  habitDecompositionSchema,
+  microActionSchema,
+  type HabitDecomposition,
+  type MicroAction,
+  type OnboardingInput,
+} from "@/lib/validators/habit";
 import type { FailureReason } from "@/types";
 
 type OpenAIResponsePayload = {
@@ -46,9 +57,6 @@ type OpenAIUsageMetrics = {
   totalTokens?: number;
 };
 
-export type GenerationStrategy = "hybrid" | "ai_only" | "rules_only";
-export type ModelPreference = "fast" | "quality" | "experimental";
-
 type GenerationMetrics = {
   strategy: GenerationStrategy;
   model?: string;
@@ -60,6 +68,63 @@ type GenerationMetrics = {
   completionTokens?: number;
   totalTokens?: number;
 };
+
+type OpenAIRequestErrorOptions = {
+  status?: number;
+  retryable?: boolean;
+};
+
+declare global {
+  var __habitAiInflightUsers: Set<string> | undefined;
+}
+
+export type GenerationStrategy = "hybrid" | "ai_only" | "rules_only";
+export type ModelPreference = "fast" | "quality" | "experimental";
+export type RecentContext = {
+  recentStatuses: string[];
+  recentFailureReasons: string[];
+  recentUsedFallbackCount: number;
+  recentCompletedStreak: number;
+  usedUserLevelPattern: boolean;
+};
+export type DraftTemplate = {
+  archetype: GoalArchetype;
+  intent: GoalIntent;
+  microActions: MicroAction[];
+  todayAction: MicroAction;
+  fallbackAction: string;
+};
+
+const EMPTY_RECENT_CONTEXT: RecentContext = {
+  recentStatuses: [],
+  recentFailureReasons: [],
+  recentUsedFallbackCount: 0,
+  recentCompletedStreak: 0,
+  usedUserLevelPattern: false,
+};
+
+class OpenAIRequestError extends Error {
+  status?: number;
+  retryable: boolean;
+
+  constructor(message: string, options?: OpenAIRequestErrorOptions) {
+    super(message);
+    this.status = options?.status;
+    this.retryable = options?.retryable ?? false;
+  }
+}
+
+function getInflightUsers() {
+  if (!globalThis.__habitAiInflightUsers) {
+    globalThis.__habitAiInflightUsers = new Set<string>();
+  }
+
+  return globalThis.__habitAiInflightUsers;
+}
+
+function isRecentContext(value: unknown): value is RecentContext {
+  return typeof value === "object" && value !== null && "recentStatuses" in value;
+}
 
 function hasJsonContent(content: OpenAIContentItem): content is { type?: string; json?: unknown } {
   return typeof content === "object" && content !== null && "json" in content;
@@ -168,7 +233,7 @@ function extractTextFromResponse(payload: OpenAIResponsePayload) {
     }
   }
 
-  throw new Error("OpenAI response did not contain structured text.");
+  throw new OpenAIRequestError("OpenAI response did not contain structured text.");
 }
 
 function getOpenAIUsage(payload: OpenAIResponsePayload): OpenAIUsageMetrics {
@@ -217,7 +282,7 @@ function pickModel(preference: ModelPreference = "fast") {
 
 function getOpenAITimeoutMs() {
   const raw = Number(process.env.OPENAI_TIMEOUT_MS);
-  return Number.isFinite(raw) && raw > 0 ? raw : 5000;
+  return Number.isFinite(raw) && raw > 0 ? raw : 10000;
 }
 
 function logGenerationMetrics(metrics: GenerationMetrics) {
@@ -236,6 +301,10 @@ function getActionDurations(input: OnboardingInput) {
 export function detectGoalArchetype(goal: string): GoalArchetype {
   const normalized = goal.toLowerCase();
 
+  if (/clean|tidy|organize|declutter|정리|청소|치우/.test(normalized)) {
+    return "tidy";
+  }
+
   if (/read|reading|book|독서|책|읽/.test(normalized)) {
     return "reading";
   }
@@ -252,10 +321,6 @@ export function detectGoalArchetype(goal: string): GoalArchetype {
     return "exercise";
   }
 
-  if (/clean|tidy|organize|declutter|정리|청소|치우/.test(normalized)) {
-    return "tidy";
-  }
-
   if (/screen|phone|app|digital|sns|social|휴대폰|핸드폰|스마트폰|디지털|앱/.test(normalized)) {
     return "digital";
   }
@@ -265,6 +330,51 @@ export function detectGoalArchetype(goal: string): GoalArchetype {
   }
 
   return "generic";
+}
+
+function detectGoalIntent(goal: string): GoalIntent {
+  const normalized = goal.toLowerCase();
+
+  if (/surface|visible|보이|꺼내|desk|책상/.test(normalized)) {
+    return "surface";
+  }
+
+  if (/continue|again|resume|restart|다시|재개|복귀/.test(normalized)) {
+    return "continue";
+  }
+
+  if (/setup|organize|arrange|준비|세팅|정리/.test(normalized)) {
+    return "setup";
+  }
+
+  if (/review|reflect|회고|복습/.test(normalized)) {
+    return "review";
+  }
+
+  if (/prepare|prep|준비/.test(normalized)) {
+    return "prepare";
+  }
+
+  if (/journal|diary|일기/.test(normalized)) {
+    return "journal";
+  }
+
+  if (/mobility|stretch|유연|스트레칭/.test(normalized)) {
+    return "mobility";
+  }
+
+  return "start";
+}
+
+function getGoalClassification(goal: string): GoalClassification {
+  return {
+    archetype: detectGoalArchetype(goal),
+    intent: detectGoalIntent(goal),
+  };
+}
+
+export function classifyGoal(goal: string) {
+  return getGoalClassification(goal);
 }
 
 function buildGoalSummary(goal: string, locale: Locale) {
@@ -302,13 +412,7 @@ function buildRuleActions(
           title: locale === "ko" ? "마음에 든 한 줄 표시하기" : "Highlight one useful line",
           reason: locale === "ko" ? "한 줄만 남겨도 흐름이 이어져요." : "One line is enough to keep the loop going.",
           durationMinutes: secondary,
-          fallbackAction: tooBig
-            ? locale === "ko"
-              ? "한 줄만 보기"
-              : "Look at one line only"
-            : locale === "ko"
-              ? "한 줄만 보기"
-              : "Look at one line",
+          fallbackAction: locale === "ko" ? "한 줄만 보기" : "Look at one line only",
         },
       ];
     case "writing":
@@ -329,13 +433,7 @@ function buildRuleActions(
           title: locale === "ko" ? "이어 쓸 생각 하나 적기" : "Write down one idea to continue later",
           reason: locale === "ko" ? "생각 하나면 다음 시작이 쉬워져요." : "One idea makes the next start easier.",
           durationMinutes: secondary,
-          fallbackAction: tooBig
-            ? locale === "ko"
-              ? "제목만 적기"
-              : "Write only a title"
-            : locale === "ko"
-              ? "제목만 적기"
-              : "Write only a title",
+          fallbackAction: locale === "ko" ? "제목만 적기" : "Write only a title",
         },
       ];
     case "study":
@@ -356,13 +454,7 @@ function buildRuleActions(
           title: locale === "ko" ? "문제 하나만 보기" : "Look at just one problem",
           reason: locale === "ko" ? "문제 하나만 봐도 흐름이 다시 잡혀요." : "One problem is enough to restart the flow.",
           durationMinutes: secondary,
-          fallbackAction: tooBig
-            ? locale === "ko"
-              ? "문제 번호만 확인하기"
-              : "Look at the problem number only"
-            : locale === "ko"
-              ? "문제 번호만 확인하기"
-              : "Look at the problem number only",
+          fallbackAction: locale === "ko" ? "문제 번호만 확인하기" : "Look at the problem number only",
         },
       ];
     case "exercise":
@@ -383,13 +475,7 @@ function buildRuleActions(
           title: locale === "ko" ? "스트레칭 한 동작 5번 하기" : "Do one stretch five times",
           reason: locale === "ko" ? "동작 하나면 부담이 확 줄어요." : "One movement keeps the effort small.",
           durationMinutes: secondary,
-          fallbackAction: tooBig
-            ? locale === "ko"
-              ? "몸 한 번 펴기"
-              : "Stretch once"
-            : locale === "ko"
-              ? "스트레칭 한 번 하기"
-              : "Stretch once",
+          fallbackAction: locale === "ko" ? "스트레칭 한 번 하기" : "Stretch once",
         },
       ];
     case "tidy":
@@ -398,25 +484,13 @@ function buildRuleActions(
           title: locale === "ko" ? "물건 하나 제자리에 두기" : "Put one item back in its place",
           reason: locale === "ko" ? "하나만 치워도 시작은 됩니다." : "One item is enough to start.",
           durationMinutes: primary,
-          fallbackAction: tooBig
-            ? locale === "ko"
-              ? "물건 하나 집어 들기"
-              : "Pick up one item"
-            : locale === "ko"
-              ? "물건 하나 집어 들기"
-              : "Pick up one item",
+          fallbackAction: locale === "ko" ? "물건 하나 집어 들기" : "Pick up one item",
         },
         {
           title: locale === "ko" ? "책상 한 칸만 정리하기" : "Tidy one small area of your desk",
           reason: locale === "ko" ? "한 칸만 정리해도 눈에 띄는 변화가 생겨요." : "One small area creates visible progress.",
           durationMinutes: secondary,
-          fallbackAction: tooBig
-            ? locale === "ko"
-              ? "책상 위 하나만 치우기"
-              : "Put away one thing from your desk"
-            : locale === "ko"
-              ? "책상 위 하나만 치우기"
-              : "Put away one thing from your desk",
+          fallbackAction: locale === "ko" ? "책상 위 하나만 치우기" : "Put away one thing from your desk",
         },
       ];
     case "digital":
@@ -425,25 +499,13 @@ function buildRuleActions(
           title: locale === "ko" ? "방해되는 앱 하나 닫기" : "Close one distracting app",
           reason: locale === "ko" ? "앱 하나만 닫아도 방해가 줄어요." : "Closing one app reduces friction right away.",
           durationMinutes: primary,
-          fallbackAction: tooBig
-            ? locale === "ko"
-              ? "앱 하나 보기만 하기"
-              : "Look at one app and stop"
-            : locale === "ko"
-              ? "앱 하나 닫기"
-              : "Close one app",
+          fallbackAction: locale === "ko" ? "앱 하나 보기만 하기" : "Look at one app and stop",
         },
         {
           title: locale === "ko" ? "알림 하나 끄기" : "Turn off one notification",
           reason: locale === "ko" ? "알림 하나만 줄여도 흐름이 달라져요." : "One fewer alert makes the loop lighter.",
           durationMinutes: secondary,
-          fallbackAction: tooBig
-            ? locale === "ko"
-              ? "알림 설정 열기"
-              : "Open notification settings"
-            : locale === "ko"
-              ? "알림 설정 열기"
-              : "Open notification settings",
+          fallbackAction: locale === "ko" ? "알림 설정 열기" : "Open notification settings",
         },
       ];
     case "self_care":
@@ -464,13 +526,7 @@ function buildRuleActions(
           title: locale === "ko" ? "숨 고르기 세 번 하기" : "Take three slow breaths",
           reason: locale === "ko" ? "세 번이면 부담 없이 할 수 있어요." : "Three breaths are easy enough to do now.",
           durationMinutes: secondary,
-          fallbackAction: tooBig
-            ? locale === "ko"
-              ? "숨 한 번 크게 쉬기"
-              : "Take one slow breath"
-            : locale === "ko"
-              ? "숨 한 번 크게 쉬기"
-              : "Take one slow breath",
+          fallbackAction: locale === "ko" ? "숨 한 번 크게 쉬기" : "Take one slow breath",
         },
       ];
     case "generic":
@@ -492,16 +548,125 @@ function buildRuleActions(
           title: locale === "ko" ? `"${goal}"의 첫 단계 열어 보기` : `Open the first step for "${goal}"`,
           reason: locale === "ko" ? "첫 단계만 열어도 다시 시작하기 쉬워져요." : "Opening the first step makes it easier to begin.",
           durationMinutes: secondary,
-          fallbackAction: tooBig
-            ? locale === "ko"
-              ? "첫 단계 제목만 보기"
-              : "Look at the first-step title only"
-            : locale === "ko"
-              ? "첫 단계 제목만 보기"
-              : "Look at the first-step title only",
+          fallbackAction: locale === "ko" ? "첫 단계 제목만 보기" : "Look at the first-step title only",
         },
       ];
   }
+}
+
+function buildSmallerAction(archetype: GoalArchetype, input: OnboardingInput, locale: Locale): MicroAction {
+  switch (archetype) {
+    case "reading":
+      return microActionSchema.parse({
+        title: locale === "ko" ? "책을 펴고 한 줄 보기" : "Open the book and look at one line",
+        reason: locale === "ko" ? "한 줄만 보면 다시 시작하기 쉬워져요." : "One line is enough to restart.",
+        durationMinutes: 1,
+        fallbackAction: locale === "ko" ? "책만 펴기" : "Open the book and stop",
+      });
+    case "writing":
+      return microActionSchema.parse({
+        title: locale === "ko" ? "메모 앱을 열고 단어 하나 쓰기" : "Open your notes app and write one word",
+        reason: locale === "ko" ? "단어 하나면 부담 없이 시작할 수 있어요." : "One word keeps the barrier low.",
+        durationMinutes: 1,
+        fallbackAction: locale === "ko" ? "메모 앱만 열기" : "Open your notes app and stop",
+      });
+    case "exercise":
+      return microActionSchema.parse({
+        title: locale === "ko" ? "운동화만 꺼내기" : "Take out your shoes",
+        reason: locale === "ko" ? "준비만 해도 다시 이어가기 쉬워져요." : "Preparation alone keeps the habit alive.",
+        durationMinutes: 1,
+        fallbackAction: locale === "ko" ? "운동화 보기" : "Look at your shoes",
+      });
+    case "tidy":
+      return microActionSchema.parse({
+        title: locale === "ko" ? "책상 위 물건 하나 들기" : "Pick up one item from your desk",
+        reason: locale === "ko" ? "한 개만 움직여도 시작은 충분해요." : "Moving one item is enough to begin.",
+        durationMinutes: 1,
+        fallbackAction: locale === "ko" ? "책상 보기" : "Look at your desk",
+      });
+    default:
+      return microActionSchema.parse({
+        title: locale === "ko" ? `"${input.goal}"에 필요한 것 하나 열기` : `Open one thing you need for "${input.goal}"`,
+        reason: locale === "ko" ? "준비만 해도 다시 시작이 쉬워져요." : "Opening the first thing lowers the barrier.",
+        durationMinutes: 1,
+        fallbackAction: locale === "ko" ? "필요한 것 만지기" : "Touch what you need and stop",
+      });
+  }
+}
+
+function applyRecentContext(
+  input: OnboardingInput,
+  classification: GoalClassification,
+  actions: MicroAction[],
+  recentContext: RecentContext,
+  locale: Locale,
+  failureReason?: FailureReason,
+) {
+  const normalizedFailureReason =
+    failureReason ??
+    (recentContext.recentFailureReasons.find((candidate): candidate is FailureReason =>
+      candidate === "too_big" ||
+      candidate === "too_tired" ||
+      candidate === "forgot" ||
+      candidate === "schedule_conflict" ||
+      candidate === "low_motivation" ||
+      candidate === "other",
+    ) ??
+      undefined);
+  const shouldShrink =
+    normalizedFailureReason === "too_big" || recentContext.recentUsedFallbackCount >= 2 || recentContext.recentStatuses.includes("failed");
+  const shouldMentionAnchor = normalizedFailureReason === "forgot";
+  const nextActions = actions.map((action, index) => {
+    if (index !== 0) {
+      return action;
+    }
+
+    if (!shouldShrink) {
+      return action;
+    }
+
+    return buildSmallerAction(classification.archetype, input, locale);
+  });
+
+  if (!shouldMentionAnchor) {
+    return nextActions;
+  }
+
+  return nextActions.map((action, index) => {
+    if (index !== 0) {
+      return action;
+    }
+
+    return microActionSchema.parse({
+      ...action,
+      reason:
+        locale === "ko"
+          ? `${input.anchor} 직후에 바로 할 수 있는 짧은 시작이에요.`
+          : `Do this right after ${input.anchor} so the cue is easier to notice.`,
+    });
+  });
+}
+
+function normalizeRuleBuildArgs(
+  recentContextOrFailureReason?: RecentContext | FailureReason,
+  options?: {
+    locale?: Locale;
+    failureReason?: FailureReason;
+  },
+) {
+  if (typeof recentContextOrFailureReason === "string" || recentContextOrFailureReason === undefined) {
+    return {
+      recentContext: EMPTY_RECENT_CONTEXT,
+      locale: options?.locale ?? "ko",
+      failureReason: options?.failureReason ?? recentContextOrFailureReason,
+    };
+  }
+
+  return {
+    recentContext: recentContextOrFailureReason,
+    locale: options?.locale ?? "ko",
+    failureReason: options?.failureReason,
+  };
 }
 
 function stripSource(decomposition: HabitDecomposition): Omit<HabitDecomposition, "source"> {
@@ -510,7 +675,7 @@ function stripSource(decomposition: HabitDecomposition): Omit<HabitDecomposition
 }
 
 function shouldRewriteDraft(
-  archetype: GoalArchetype,
+  classification: GoalClassification,
   input: OnboardingInput,
   failureReason?: FailureReason,
 ) {
@@ -524,7 +689,7 @@ function shouldRewriteDraft(
     return true;
   }
 
-  if (archetype === "generic" || archetype === "digital" || archetype === "self_care") {
+  if (classification.archetype === "generic" || classification.archetype === "digital" || classification.archetype === "self_care") {
     return true;
   }
 
@@ -533,11 +698,34 @@ function shouldRewriteDraft(
 
 export function buildRuleBasedHabitDecomposition(
   input: OnboardingInput,
-  failureReason?: FailureReason,
-  locale: Locale = "ko",
+  recentContextOrFailureReason?: RecentContext | FailureReason,
+  options?: {
+    locale?: Locale;
+    failureReason?: FailureReason;
+  },
 ): HabitDecomposition {
-  const archetype = detectGoalArchetype(input.goal);
-  const microActions = buildRuleActions(archetype, input, failureReason, locale);
+  const normalized = normalizeRuleBuildArgs(recentContextOrFailureReason, options);
+  const classification = getGoalClassification(input.goal);
+  const failureReason =
+    normalized.failureReason ??
+    (normalized.recentContext.recentFailureReasons.find((candidate): candidate is FailureReason =>
+      candidate === "too_big" ||
+      candidate === "too_tired" ||
+      candidate === "forgot" ||
+      candidate === "schedule_conflict" ||
+      candidate === "low_motivation" ||
+      candidate === "other",
+    ) ??
+      undefined);
+  const baseActions = buildRuleActions(classification.archetype, input, failureReason, normalized.locale);
+  const microActions = applyRecentContext(
+    input,
+    classification,
+    baseActions,
+    normalized.recentContext,
+    normalized.locale,
+    failureReason,
+  );
   const todayAction = microActions[0];
 
   if (!todayAction) {
@@ -545,7 +733,7 @@ export function buildRuleBasedHabitDecomposition(
   }
 
   return habitDecompositionSchema.parse({
-    goalSummary: buildGoalSummary(input.goal, locale),
+    goalSummary: buildGoalSummary(input.goal, normalized.locale),
     selectedAnchor: input.anchor,
     microActions,
     todayAction,
@@ -559,14 +747,71 @@ export function buildMockHabitDecomposition(
   failureReason?: FailureReason,
   locale: Locale = "ko",
 ): HabitDecomposition {
-  return buildRuleBasedHabitDecomposition(input, failureReason, locale);
+  return buildRuleBasedHabitDecomposition(input, failureReason, { locale });
 }
 
-async function callOpenAI(prompt: string, model: string) {
+export async function collectRecentContext(_: {
+  userId?: string;
+  goalId?: string;
+  basedOnPlanId?: string;
+}): Promise<RecentContext> {
+  return EMPTY_RECENT_CONTEXT;
+}
+
+export function generateDraftTemplates(
+  input: OnboardingInput,
+  classification: GoalClassification,
+  recentContext: RecentContext,
+  locale: Locale = "ko",
+): DraftTemplate[] {
+  const intents: GoalIntent[] = [
+    classification.intent,
+    "prepare",
+    "continue",
+    "review",
+    "surface",
+  ];
+
+  return intents.map((intent, index) => {
+    const adjustedInput =
+      index === 0
+        ? input
+        : {
+            ...input,
+            goal: `${input.goal}`,
+          };
+    const actions = applyRecentContext(
+      adjustedInput,
+      {
+        archetype: classification.archetype,
+        intent,
+      },
+      buildRuleActions(classification.archetype, adjustedInput, undefined, locale),
+      recentContext,
+      locale,
+      undefined,
+    );
+    const todayAction = actions[0] ?? buildSmallerAction(classification.archetype, adjustedInput, locale);
+
+    return {
+      archetype: classification.archetype,
+      intent,
+      microActions: actions,
+      todayAction,
+      fallbackAction: todayAction.fallbackAction,
+    };
+  });
+}
+
+async function sleep(ms: number) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchOpenAIOnce(prompt: string, model: string) {
   const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
-    throw new Error("Missing OPENAI_API_KEY");
+    throw new OpenAIRequestError("Missing OPENAI_API_KEY");
   }
 
   const controller = new AbortController();
@@ -605,19 +850,50 @@ async function callOpenAI(prompt: string, model: string) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`OpenAI request failed: ${response.status} ${errorText}`);
+      throw new OpenAIRequestError(`OpenAI request failed: ${response.status} ${errorText}`, {
+        status: response.status,
+        retryable: response.status >= 500 || response.status === 429,
+      });
     }
 
     return (await response.json()) as OpenAIResponsePayload;
   } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new Error(`OpenAI request timed out after ${timeoutMs}ms`);
+    if (error instanceof OpenAIRequestError) {
+      throw error;
     }
 
-    throw error;
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new OpenAIRequestError(`OpenAI request timed out after ${timeoutMs}ms`, {
+        retryable: false,
+      });
+    }
+
+    throw new OpenAIRequestError(error instanceof Error ? error.message : "OpenAI request failed.", {
+      retryable: true,
+    });
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+async function callOpenAI(prompt: string, model: string) {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      return await fetchOpenAIOnce(prompt, model);
+    } catch (error) {
+      lastError = error;
+
+      if (!(error instanceof OpenAIRequestError) || !error.retryable || attempt === 1) {
+        throw error;
+      }
+
+      await sleep(250);
+    }
+  }
+
+  throw lastError;
 }
 
 function buildAiUnavailableMessage(error: unknown, locale: Locale) {
@@ -632,7 +908,7 @@ function buildAiUnavailableMessage(error: unknown, locale: Locale) {
 
   const message = error.message.toLowerCase();
 
-  if (message.includes("insufficient_quota") || message.includes("quota")) {
+  if (message.includes("quota")) {
     return locale === "ko"
       ? "OpenAI 사용 한도를 초과해 AI 플랜을 만들 수 없어요. 결제 또는 quota 상태를 확인해 주세요."
       : "OpenAI quota was exceeded, so we could not generate an AI plan.";
@@ -646,8 +922,20 @@ function buildAiUnavailableMessage(error: unknown, locale: Locale) {
 
   if (message.includes("timed out")) {
     return locale === "ko"
-      ? "AI 응답이 너무 오래 걸려 초안만 먼저 보여드릴게요."
+      ? "AI 응답이 너무 오래 걸려 규칙 기반 초안을 먼저 보여드릴게요."
       : "The AI response took too long, so we returned the draft plan.";
+  }
+
+  if (message.includes("already in progress")) {
+    return locale === "ko"
+      ? "AI 플랜 생성이 이미 진행 중이에요. 잠시 후 다시 시도해 주세요."
+      : "AI plan generation is already in progress. Please try again in a moment.";
+  }
+
+  if (message.includes("rate limit")) {
+    return locale === "ko"
+      ? "AI 플랜 요청이 너무 많아요. 잠시 후 다시 시도해 주세요."
+      : "Too many AI plan requests were sent. Please try again shortly.";
   }
 
   if (message.includes("openai request failed")) {
@@ -659,6 +947,32 @@ function buildAiUnavailableMessage(error: unknown, locale: Locale) {
   return fallback;
 }
 
+function claimAiGenerationSlot(userId?: string) {
+  if (!userId) {
+    return () => undefined;
+  }
+
+  const inflightUsers = getInflightUsers();
+
+  if (inflightUsers.has(userId)) {
+    throw new OpenAIRequestError("AI generation already in progress for this user.");
+  }
+
+  inflightUsers.add(userId);
+
+  return () => {
+    inflightUsers.delete(userId);
+  };
+}
+
+function enforceAiUsageLimit(userId?: string) {
+  if (!userId) {
+    return null;
+  }
+
+  return consumeRateLimits("habit-ai", userId, API_RATE_LIMITS.ai);
+}
+
 export async function generateHabitDecomposition(
   input: OnboardingInput,
   options?: {
@@ -667,18 +981,29 @@ export async function generateHabitDecomposition(
     allowMockFallback?: boolean;
     strategy?: GenerationStrategy;
     modelPreference?: ModelPreference;
+    userId?: string;
+    goalId?: string;
+    basedOnPlanId?: string;
   },
 ): Promise<HabitDecomposition> {
   const startedAt = Date.now();
   const failureReason = options?.failureReason;
   const locale = options?.locale ?? "ko";
-  const allowRulesFallback = options?.allowMockFallback ?? true;
+  const allowRulesFallback = true;
   const strategy = options?.strategy ?? readGenerationStrategy();
   const modelPreference = options?.modelPreference ?? "fast";
-  const archetype = detectGoalArchetype(input.goal);
+  const classification = getGoalClassification(input.goal);
+  const recentContext = await collectRecentContext({
+    userId: options?.userId,
+    goalId: options?.goalId,
+    basedOnPlanId: options?.basedOnPlanId,
+  });
 
   const plannerStartedAt = Date.now();
-  const draft = buildRuleBasedHabitDecomposition(input, failureReason, locale);
+  const draft = buildRuleBasedHabitDecomposition(input, recentContext, {
+    locale,
+    failureReason,
+  });
   const plannerMs = Date.now() - plannerStartedAt;
 
   if (strategy === "rules_only") {
@@ -692,7 +1017,7 @@ export async function generateHabitDecomposition(
     return draft;
   }
 
-  if (strategy === "hybrid" && !shouldRewriteDraft(archetype, input, failureReason)) {
+  if (strategy === "hybrid" && !shouldRewriteDraft(classification, input, failureReason)) {
     logGenerationMetrics({
       strategy,
       plannerMs,
@@ -703,14 +1028,38 @@ export async function generateHabitDecomposition(
     return draft;
   }
 
+  const rateLimitResult = enforceAiUsageLimit(options?.userId);
+
+  if (rateLimitResult && !rateLimitResult.allowed) {
+    const error = new OpenAIRequestError("AI generation rate limit exceeded.");
+
+    logSecurityEvent({
+      type: "ai_generation_rate_limited",
+      level: "warn",
+      userId: options?.userId,
+      outcome: allowRulesFallback ? "fallback" : "blocked",
+      statusCode: 429,
+      detail: {
+        policy: rateLimitResult.rule.name,
+      },
+    });
+
+    if (!allowRulesFallback) {
+      throw new Error(buildAiUnavailableMessage(error, locale));
+    }
+
+    return draft;
+  }
+
+  const releaseSlot = claimAiGenerationSlot(options?.userId);
   const model = pickModel(modelPreference);
   const openAIStartedAt = Date.now();
 
   try {
     const prompt =
       strategy === "hybrid"
-        ? buildHybridRewritePrompt(input, archetype, stripSource(draft), failureReason, locale)
-        : buildAiOnlyHabitDecompositionPrompt(input, archetype, failureReason, locale);
+        ? buildHybridRewritePrompt(input, classification, stripSource(draft), failureReason, locale)
+        : buildAiOnlyHabitDecompositionPrompt(input, classification, failureReason, locale);
 
     const payload = await callOpenAI(prompt, model);
     const openaiMs = Date.now() - openAIStartedAt;
@@ -735,9 +1084,19 @@ export async function generateHabitDecomposition(
   } catch (error) {
     const openaiMs = Date.now() - openAIStartedAt;
 
-    if (!allowRulesFallback) {
-      throw new Error(buildAiUnavailableMessage(error, locale));
-    }
+    logSecurityEvent({
+      type: "ai_generation_failed",
+      level: allowRulesFallback ? "warn" : "error",
+      userId: options?.userId,
+      outcome: allowRulesFallback ? "fallback" : "error",
+      statusCode: error instanceof OpenAIRequestError ? error.status : undefined,
+      detail: {
+        strategy,
+        model,
+        goalId: options?.goalId ?? "",
+        basedOnPlanId: options?.basedOnPlanId ?? "",
+      },
+    });
 
     logGenerationMetrics({
       strategy,
@@ -749,6 +1108,8 @@ export async function generateHabitDecomposition(
     });
 
     return draft;
+  } finally {
+    releaseSlot();
   }
 }
 

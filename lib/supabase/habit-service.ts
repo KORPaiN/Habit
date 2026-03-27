@@ -4,10 +4,10 @@ import { generateHabitDecomposition } from "@/lib/ai";
 import type { Locale } from "@/lib/locale";
 import type { Database } from "@/types";
 import type {
-  AssignDailyActionRequest,
-  CreatePlanRequest,
-  OnboardingRequest,
-  WeeklyReviewRequest,
+  AssignDailyActionRequest as AssignDailyActionPayload,
+  CreatePlanRequest as CreatePlanPayload,
+  OnboardingRequest as OnboardingPayload,
+  WeeklyReviewRequest as WeeklyReviewPayload,
 } from "@/lib/validators/backend";
 import { mapGeneratedActionsToPlanInput } from "@/lib/utils/habit-rules";
 import type { SavedAnchorInput } from "@/lib/validators/habit";
@@ -15,6 +15,10 @@ import type { SavedAnchorInput } from "@/lib/validators/habit";
 type ServiceClient = SupabaseClient<Database>;
 type AnchorInsert = Database["public"]["Tables"]["anchors"]["Insert"];
 type GoalInsert = Database["public"]["Tables"]["goals"]["Insert"];
+type AuthenticatedOnboardingRequest = OnboardingPayload & { userId: string; locale?: Locale };
+type AuthenticatedCreatePlanRequest = CreatePlanPayload & { userId: string };
+type AuthenticatedAssignDailyActionRequest = AssignDailyActionPayload & { userId: string };
+type AuthenticatedWeeklyReviewRequest = WeeklyReviewPayload & { userId: string };
 
 type OnboardingResult = {
   goal: { id: string };
@@ -25,7 +29,7 @@ function isDuplicateAnchorConstraintError(error: unknown) {
   return error instanceof Error && error.message.includes('anchors_user_id_label_cue_key');
 }
 
-function toRpcMicroActions(actions: CreatePlanRequest["microActions"]) {
+function toRpcMicroActions(actions: CreatePlanPayload["microActions"]) {
   return actions.map((action) => ({
     position: action.position,
     title: action.title,
@@ -49,7 +53,7 @@ async function runRpc<T>(client: ServiceClient, fn: string, params: Record<strin
 
 async function createOnboardingGoalWithAnchorReuse(
   client: ServiceClient,
-  input: OnboardingRequest,
+  input: AuthenticatedOnboardingRequest,
 ): Promise<OnboardingResult> {
   const anchorsTable = client.from("anchors" as never) as any;
   const goalsTable = client.from("goals" as never) as any;
@@ -119,7 +123,7 @@ async function createOnboardingGoalWithAnchorReuse(
   };
 }
 
-export async function createOnboardingFlow(client: ServiceClient, input: OnboardingRequest & { locale?: Locale }) {
+export async function createOnboardingFlow(client: ServiceClient, input: AuthenticatedOnboardingRequest) {
   let onboardingResult: OnboardingResult;
 
   try {
@@ -150,6 +154,8 @@ export async function createOnboardingFlow(client: ServiceClient, input: Onboard
   }, {
     locale: input.locale,
     allowMockFallback: false,
+    userId: input.userId,
+    goalId: onboardingResult.goal.id,
   });
 
   const generatedActions = input.microActions ?? mapGeneratedActionsToPlanInput(decomposition.microActions);
@@ -170,7 +176,7 @@ export async function createOnboardingFlow(client: ServiceClient, input: Onboard
   };
 }
 
-export async function createPlanVersion(client: ServiceClient, input: CreatePlanRequest) {
+export async function createPlanVersion(client: ServiceClient, input: AuthenticatedCreatePlanRequest) {
   return runRpc(client, "create_habit_plan", {
     p_user_id: input.userId,
     p_goal_id: input.goalId,
@@ -228,7 +234,7 @@ export async function deleteUserAnchor(client: ServiceClient, input: { userId: s
   }
 }
 
-export async function assignDailyAction(client: ServiceClient, input: AssignDailyActionRequest) {
+export async function assignDailyAction(client: ServiceClient, input: AuthenticatedAssignDailyActionRequest) {
   return runRpc(client, "assign_daily_action", {
     p_user_id: input.userId,
     p_goal_id: input.goalId,
@@ -265,7 +271,7 @@ export async function failDailyAction(
   });
 }
 
-export async function upsertWeeklyReview(client: ServiceClient, input: WeeklyReviewRequest) {
+export async function upsertWeeklyReview(client: ServiceClient, input: AuthenticatedWeeklyReviewRequest) {
   return runRpc(client, "upsert_weekly_review", {
     p_user_id: input.userId,
     p_goal_id: input.goalId,

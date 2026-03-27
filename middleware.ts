@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
+import { applySecurityHeaders } from "@/lib/security/headers";
 import type { Database } from "@/types";
 
 export async function middleware(request: NextRequest) {
@@ -35,7 +36,7 @@ export async function middleware(request: NextRequest) {
 
   await supabase.auth.getUser();
 
-  return response;
+  return applySecurityHeaders(response);
 }
 
 export const config = {

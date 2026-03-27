@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { PageShell } from "@/components/ui/page-shell";
 import { getLocale, isLocale, type Locale } from "@/lib/locale";
 import { getAuthShellState, getAuthenticatedUser } from "@/lib/supabase/auth";
-import { getSupabaseAdminClient } from "@/lib/supabase/client";
+import { getSupabaseServerClient } from "@/lib/supabase/server-client";
 import { completeSignupWithLocale } from "@/app/signup/actions";
 import type { Database } from "@/types";
 
@@ -30,7 +30,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
   const authenticatedUser = await getAuthenticatedUser();
   const existingUser =
     authenticatedUser
-      ? await getSupabaseAdminClient().from("users").select("locale").eq("id", authenticatedUser.id).maybeSingle()
+      ? await (await getSupabaseServerClient()).from("users").select("locale").eq("id", authenticatedUser.id).maybeSingle()
       : null;
   const existingLocale = (existingUser?.data as Pick<Database["public"]["Tables"]["users"]["Row"], "locale"> | null)?.locale;
 

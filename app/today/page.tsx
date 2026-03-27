@@ -2,11 +2,9 @@ import Link from "next/link";
 
 import { getHabitSession } from "@/lib/habit-session";
 import { ActionCard } from "@/components/today/action-card";
-import { StatPill } from "@/components/review/stat-pill";
 import { PageShell } from "@/components/ui/page-shell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { commonCopy } from "@/lib/copy";
 import { getLocale } from "@/lib/locale";
 import { getAuthShellState } from "@/lib/supabase/auth";
 import { microActionSchema } from "@/lib/validators/habit";
@@ -30,7 +28,6 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
   const params = (await searchParams) ?? {};
   const locale = await getLocale();
   const auth = await getAuthShellState();
-  const common = commonCopy[locale];
   const session = await getHabitSession();
   const todayState = await getTodayStateFromSession(session);
 
@@ -120,15 +117,6 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
       </div>
 
       <div className="grid gap-6">
-        <Card className="bg-[var(--surface-muted)] text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">{locale === "ko" ? "지금 기준" : "Why this fits"}</p>
-          <div className="mt-4 flex flex-wrap gap-3">
-            <StatPill label={locale === "ko" ? "목표" : "Goal"} value={todayState.goal} />
-            <StatPill label={locale === "ko" ? "앵커" : "Anchor"} value={todayState.anchor} />
-            <StatPill label={locale === "ko" ? "소스" : "Source"} value={todayState.source === "Supabase" ? common.sourceSupabase : common.sourceMock} />
-          </div>
-        </Card>
-
         <Card className="bg-[var(--surface-strong)] text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">{locale === "ko" ? "대체 행동" : "Fallback action"}</p>
           <p className="mt-3 text-2xl font-semibold leading-tight">{action.fallbackAction}</p>

@@ -46,7 +46,7 @@ export const planMicroActionsSchema = z
   });
 
 export const onboardingRequestSchema = z.object({
-  userId: uuidSchema,
+  userId: uuidSchema.optional(),
   goalTitle: z.string().min(3).max(120),
   goalWhy: z.string().max(300).optional().nullable(),
   difficulty: difficultyLevelSchema,
@@ -58,7 +58,7 @@ export const onboardingRequestSchema = z.object({
 });
 
 export const createPlanRequestSchema = z.object({
-  userId: uuidSchema,
+  userId: uuidSchema.optional(),
   goalId: uuidSchema,
   source: planSourceSchema.default("manual"),
   basedOnPlanId: uuidSchema.optional().nullable(),
@@ -67,7 +67,7 @@ export const createPlanRequestSchema = z.object({
 });
 
 export const assignDailyActionRequestSchema = z.object({
-  userId: uuidSchema,
+  userId: uuidSchema.optional(),
   goalId: uuidSchema,
   planId: uuidSchema,
   microActionId: uuidSchema,
@@ -75,20 +75,18 @@ export const assignDailyActionRequestSchema = z.object({
 });
 
 export const completeDailyActionRequestSchema = z.object({
-  userId: uuidSchema,
   usedFallback: z.boolean().default(false),
   notes: z.string().max(500).optional().nullable(),
 });
 
 export const failDailyActionRequestSchema = z.object({
-  userId: uuidSchema,
   failureReason: failureReasonSchema,
   notes: z.string().max(500).optional().nullable(),
   createRecoveryPlan: z.boolean().default(true),
 });
 
 export const weeklyReviewRequestSchema = z.object({
-  userId: uuidSchema,
+  userId: uuidSchema.optional(),
   goalId: uuidSchema,
   weekStart: isoDateSchema,
   completedDays: z.coerce.number().int().min(0).max(7),
@@ -102,7 +100,7 @@ export const weeklyReviewRequestSchema = z.object({
 });
 
 export const weeklyReviewQuerySchema = z.object({
-  userId: uuidSchema,
+  userId: uuidSchema.optional(),
   goalId: uuidSchema,
   weekStart: isoDateSchema,
 });

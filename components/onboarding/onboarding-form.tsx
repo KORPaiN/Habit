@@ -43,6 +43,10 @@ function OnboardingSubmitButton({ locale }: { locale: Locale }) {
 
 export function OnboardingForm({ locale, isAuthenticated, error, savedAnchors }: OnboardingFormProps) {
   const [values, setValues] = useState<OnboardingInput>(mockOnboardingData);
+  const anchorOptions = [
+    ...savedAnchors.map((anchor) => anchor.cue),
+    ...anchorExamples,
+  ].filter((anchor, index, anchors) => anchors.indexOf(anchor) === index);
 
   useEffect(() => {
     const saved = window.localStorage.getItem(DRAFT_KEY);
@@ -134,36 +138,17 @@ export function OnboardingForm({ locale, isAuthenticated, error, savedAnchors }:
                 : "Write the moment after which you'll start the habit."}
             </p>
             <div className="mt-3 flex flex-wrap justify-center gap-2">
-              {anchorExamples.map((example) => (
+              {anchorOptions.map((anchor) => (
                 <button
-                  key={example}
+                  key={anchor}
                   type="button"
-                  onClick={() => updateValue("anchor", example)}
-                  className="rounded-full border border-white/60 bg-white/74 px-3 py-2 text-xs font-medium text-[var(--foreground)] transition hover:bg-white"
+                  onClick={() => updateValue("anchor", anchor)}
+                  className="rounded-full border border-white/60 bg-white/78 px-4 py-2.5 text-sm font-medium text-[var(--foreground)] transition hover:bg-white"
                 >
-                  {example}
+                  {anchor}
                 </button>
               ))}
             </div>
-            {savedAnchors.length > 0 ? (
-              <div className="mt-4 text-left">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted-strong)]">
-                  {locale === "ko" ? "저장된 앵커" : "Saved anchors"}
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  {savedAnchors.map((anchor) => (
-                    <button
-                      key={anchor.id}
-                      type="button"
-                      onClick={() => updateValue("anchor", anchor.cue)}
-                      className="rounded-full border border-[var(--primary-soft)] bg-[var(--primary-soft)] px-4 py-2.5 text-sm font-semibold text-[var(--primary)] transition hover:border-[var(--primary)] hover:bg-white"
-                    >
-                      {anchor.cue}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
           </div>
           <div className="rounded-[var(--radius-md)] bg-[var(--primary-soft)] p-3.5 text-sm leading-6 text-[var(--primary)]">
             {locale === "ko"

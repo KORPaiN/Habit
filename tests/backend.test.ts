@@ -72,7 +72,6 @@ test("buildRecoveryPreview shrinks only the selected action", () => {
 
 test("onboardingRequestSchema accepts the backend MVP payload", () => {
   const result = onboardingRequestSchema.parse({
-    userId: "11111111-1111-1111-1111-111111111111",
     goalTitle: "Build a reading habit",
     goalWhy: "I want reading to feel normal again.",
     difficulty: "gentle",

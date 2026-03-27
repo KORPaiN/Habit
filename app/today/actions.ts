@@ -3,38 +3,40 @@
 import { redirect, unstable_rethrow } from "next/navigation";
 
 import { getHabitSession, hasActiveHabitSelection } from "@/lib/habit-session";
+import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { completeDailyAction, generateWeeklyReview } from "@/lib/supabase/habit-service";
-import { getSupabaseAdminClient } from "@/lib/supabase/client";
+import { getSupabaseServerClient } from "@/lib/supabase/server-client";
 
 export async function completeTodayAction() {
   const session = await getHabitSession();
+  const authenticatedUser = await getAuthenticatedUser();
 
-  if (!session.userId) {
-    redirect("/login?next=%2Ftoday&error=오늘의 행동을 업데이트하려면 먼저 Google로 로그인해%20주세요.");
+  if (!authenticatedUser) {
+    redirect("/login?next=%2Ftoday&error=?ㅻ뒛???됰룞???낅뜲?댄듃?섎젮硫?癒쇱? Google濡?濡쒓렇?명빐%20二쇱꽭??");
   }
 
   if (!hasActiveHabitSelection(session) || !session.dailyActionId || !session.goalId) {
-    redirect("/onboarding?error=오늘의 행동을 완료 처리하기 전에 먼저 첫 계획을 만들어 주세요.");
+    redirect("/onboarding?error=?ㅻ뒛???됰룞???꾨즺 泥섎━?섍린 ?꾩뿉 癒쇱? 泥?怨꾪쉷??留뚮뱾??二쇱꽭??");
   }
 
   try {
-    const client = getSupabaseAdminClient();
+    const client = await getSupabaseServerClient();
 
     await completeDailyAction(client, session.dailyActionId, {
-      userId: session.userId,
+      userId: authenticatedUser.id,
       usedFallback: false,
-      notes: "오늘 화면에서 완료 처리했습니다.",
+      notes: "?ㅻ뒛 ?붾㈃?먯꽌 ?꾨즺 泥섎━?덉뒿?덈떎.",
     });
 
     await generateWeeklyReview(client, {
-      userId: session.userId,
+      userId: authenticatedUser.id,
       goalId: session.goalId,
     });
 
     redirect("/today?completed=1");
   } catch (error) {
     unstable_rethrow(error);
-    const message = error instanceof Error ? error.message : "이 행동을 완료 처리하지 못했어요.";
+    const message = error instanceof Error ? error.message : "???됰룞???꾨즺 泥섎━?섏? 紐삵뻽?댁슂.";
     redirect(`/today?error=${encodeURIComponent(message)}`);
   }
 }

@@ -1,4 +1,4 @@
-import { getSupabaseAdminClient } from "@/lib/supabase/client";
+import { getSupabaseServerClient } from "@/lib/supabase/server-client";
 import type { HabitSession } from "@/lib/habit-session";
 import type { Database, DailyActionStatus } from "@/types";
 import type { MicroAction, OnboardingInput } from "@/lib/validators/habit";
@@ -53,8 +53,13 @@ type MonthlyReviewState = {
   nextAdjustment: string;
 };
 
+type SessionAccessContext = {
+  client: Awaited<ReturnType<typeof getSupabaseServerClient>>;
+  userId: string;
+};
+
 function isConfigured() {
-  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 }
 
 export function isSupabaseConfigured() {
@@ -71,16 +76,16 @@ function mapRowToMicroAction(row: Pick<MicroActionLookup, "title" | "details" | 
 }
 
 async function getGoalForSession(session: HabitSession) {
-  if (!session.userId) {
+  const context = await getSessionAccessContext();
+
+  if (!context) {
     return null;
   }
 
-  const client = getSupabaseAdminClient();
-
-  const query = client
+  const query = context.client
     .from("goals")
     .select("*")
-    .eq("user_id", session.userId)
+    .eq("user_id", context.userId)
     .eq("status", "active")
     .order("created_at", { ascending: false })
     .limit(1);
@@ -98,12 +103,32 @@ async function getGoalForSession(session: HabitSession) {
   return (data as GoalLookup | null) ?? null;
 }
 
-async function getAnchor(anchorId?: string | null) {
+async function getSessionAccessContext(): Promise<SessionAccessContext | null> {
+  if (!isConfigured()) {
+    return null;
+  }
+
+  const client = await getSupabaseServerClient();
+  const {
+    data: { user },
+    error,
+  } = await client.auth.getUser();
+
+  if (error || !user) {
+    return null;
+  }
+
+  return {
+    client,
+    userId: user.id,
+  };
+}
+
+async function getAnchor(client: SessionAccessContext["client"], anchorId?: string | null) {
   if (!anchorId) {
     return null;
   }
 
-  const client = getSupabaseAdminClient();
   const { data, error } = await client.from("anchors").select("*").eq("id", anchorId).maybeSingle();
 
   if (error) {
@@ -113,8 +138,11 @@ async function getAnchor(anchorId?: string | null) {
   return (data as AnchorLookup | null) ?? null;
 }
 
-async function getDailyActionForGoal(goalId: string, preferredDailyActionId?: string) {
-  const client = getSupabaseAdminClient();
+async function getDailyActionForGoal(
+  client: SessionAccessContext["client"],
+  goalId: string,
+  preferredDailyActionId?: string,
+) {
   const today = new Date().toISOString().slice(0, 10);
 
   if (preferredDailyActionId) {
@@ -159,12 +187,11 @@ async function getDailyActionForGoal(goalId: string, preferredDailyActionId?: st
   return (latestAction.data as DailyActionLookup | null) ?? null;
 }
 
-async function getMicroAction(microActionId?: string) {
+async function getMicroAction(client: SessionAccessContext["client"], microActionId?: string) {
   if (!microActionId) {
     return null;
   }
 
-  const client = getSupabaseAdminClient();
   const { data, error } = await client.from("micro_actions").select("*").eq("id", microActionId).maybeSingle();
 
   if (error) {
@@ -328,11 +355,9 @@ function buildMonthlyReview(
 }
 
 export async function getTodayStateFromSession(session: HabitSession): Promise<TodayState | null> {
-  if (!isConfigured()) {
-    return null;
-  }
+  const context = await getSessionAccessContext();
 
-  if (!session.userId) {
+  if (!context) {
     return null;
   }
 
@@ -342,13 +367,16 @@ export async function getTodayStateFromSession(session: HabitSession): Promise<T
     return null;
   }
 
-  const [anchor, dailyAction] = await Promise.all([getAnchor(goal.anchor_id), getDailyActionForGoal(goal.id, session.dailyActionId)]);
+  const [anchor, dailyAction] = await Promise.all([
+    getAnchor(context.client, goal.anchor_id),
+    getDailyActionForGoal(context.client, goal.id, session.dailyActionId),
+  ]);
 
   if (!dailyAction) {
     return null;
   }
 
-  const microAction = await getMicroAction(session.microActionId ?? dailyAction.micro_action_id);
+  const microAction = await getMicroAction(context.client, session.microActionId ?? dailyAction.micro_action_id);
 
   if (!microAction) {
     return null;
@@ -375,7 +403,8 @@ export async function getRecoveryContextFromSession(session: HabitSession): Prom
   }
 
   const goal = await getGoalForSession({ ...session, goalId: todayState.goalId });
-  const anchor = goal?.anchor_id ? await getAnchor(goal.anchor_id) : null;
+  const context = await getSessionAccessContext();
+  const anchor = goal?.anchor_id && context ? await getAnchor(context.client, goal.anchor_id) : null;
 
   if (!goal) {
     return null;
@@ -395,11 +424,9 @@ export async function getRecoveryContextFromSession(session: HabitSession): Prom
 }
 
 export async function getWeeklyReviewStateFromSession(session: HabitSession): Promise<WeeklyReviewState | null> {
-  if (!isConfigured()) {
-    return null;
-  }
+  const context = await getSessionAccessContext();
 
-  if (!session.userId) {
+  if (!context) {
     return null;
   }
 
@@ -409,13 +436,12 @@ export async function getWeeklyReviewStateFromSession(session: HabitSession): Pr
     return null;
   }
 
-  const client = getSupabaseAdminClient();
   const weekStart = getWeekStart();
 
-  const existingReview = await client
+  const existingReview = await context.client
     .from("weekly_reviews")
     .select("*")
-    .eq("user_id", session.userId)
+    .eq("user_id", context.userId)
     .eq("goal_id", goal.id)
     .eq("week_start", weekStart)
     .maybeSingle();
@@ -440,7 +466,7 @@ export async function getWeeklyReviewStateFromSession(session: HabitSession): Pr
   weekEnd.setDate(weekEnd.getDate() + 6);
   const weekEndString = weekEnd.toISOString().slice(0, 10);
 
-  const weeklyActions = await client
+  const weeklyActions = await context.client
     .from("daily_actions")
     .select("status")
     .eq("goal_id", goal.id)
@@ -458,11 +484,9 @@ export async function getWeeklyReviewStateFromSession(session: HabitSession): Pr
 }
 
 export async function getMonthlyReviewStateFromSession(session: HabitSession, targetMonth = new Date()): Promise<MonthlyReviewState | null> {
-  if (!isConfigured()) {
-    return null;
-  }
+  const context = await getSessionAccessContext();
 
-  if (!session.userId) {
+  if (!context) {
     return null;
   }
 
@@ -472,12 +496,11 @@ export async function getMonthlyReviewStateFromSession(session: HabitSession, ta
     return null;
   }
 
-  const client = getSupabaseAdminClient();
   const monthDate = normalizeMonthDate(targetMonth);
   const monthStart = getMonthStart(monthDate).toISOString().slice(0, 10);
   const monthEnd = getMonthEnd(monthDate).toISOString().slice(0, 10);
 
-  const monthlyActions = await client
+  const monthlyActions = await context.client
     .from("daily_actions")
     .select("action_date, status")
     .eq("goal_id", goal.id)
@@ -490,7 +513,7 @@ export async function getMonthlyReviewStateFromSession(session: HabitSession, ta
   }
 
   const actions = (monthlyActions.data ?? []) as Array<Pick<DailyActionLookup, "action_date" | "status">>;
-  const userGoals = await client.from("goals").select("id").eq("user_id", session.userId);
+  const userGoals = await context.client.from("goals").select("id").eq("user_id", context.userId);
 
   if (userGoals.error) {
     throw new Error(userGoals.error.message);
@@ -500,7 +523,7 @@ export async function getMonthlyReviewStateFromSession(session: HabitSession, ta
   const completedCountsByDate = new Map<string, number>();
 
   if (goalIds.length > 0) {
-    const completedActions = await client
+    const completedActions = await context.client
       .from("daily_actions")
       .select("action_date")
       .in("goal_id", goalIds)

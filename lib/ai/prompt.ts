@@ -3,24 +3,44 @@ import type { HabitDecomposition, OnboardingInput } from "@/lib/validators/habit
 import type { FailureReason } from "@/types";
 
 export type GoalArchetype = "reading" | "writing" | "study" | "exercise" | "tidy" | "digital" | "self_care" | "generic";
+export type GoalIntent = "start" | "continue" | "setup" | "review" | "prepare" | "journal" | "mobility" | "surface";
+
+export type GoalClassification = {
+  archetype: GoalArchetype;
+  intent: GoalIntent;
+};
+
+function normalizeClassification(classification: GoalClassification | GoalArchetype): GoalClassification {
+  if (typeof classification === "string") {
+    return {
+      archetype: classification,
+      intent: "start",
+    };
+  }
+
+  return classification;
+}
 
 function buildPromptPayload(
   input: Pick<OnboardingInput, "goal" | "difficulty" | "anchor">,
-  goalCategory: GoalArchetype,
+  classification: GoalClassification | GoalArchetype,
   failureReason?: FailureReason,
 ) {
+  const normalized = normalizeClassification(classification);
+
   return JSON.stringify({
     goal: input.goal,
     difficulty: input.difficulty,
     anchor: input.anchor,
-    category: goalCategory,
+    category: normalized.archetype,
+    intent: normalized.intent,
     failureReason: failureReason ?? "none",
   });
 }
 
 export function buildAiOnlyHabitDecompositionPrompt(
   input: OnboardingInput,
-  goalCategory: GoalArchetype,
+  classification: GoalClassification | GoalArchetype,
   failureReason?: FailureReason,
   locale: Locale = "ko",
 ) {
@@ -46,13 +66,13 @@ export function buildAiOnlyHabitDecompositionPrompt(
     "Choose 2 micro-actions by default. Use 3 only if clearly useful.",
     "todayAction must match microActions[0]. fallbackAction must match todayAction.fallbackAction.",
     locale === "ko" ? "Write all user-facing strings in Korean." : "Write all user-facing strings in English.",
-    `DATA: ${buildPromptPayload(input, goalCategory, failureReason)}`,
+    `DATA: ${buildPromptPayload(input, classification, failureReason)}`,
   ].join("\n");
 }
 
 export function buildHybridRewritePrompt(
   input: OnboardingInput,
-  goalCategory: GoalArchetype,
+  classification: GoalClassification | GoalArchetype,
   draft: Omit<HabitDecomposition, "source">,
   failureReason?: FailureReason,
   locale: Locale = "ko",
@@ -66,13 +86,21 @@ export function buildHybridRewritePrompt(
     "Make fallback actions clearly smaller than the main action.",
     "Do not add motivation, praise, or long explanations.",
     locale === "ko" ? "Write all user-facing strings in Korean." : "Write all user-facing strings in English.",
-    `DATA: ${buildPromptPayload(input, goalCategory, failureReason)}`,
+    `DATA: ${buildPromptPayload(input, classification, failureReason)}`,
     `DRAFT: ${JSON.stringify(draft)}`,
   ].join("\n");
 }
 
 export function buildHabitDecompositionPrompt(input: OnboardingInput, failureReason?: FailureReason, locale: Locale = "ko") {
-  return buildAiOnlyHabitDecompositionPrompt(input, "generic", failureReason, locale);
+  return buildAiOnlyHabitDecompositionPrompt(
+    input,
+    {
+      archetype: "generic",
+      intent: "start",
+    },
+    failureReason,
+    locale,
+  );
 }
 
 export const habitDecompositionJsonSchema = {
