@@ -1,6 +1,7 @@
 import type { Locale } from "@/lib/locale";
 import { buildAnchorLabel } from "@/lib/utils/habit";
 import { buildHabitDecompositionPrompt, habitDecompositionJsonSchema } from "@/lib/ai/prompt";
+import { validateDecompositionLocale } from "@/lib/ai/locale-validation";
 import { habitDecompositionSchema, microActionSchema, type HabitDecomposition, type MicroAction, type OnboardingInput } from "@/lib/validators/habit";
 import type { FailureReason } from "@/types";
 
@@ -299,6 +300,7 @@ export async function generateHabitDecomposition(
     const payload = await callOpenAI(prompt);
     const text = extractTextFromResponse(payload);
     const parsed = JSON.parse(text) as Omit<HabitDecomposition, "source">;
+    validateDecompositionLocale(parsed, input, locale);
 
     return normalizeDecomposition(parsed, input, "openai", failureReason, locale);
   } catch {

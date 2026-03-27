@@ -1,6 +1,7 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/client";
 import { syncAuthUserToAppUser } from "@/lib/supabase/app-user";
 import { getSupabaseServerClient } from "@/lib/supabase/server-client";
+import type { Locale } from "@/lib/locale";
 
 export async function getAuthenticatedUser() {
   const client = await getSupabaseServerClient();
@@ -11,14 +12,14 @@ export async function getAuthenticatedUser() {
   return user;
 }
 
-export async function syncAuthenticatedUser() {
+export async function syncAuthenticatedUser(locale?: Locale) {
   const user = await getAuthenticatedUser();
 
   if (!user) {
     return null;
   }
 
-  await syncAuthUserToAppUser(getSupabaseAdminClient(), user);
+  await syncAuthUserToAppUser(getSupabaseAdminClient(), user, locale);
   return user;
 }
 

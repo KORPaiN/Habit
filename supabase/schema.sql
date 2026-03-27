@@ -34,6 +34,7 @@ create table if not exists users (
   id uuid primary key,
   email text not null unique,
   display_name text,
+  locale text not null default 'en' check (locale in ('en', 'ko')),
   timezone text not null default 'Asia/Seoul',
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())

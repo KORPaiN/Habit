@@ -56,21 +56,6 @@ export function PageShell({
               {copy.navReview}
             </Link>
           </nav>
-          <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
-            <span>{copy.langLabel}</span>
-            <Link
-              className={cn("rounded-full px-3 py-1", locale === "en" ? "bg-[var(--primary)] text-white" : "bg-white/70")}
-              href={`/api/locale?value=en&redirect=${encodeURIComponent(path)}`}
-            >
-              {copy.langEnglish}
-            </Link>
-            <Link
-              className={cn("rounded-full px-3 py-1", locale === "ko" ? "bg-[var(--primary)] text-white" : "bg-white/70")}
-              href={`/api/locale?value=ko&redirect=${encodeURIComponent(path)}`}
-            >
-              {copy.langKorean}
-            </Link>
-          </div>
           {showAuthControls ? (
             <div className="flex items-center justify-end gap-2 text-xs text-[var(--muted)]">
               {auth?.isAuthenticated ? (

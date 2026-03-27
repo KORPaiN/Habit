@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import { buildHabitDecompositionPrompt } from "@/lib/ai/prompt";
 import { buildMockHabitDecomposition } from "@/lib/ai";
+import { isLocalizedString, validateDecompositionLocale } from "@/lib/ai/locale-validation";
 import { microActionSchema } from "@/lib/validators/habit";
 
 test("microActionSchema rejects vague action text", () => {
@@ -56,4 +57,44 @@ test("prompt template includes anti-vague and duration instructions", () => {
   assert.match(prompt, /Return JSON only/i);
   assert.match(prompt, /Reject vague phrasing/i);
   assert.match(prompt, /1 to 2 minutes/i);
+});
+
+test("locale validation accepts Korean strings when locale is ko", () => {
+  assert.equal(isLocalizedString('"' + "독서 습관 만들기" + '"에 필요한 것을 열고 멈추기', "ko", "독서 습관 만들기"), true);
+});
+
+test("locale validation accepts English strings when locale is en", () => {
+  assert.equal(isLocalizedString('Open what you need for "독서 습관 만들기" and stop there', "en", "독서 습관 만들기"), true);
+});
+
+test("locale validation rejects Korean text for English responses", () => {
+  assert.equal(isLocalizedString("한 문장만 읽기", "en", "Build a reading habit"), false);
+});
+
+test("validateDecompositionLocale throws on mixed-locale decomposition", () => {
+  assert.throws(() =>
+    validateDecompositionLocale(
+      {
+        goalSummary: "Start with one tiny visible step today.",
+        selectedAnchor: "Before bed",
+        microActions: [
+          {
+            title: "책을 펴고 한 페이지만 읽기",
+            reason: "A visible step is easier to begin.",
+            durationMinutes: 1,
+            fallbackAction: 'Open what you need for "Build a reading habit" and stop there',
+          },
+        ],
+        todayAction: {
+          title: "Open your book and read one page",
+          reason: "A visible step is easier to begin.",
+          durationMinutes: 1,
+          fallbackAction: 'Open what you need for "Build a reading habit" and stop there',
+        },
+        fallbackAction: 'Open what you need for "Build a reading habit" and stop there',
+      },
+      { goal: "Build a reading habit" },
+      "en",
+    ),
+  );
 });

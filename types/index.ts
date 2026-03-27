@@ -1,5 +1,6 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
+export type Locale = "en" | "ko";
 export type DifficultyLevel = "gentle" | "steady" | "hard";
 export type PreferredTime = "morning" | "afternoon" | "evening";
 export type GoalStatus = "active" | "paused" | "completed" | "archived";
@@ -26,6 +27,7 @@ export interface Database {
           id: string;
           email: string;
           display_name: string | null;
+          locale: Locale;
           timezone: string;
           created_at: string;
           updated_at: string;
@@ -34,6 +36,7 @@ export interface Database {
           id: string;
           email: string;
           display_name?: string | null;
+          locale?: Locale;
           timezone?: string;
           created_at?: string;
           updated_at?: string;
@@ -42,6 +45,7 @@ export interface Database {
           id?: string;
           email?: string;
           display_name?: string | null;
+          locale?: Locale;
           timezone?: string;
           created_at?: string;
           updated_at?: string;

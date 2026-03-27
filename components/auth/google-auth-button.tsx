@@ -9,9 +9,10 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 type GoogleAuthButtonProps = {
   locale: Locale;
   nextPath?: string;
+  signupLocale?: Locale;
 };
 
-export function GoogleAuthButton({ locale, nextPath = "/today" }: GoogleAuthButtonProps) {
+export function GoogleAuthButton({ locale, nextPath = "/today", signupLocale }: GoogleAuthButtonProps) {
   const [isPending, setIsPending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -30,11 +31,17 @@ export function GoogleAuthButton({ locale, nextPath = "/today" }: GoogleAuthButt
     setIsPending(true);
     setErrorMessage(null);
 
-    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
+    const redirectTo = new URL("/auth/callback", window.location.origin);
+    redirectTo.searchParams.set("next", nextPath);
+
+    if (signupLocale) {
+      redirectTo.searchParams.set("locale", signupLocale);
+    }
+
     const { error } = await client.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo,
+        redirectTo: redirectTo.toString(),
       },
     });
 

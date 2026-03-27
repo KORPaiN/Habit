@@ -3,13 +3,23 @@ import Link from "next/link";
 import { GoogleAuthButton } from "@/components/auth/google-auth-button";
 import { Card } from "@/components/ui/card";
 import { PageShell } from "@/components/ui/page-shell";
-import { getLocale } from "@/lib/locale";
+import { getLocale, isLocale, type Locale } from "@/lib/locale";
 import { getAuthShellState } from "@/lib/supabase/auth";
 
 export const dynamic = "force-dynamic";
 
-export default async function SignupPage() {
-  const locale = await getLocale();
+type SignupPageProps = {
+  searchParams?: Promise<{
+    locale?: string;
+  }>;
+};
+
+const localeOptions: Locale[] = ["en", "ko"];
+
+export default async function SignupPage({ searchParams }: SignupPageProps) {
+  const params = (await searchParams) ?? {};
+  const fallbackLocale = await getLocale();
+  const locale = isLocale(params.locale) ? params.locale : fallbackLocale;
   const auth = await getAuthShellState();
 
   return (
@@ -17,19 +27,47 @@ export default async function SignupPage() {
       auth={auth}
       showAuthControls={false}
       locale={locale}
-      path="/signup"
+      path={`/signup?locale=${locale}`}
       eyebrow={locale === "ko" ? "계정 만들기" : "Create account"}
-      title={locale === "ko" ? "Google 계정 하나로 바로 시작하세요." : "Start right away with your Google account."}
+      title={locale === "ko" ? "처음 언어를 고르면 이후에는 그대로 이어집니다." : "Choose your language once and keep the flow consistent."}
       description={
         locale === "ko"
-          ? "가입도 Google만 사용합니다. 한 번 연결하면 목표와 계획을 같은 계정으로 이어서 사용할 수 있어요."
-          : "Sign-up also uses Google only. Once connected, your goals and plans stay under the same account."
+          ? "가입할 때 선택한 언어로 계획과 화면이 계속 맞춰집니다. 가입 후에는 앱 안에서 언어를 바꿀 수 없어요."
+          : "The language you choose at sign-up becomes the language for your plans and interface. It cannot be changed inside the app later."
       }
       className="mx-auto max-w-xl"
     >
       <Card>
-        <div className="space-y-4">
-          <GoogleAuthButton locale={locale} nextPath="/onboarding" />
+        <div className="space-y-5">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
+              {locale === "ko" ? "언어 선택" : "Choose language"}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-3">
+              {localeOptions.map((option) => {
+                const isSelected = option === locale;
+
+                return (
+                  <Link
+                    key={option}
+                    href={`/signup?locale=${option}`}
+                    className={isSelected ? "rounded-full bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white" : "rounded-full bg-white/70 px-4 py-2 text-sm font-semibold text-[var(--foreground)]"}
+                  >
+                    {option === "ko" ? "한국어" : "English"}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+
+          <p className="rounded-2xl bg-white/70 p-4 text-sm leading-6 text-[var(--muted)]">
+            {locale === "ko"
+              ? "이 언어 선택은 첫 가입 때만 받습니다. 이후에는 저장된 언어로 AI 계획과 화면 문구가 계속 표시됩니다."
+              : "We ask for this only during sign-up. After that, the saved language keeps both the AI plan and the interface aligned."}
+          </p>
+
+          <GoogleAuthButton locale={locale} signupLocale={locale} nextPath="/onboarding" />
+
           <p className="rounded-2xl bg-white/70 p-4 text-sm leading-6 text-[var(--muted)]">
             {locale === "ko" ? "이 앱은 Google 로그인만 지원합니다." : "This app supports Google sign-in only."}
           </p>
