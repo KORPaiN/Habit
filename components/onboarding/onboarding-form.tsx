@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useFormStatus } from "react-dom";
 
 import { submitOnboarding } from "@/app/onboarding/actions";
 import { OnboardingPreview } from "@/components/onboarding/onboarding-preview";
@@ -21,6 +22,22 @@ type OnboardingFormProps = {
 };
 
 const DRAFT_KEY = "habit_onboarding_draft";
+
+function OnboardingSubmitButton({ locale }: { locale: Locale }) {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button type="submit" fullWidth disabled={pending}>
+      {pending
+        ? locale === "ko"
+          ? "마이크로 플랜 만드는 중..."
+          : "Generating micro-plan..."
+        : locale === "ko"
+          ? "마이크로 플랜 만들기"
+          : "Generate micro-plan"}
+    </Button>
+  );
+}
 
 function buildPreviewPlan(values: OnboardingInput, locale: Locale) {
   const normalizedGoal = values.goal.trim() || mockOnboardingData.goal;
@@ -235,9 +252,14 @@ export function OnboardingForm({ locale, isAuthenticated, error }: OnboardingFor
             </div>
           ) : null}
           {isAuthenticated ? (
-            <Button type="submit" fullWidth>
-              {locale === "ko" ? "마이크로 플랜 만들기" : "Generate micro-plan"}
-            </Button>
+            <>
+              <OnboardingSubmitButton locale={locale} />
+              <p className="text-center text-xs leading-5 text-[var(--muted)]">
+                {locale === "ko"
+                  ? "AI 응답 상태에 따라 몇 초에서 조금 더 걸릴 수 있어요."
+                  : "This can take a few seconds depending on the AI response."}
+              </p>
+            </>
           ) : (
             <Link href="/login?next=%2Fonboarding">
               <Button type="button" fullWidth>
