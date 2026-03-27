@@ -2,60 +2,75 @@
 
 시작이 어려운 사람을 위한 실행 중심 마이크로 습관 코치입니다.
 
-이 앱은 일반적인 습관 기록장이 아닙니다. 큰 목표를 오늘 바로 할 수 있는 1~5분짜리 아주 작은 행동으로 바꾸고, 그것마저 어렵다면 사용자를 압박하는 대신 행동 크기를 다시 줄여주는 데 초점을 둡니다.
+Habit은 일반적인 습관 기록 앱이 아닙니다. 큰 목표를 오늘 바로 할 수 있는 1~5분짜리 작은 행동으로 바꾸고, 실패했을 때는 의지 부족으로 몰아가지 않고 행동 크기를 더 줄여 다시 시작할 수 있게 돕는 서비스입니다.
 
-## 현재 MVP 상태
+## 현재 구현 범위
 
-현재 구현된 범위:
+현재 프로젝트에 구현되어 있는 기능:
 
 - 랜딩 페이지
-- Supabase Auth 기반 Google 전용 로그인/회원가입 흐름
-- 목표, 난이도, 가능 시간, 선호 시간대, 앵커를 받는 온보딩
-- JSON 전용 출력 규칙을 따르는 AI 마이크로 액션 생성
-- 오늘의 행동 1개와 fallback 행동을 보여주는 Today 화면
-- 행동이 부담스러울 때 더 작게 줄이는 복구 흐름
-- 주간 패턴을 요약하는 Weekly Review 화면
-- Supabase 스키마, 마이그레이션, RPC 기반 서비스 레이어, 기본 시드 데이터
-- API 요청 payload에 대한 Zod 검증
-- 순수 유틸 함수와 검증 로직에 대한 기본 테스트
+- Google 전용 로그인/회원가입 흐름
+- 온보딩
+  - 목표 입력
+  - 체감 난이도 입력
+  - 사용 가능 시간 입력
+  - 선호 시간대 선택
+  - 앵커(anchor) 선택 또는 저장된 앵커 재사용
+- AI 기반 마이크로 액션 계획 생성
+- 오늘의 행동 화면
+- 실패 복구 흐름
+- 월별 리뷰 화면
+- 앵커 저장/삭제 화면
+- Supabase 기반 사용자/목표/플랜/리뷰 데이터 처리
+- API payload Zod 검증
+- 기본 보안 유틸
+  - same-origin 검사
+  - rate limit
+  - idempotency
+  - 보안 헤더
 
-아직 남아 있는 부분:
+아직 문서상 명확히 구분해둘 점:
 
-- `.env.example` 파일은 아직 없습니다
-- 주간 리뷰 문구는 아직 AI 생성이 아니라 서비스 레이어의 규칙 기반 생성입니다
-- Supabase 또는 OpenAI를 사용할 수 없을 때 일부 화면은 mock/demo 데이터로 fallback 됩니다
+- README에서 설명하는 기능 중 일부는 mock/demo 데이터 fallback을 사용합니다.
+- 리뷰 문구 생성은 현재 파일 기준으로 AI 요약보다 규칙 기반 상태 조합이 포함되어 있습니다.
+- `.env.example` 파일은 아직 없습니다.
 
-## 제품 핵심 루프
+## 핵심 제품 루프
 
 1. 사용자가 목표를 입력합니다.
-2. 시스템이 목표를 아주 작은 마이크로 액션으로 쪼갭니다.
-3. 사용자는 오늘 할 행동 하나를 받거나 선택합니다.
-4. 실패하면 의지 문제로 보지 않고 행동을 더 작게 줄입니다.
-5. 주간 리뷰에서 무엇이 도움이 됐고 무엇이 어려웠는지 확인합니다.
+2. 시스템이 목표를 아주 작은 행동들로 나눕니다.
+3. 오늘 할 행동 하나에 집중합니다.
+4. 행동이 너무 크면 더 작게 줄입니다.
+5. 리뷰에서 패턴을 보고 다음 조정을 정합니다.
 
 ## 기술 스택
 
 - Next.js 15 App Router
 - TypeScript
+- React 19
 - Tailwind CSS v4
 - Supabase
 - Zod
 - OpenAI Responses API
 
-## 주요 화면 경로
+## 주요 경로
 
 - `/` 랜딩 페이지
-- `/login` Google 로그인
-- `/signup` Google 회원가입 진입
-- `/onboarding` 온보딩 폼 및 실시간 계획 미리보기
-- `/today` 오늘의 행동 화면
-- `/recover` 실패 복구 흐름
-- `/review` 주간 리뷰 화면
+- `/login` 로그인
+- `/signup` 회원가입 및 언어 확정
+- `/onboarding` 온보딩
+- `/onboarding/help` 온보딩 도움말
+- `/today` 오늘의 행동
+- `/recover` 실패 복구
+- `/review` 월별 리뷰
+- `/anchors` 저장된 앵커 관리
+- `/auth/callback` Google OAuth 콜백
 
-## API 구성
+## API 엔드포인트
 
 현재 포함된 Route Handler:
 
+- `GET /api/locale`
 - `POST /api/onboarding`
 - `POST /api/plans`
 - `POST /api/daily-actions`
@@ -63,15 +78,15 @@
 - `POST /api/daily-actions/:dailyActionId/failure`
 - `GET /api/weekly-reviews`
 - `PUT /api/weekly-reviews`
-- `GET /api/locale`
 
-모든 요청 payload는 서비스 레이어로 들어가기 전에 Zod로 검증합니다.
+모든 주요 요청 payload는 `lib/validators` 아래 Zod 스키마로 검증합니다.
 
-## 프로젝트 구조
+## 폴더 구조
 
 ```text
 app/
   api/
+  anchors/
   auth/
   login/
   onboarding/
@@ -89,6 +104,7 @@ components/
 
 lib/
   ai/
+  security/
   supabase/
   utils/
   validators/
@@ -102,7 +118,29 @@ tests/
   ai.test.ts
   backend.test.ts
   habit.test.ts
+  security.test.ts
 ```
+
+## 주요 파일 설명
+
+- `app/onboarding/page.tsx`
+  온보딩 메인 화면입니다.
+- `components/onboarding/onboarding-form.tsx`
+  실제 온보딩 입력 폼입니다.
+- `app/today/page.tsx`
+  오늘의 행동과 fallback 행동을 보여줍니다.
+- `components/today/recovery-flow.tsx`
+  실패 시 행동을 더 작게 줄이는 흐름을 담당합니다.
+- `app/review/page.tsx`
+  월 선택과 달력형 리뷰를 보여줍니다.
+- `app/anchors/page.tsx`
+  저장된 앵커를 관리합니다.
+- `lib/ai/index.ts`
+  AI 계획 생성 및 fallback decomposition 로직이 들어 있습니다.
+- `lib/supabase/habit-service.ts`
+  Supabase RPC와 데이터 접근 로직의 중심입니다.
+- `lib/security/route-guard.ts`
+  인증, same-origin, rate limit 관련 보호 로직이 들어 있습니다.
 
 ## 로컬 실행 방법
 
@@ -112,7 +150,7 @@ tests/
 npm install
 ```
 
-2. `C:\Habit\.env.local` 파일을 만들고 아래 값을 채웁니다.
+2. 프로젝트 루트에 `.env.local` 파일을 만들고 값을 채웁니다.
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=...
@@ -122,9 +160,18 @@ OPENAI_API_KEY=...
 OPENAI_MODEL=gpt-5
 ```
 
-3. Supabase SQL Editor에서 데이터베이스 스키마를 적용합니다.
+3. Supabase에 스키마와 시드 데이터를 적용합니다.
+
+먼저 실행:
 
 - `supabase/migrations/20260327190000_initial_schema.sql`
+- `supabase/migrations/20260327235900_default_locale_ko.sql`
+- `supabase/migrations/20260328103000_add_notification_preferences_example.sql`
+- `supabase/migrations/20260328113000_add_user_locale.sql`
+- `supabase/migrations/20260328123000_reuse_existing_anchors.sql`
+
+필요하면 추가로:
+
 - `supabase/seed.sql`
 
 4. 개발 서버를 실행합니다.
@@ -133,40 +180,78 @@ OPENAI_MODEL=gpt-5
 npm run dev
 ```
 
-5. [http://localhost:3000](http://localhost:3000)에서 확인합니다.
+포트를 지정해서 실행하려면:
+
+```bash
+npm run dev -- -p 3002
+```
+
+5. 브라우저에서 앱을 확인합니다.
+
+- 기본: `http://localhost:3000`
+- 예시: `http://localhost:3002`
 
 ## AI 동작 원칙
 
-AI 분해 로직은 아래 규칙을 따르도록 설계되어 있습니다.
+현재 코드 기준 AI 계획 생성 로직은 아래 원칙을 따릅니다.
 
-- JSON만 반환할 것
-- 1~5분 안에 끝나는 행동을 만들 것
-- 모호한 표현을 피할 것
-- 관찰 가능한 행동을 우선할 것
-- fallback 행동을 반드시 포함할 것
-- 실패 이유가 `too_big`이면 행동을 더 작게 줄일 것
+- JSON만 반환하도록 유도
+- 1~5분 내 행동 생성
+- 모호한 표현 방지
+- 관찰 가능한 행동 우선
+- fallback 행동 필수
+- 실패 이유가 `too_big`일 때 더 작은 행동으로 재설계
 
-OpenAI 요청이 실패하거나 API 키가 없으면, UI가 계속 동작할 수 있도록 결정적인 mock decomposition으로 fallback 됩니다.
+OpenAI 호출이 실패하거나 설정이 없으면 `lib/ai/index.ts`에서 mock decomposition으로 fallback 합니다.
+
+## 인증과 사용자 흐름
+
+- 인증은 Google OAuth 중심입니다.
+- 회원가입 시 언어를 먼저 확정하는 흐름이 있습니다.
+- Supabase Auth 사용자와 앱 사용자 정보를 동기화하는 로직이 포함되어 있습니다.
+- 서버 전용 Supabase 클라이언트와 브라우저 전용 클라이언트가 분리되어 있습니다.
+
+관련 파일:
+
+- `lib/supabase/server-client.ts`
+- `lib/supabase/browser-client.ts`
+- `lib/supabase/auth.ts`
+- `lib/supabase/app-user.ts`
+
+## 보안 관련 구현
+
+`lib/security` 아래에 기본 보안 유틸이 들어 있습니다.
+
+- `headers.ts`
+  CSP, `X-Frame-Options`, `X-Content-Type-Options` 등 보안 헤더
+- `rate-limit.ts`
+  메모리 기반 rate limit 유틸
+- `idempotency.ts`
+  중복 요청 재처리 방지
+- `route-guard.ts`
+  인증 사용자 확인, same-origin 검사, rate limit 적용
+- `events.ts`
+  보안 이벤트 로깅 유틸
+
+관련 테스트는 `tests/security.test.ts`에 있습니다.
 
 ## Supabase 운영 메모
 
-데이터베이스 변경은 `supabase/migrations` 기준으로 관리합니다.
+DB 변경은 `supabase/migrations` 기준으로 관리합니다.
 
-- `supabase/migrations/20260327190000_initial_schema.sql`: 초기 스키마
-- `supabase/migrations/20260328103000_add_notification_preferences_example.sql`: 후속 마이그레이션 예시
-- `supabase/schema.sql`: 전체 스키마 스냅샷
-- `supabase/seed.sql`: 로컬/데모 확인용 시드 데이터
+현재 포함된 마이그레이션:
 
-현재 서비스 레이어는 아래 작업을 Supabase RPC 함수에 의존합니다.
+- `20260327190000_initial_schema.sql`
+- `20260327235900_default_locale_ko.sql`
+- `20260328103000_add_notification_preferences_example.sql`
+- `20260328113000_add_user_locale.sql`
+- `20260328123000_reuse_existing_anchors.sql`
 
-- 온보딩 목표 생성
-- 플랜 버전 생성
-- 일일 행동 배정
-- 일일 행동 완료 처리
-- 실패 보고 처리
-- 주간 리뷰 upsert
+참고 파일:
 
-또한 `middleware.ts`에서 앱 요청 시 Supabase 인증 상태를 갱신합니다.
+- `supabase/schema.sql`
+- `supabase/seed.sql`
+- `docs/supabase-github-checklist.md`
 
 ## 테스트
 
@@ -179,12 +264,13 @@ npx tsc --noEmit
 
 현재 테스트 범위:
 
-- habit 유틸 함수 동작
-- AI 프롬프트 및 decomposition 제약
-- 백엔드 검증 로직과 플랜 매핑 유틸
+- 습관 유틸 동작
+- AI 프롬프트/행동 제약
+- 백엔드 검증 로직
+- 보안 유틸 동작
 
-## 동작 메모
+## 참고 사항
 
-- `today`, `recover`, `review` 화면은 Supabase가 연결되어 있으면 저장된 데이터를 기준으로 렌더링됩니다.
-- 라이브 데이터가 없거나 외부 서비스 호출에 실패하면 일부 흐름은 mock/demo 데이터로 fallback 됩니다.
-- 인증 방식은 현재 Google 전용입니다.
+- 일부 화면은 Supabase 연결 상태나 세션 상태에 따라 demo/mock 데이터를 사용합니다.
+- dev 서버에서 이전 캐시나 예전 로그 때문에 혼동될 수 있으므로, 오류 확인 시에는 새로 띄운 서버 기준으로 보는 것이 안전합니다.
+- 현재 작업 트리는 이미 다른 수정 사항도 포함하고 있을 수 있으므로 README는 그 상태를 최대한 반영해 재구성했습니다.
