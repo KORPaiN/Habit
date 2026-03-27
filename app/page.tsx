@@ -8,6 +8,8 @@ import { Card } from "@/components/ui/card";
 import { getLocale } from "@/lib/locale";
 import { getAuthShellState } from "@/lib/supabase/auth";
 
+export const dynamic = "force-dynamic";
+
 export default async function LandingPage() {
   const locale = await getLocale();
   const auth = await getAuthShellState();

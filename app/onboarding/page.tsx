@@ -36,8 +36,8 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
       title={locale === "ko" ? "목표를 더 가볍게 만들어볼게요." : "Let's make the goal lighter."}
       description={
         locale === "ko"
-          ? "몇 가지 짧은 질문만 답하면 실제로 시작 가능한 만큼 작은 계획으로 줄여드려요. 아래 미리보기는 저장할 때와 같은 서버 흐름으로 생성됩니다."
-          : "Answer a few short questions so the plan starts small enough to actually happen. The preview below is generated through the same server-side decomposition flow used when the plan is saved."
+          ? "몇 가지 짧은 질문만 답하면 실제로 시작 가능한 만큼 작은 계획으로 줄여드려요."
+          : "Answer a few short questions so the plan starts small enough to actually happen."
       }
       className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]"
     >
@@ -99,20 +99,21 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
           {!auth.isAuthenticated ? (
             <div className="rounded-3xl border border-[var(--border)] bg-white/70 px-4 py-3 text-sm leading-6 text-[var(--muted)]">
               {locale === "ko"
-                ? "계획을 실제로 저장하려면 먼저 Google로 로그인해야 합니다."
+                ? "계획을 저장하려면 먼저 Google로 로그인해야 합니다."
                 : "Sign in with Google first to save this plan to your account."}
             </div>
           ) : null}
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Button type="submit" fullWidth className="sm:flex-1">
+          {auth.isAuthenticated ? (
+            <Button type="submit" fullWidth>
               {locale === "ko" ? "마이크로 플랜 만들기" : "Generate micro-plan"}
             </Button>
-            <Link href="/login" className="sm:flex-1">
-              <Button variant="ghost" fullWidth>
+          ) : (
+            <Link href="/login?next=%2Fonboarding">
+              <Button type="button" fullWidth>
                 {locale === "ko" ? "Google 로그인" : "Sign in with Google"}
               </Button>
             </Link>
-          </div>
+          )}
         </form>
       </Card>
 
