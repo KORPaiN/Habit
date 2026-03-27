@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { clearHabitSession } from "@/lib/habit-session";
-import { getSupabaseServerClient } from "@/lib/supabase/client";
+import { getSupabaseServerClient } from "@/lib/supabase/server-client";
 
 export async function signOutAction() {
   const client = await getSupabaseServerClient();

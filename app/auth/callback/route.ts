@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 
 import { setHabitSession } from "@/lib/habit-session";
 import { syncAuthUserToAppUser } from "@/lib/supabase/app-user";
-import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/client";
+import { getSupabaseAdminClient } from "@/lib/supabase/client";
+import { getSupabaseServerClient } from "@/lib/supabase/server-client";
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);

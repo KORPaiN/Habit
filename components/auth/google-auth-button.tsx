@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import type { Locale } from "@/lib/locale";
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 
 type GoogleAuthButtonProps = {
   locale: Locale;

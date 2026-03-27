@@ -1,5 +1,6 @@
-import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/client";
+import { getSupabaseAdminClient } from "@/lib/supabase/client";
 import { syncAuthUserToAppUser } from "@/lib/supabase/app-user";
+import { getSupabaseServerClient } from "@/lib/supabase/server-client";
 
 export async function getAuthenticatedUser() {
   const client = await getSupabaseServerClient();
