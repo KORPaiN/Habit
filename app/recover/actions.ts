@@ -1,9 +1,10 @@
 "use server";
 
+import { getHabitSession, setHabitSession } from "@/lib/habit-session";
 import { generateHabitDecomposition } from "@/lib/ai";
-import { demoBackendIds, mockOnboardingData, mockPlan } from "@/lib/utils/mock-habit";
+import { getLocale } from "@/lib/locale";
 import { getSupabaseAdminClient } from "@/lib/supabase/client";
-import { getDemoRecoveryContext } from "@/lib/supabase/demo-data";
+import { getRecoveryContextFromSession } from "@/lib/supabase/demo-data";
 import { assignDailyAction, createPlanVersion, failDailyAction } from "@/lib/supabase/habit-service";
 import { mapGeneratedActionsToPlanInput, prioritizeSelectedMicroAction } from "@/lib/utils/habit-rules";
 import { microActionSchema } from "@/lib/validators/habit";
@@ -30,14 +31,25 @@ function canUseSupabase() {
 }
 
 export async function prepareRecoveryOptions(input: { failureReason: RecoveryReason }): Promise<RecoveryPreparationResult> {
+  const locale = await getLocale();
   const reason = failureReasonSchema.parse(input.failureReason);
-  const context = await getDemoRecoveryContext();
+  const session = await getHabitSession();
+  const context = await getRecoveryContextFromSession(session);
+
+  if (!context) {
+    throw new Error("Create a plan before opening recovery.");
+  }
+
   let savedFailure = false;
 
   if (canUseSupabase()) {
     try {
-      await failDailyAction(getSupabaseAdminClient(), demoBackendIds.dailyActionId, {
-        userId: demoBackendIds.userId,
+      if (!session.dailyActionId) {
+        throw new Error("Missing daily action id");
+      }
+
+      await failDailyAction(getSupabaseAdminClient(), session.dailyActionId, {
+        userId: session.userId,
         failureReason: reason,
         notes: "User opened recovery flow and asked for a smaller step.",
         createRecoveryPlan: false,
@@ -48,8 +60,9 @@ export async function prepareRecoveryOptions(input: { failureReason: RecoveryRea
     }
   }
 
-  const decomposition = await generateHabitDecomposition(context.onboarding ?? mockOnboardingData, {
+  const decomposition = await generateHabitDecomposition(context.onboarding, {
     failureReason: reason,
+    locale,
   });
 
   const options = decomposition.microActions.map((action, index) => ({
@@ -84,16 +97,21 @@ export async function saveRecoveryChoice(input: {
   }
 
   let savedSelection = false;
+  const session = await getHabitSession();
 
   if (canUseSupabase()) {
     try {
+      if (!session.goalId) {
+        throw new Error("Missing goal id");
+      }
+
       const prioritizedActions = prioritizeSelectedMicroAction(
         mapGeneratedActionsToPlanInput(options),
         input.selectedPosition,
       );
       const planResult = await createPlanVersion(getSupabaseAdminClient(), {
-        userId: demoBackendIds.userId,
-        goalId: demoBackendIds.goalId,
+        userId: session.userId,
+        goalId: session.goalId,
         source: "recovery",
         notes: `Recovery plan created after failure reason: ${reason}.`,
         microActions: prioritizedActions,
@@ -110,12 +128,19 @@ export async function saveRecoveryChoice(input: {
         throw new Error("Recovery plan did not return a selected micro-action.");
       }
 
-      await assignDailyAction(getSupabaseAdminClient(), {
-        userId: demoBackendIds.userId,
-        goalId: demoBackendIds.goalId,
+      const dailyAction = (await assignDailyAction(getSupabaseAdminClient(), {
+        userId: session.userId,
+        goalId: session.goalId,
         planId: plan.plan.id,
         microActionId: selectedMicroActionId,
         actionDate: new Date().toISOString().slice(0, 10),
+      })) as { id: string };
+
+      await setHabitSession({
+        ...session,
+        planId: plan.plan.id,
+        microActionId: selectedMicroActionId,
+        dailyActionId: dailyAction.id,
       });
 
       savedSelection = true;
@@ -131,10 +156,15 @@ export async function saveRecoveryChoice(input: {
 }
 
 export async function getRecoveryPageState() {
-  const context = await getDemoRecoveryContext();
+  const session = await getHabitSession();
+  const context = await getRecoveryContextFromSession(session);
+
+  if (!context) {
+    return null;
+  }
 
   return {
-    currentAction: context.currentAction ?? mockPlan[0],
-    goal: context.goal ?? mockOnboardingData.goal,
+    currentAction: context.currentAction,
+    goal: context.goal,
   };
 }

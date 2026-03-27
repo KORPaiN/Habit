@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { generateHabitDecomposition } from "@/lib/ai";
+import type { Locale } from "@/lib/locale";
 import type { Database } from "@/types";
 import type {
   AssignDailyActionRequest,
@@ -34,7 +35,7 @@ async function runRpc<T>(client: ServiceClient, fn: string, params: Record<strin
   return data as T;
 }
 
-export async function createOnboardingFlow(client: ServiceClient, input: OnboardingRequest) {
+export async function createOnboardingFlow(client: ServiceClient, input: OnboardingRequest & { locale?: Locale }) {
   const onboardingResult = await runRpc<{
     goal: { id: string };
     anchor: { id: string };
@@ -55,6 +56,8 @@ export async function createOnboardingFlow(client: ServiceClient, input: Onboard
     difficulty: input.difficulty,
     preferredTime: input.preferredTime,
     anchor: input.anchorKey,
+  }, {
+    locale: input.locale,
   });
 
   const generatedActions = input.microActions ?? mapGeneratedActionsToPlanInput(decomposition.microActions);
@@ -153,4 +156,94 @@ export async function getWeeklyReview(client: ServiceClient, input: { userId: st
   }
 
   return data;
+}
+
+export function getWeekStart(date = new Date()) {
+  const weekStart = new Date(date);
+  const day = weekStart.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  weekStart.setDate(weekStart.getDate() + diff);
+  weekStart.setHours(0, 0, 0, 0);
+  return weekStart.toISOString().slice(0, 10);
+}
+
+function countStatuses(statuses: Array<Database["public"]["Tables"]["daily_actions"]["Row"]["status"]>, target: Database["public"]["Tables"]["daily_actions"]["Row"]["status"]) {
+  return statuses.filter((status) => status === target).length;
+}
+
+function getBestStreak(statuses: Array<Database["public"]["Tables"]["daily_actions"]["Row"]["status"]>) {
+  let best = 0;
+  let current = 0;
+
+  for (const status of statuses) {
+    if (status === "completed") {
+      current += 1;
+      best = Math.max(best, current);
+    } else {
+      current = 0;
+    }
+  }
+
+  return best;
+}
+
+export async function generateWeeklyReview(client: ServiceClient, input: { userId: string; goalId: string; weekStart?: string }) {
+  const weekStart = input.weekStart ?? getWeekStart();
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 6);
+  const weekEndString = weekEnd.toISOString().slice(0, 10);
+
+  const { data, error } = await client
+    .from("daily_actions")
+    .select("status, used_fallback")
+    .eq("goal_id", input.goalId)
+    .gte("action_date", weekStart)
+    .lte("action_date", weekEndString)
+    .order("action_date", { ascending: true });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const rows = (data ?? []) as Array<{ status: Database["public"]["Tables"]["daily_actions"]["Row"]["status"]; used_fallback: boolean }>;
+  const statuses = rows.map((row) => row.status);
+  const completedDays = countStatuses(statuses, "completed");
+  const failedDays = countStatuses(statuses, "failed");
+  const skippedDays = countStatuses(statuses, "skipped");
+  const usedFallbackDays = rows.filter((row) => row.used_fallback).length;
+
+  const difficultMoments =
+    failedDays > 0
+      ? "Some days still asked for too much, so the step should get lighter again."
+      : skippedDays > 1
+        ? "The habit was easy to miss on busier days, which points to a cue problem more than a discipline problem."
+        : "Resistance stayed fairly low this week, so the current step size looks workable.";
+
+  const helpfulPattern =
+    usedFallbackDays > 0
+      ? "Having a fallback kept the streak alive on lower-energy days."
+      : completedDays >= 4
+        ? "Small, specific actions made it easier to begin without negotiation."
+        : "The easiest days were probably the ones with the least setup friction.";
+
+  const nextAdjustment =
+    failedDays > 0
+      ? "Lower the starting bar next week and make the fallback even more obvious."
+      : completedDays >= 4
+        ? "Keep the plan size steady and repeat the same tiny entry point."
+        : "Strengthen the anchor so the action shows up earlier in the day.";
+
+  return upsertWeeklyReview(client, {
+    userId: input.userId,
+    goalId: input.goalId,
+    weekStart,
+    completedDays,
+    skippedDays,
+    failedDays,
+    bestStreak: getBestStreak(statuses),
+    difficultMoments,
+    helpfulPattern,
+    nextAdjustment,
+    summary: null,
+  });
 }

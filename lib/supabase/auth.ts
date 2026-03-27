@@ -1,0 +1,22 @@
+import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/client";
+import { syncAuthUserToAppUser } from "@/lib/supabase/app-user";
+
+export async function getAuthenticatedUser() {
+  const client = await getSupabaseServerClient();
+  const {
+    data: { user },
+  } = await client.auth.getUser();
+
+  return user;
+}
+
+export async function syncAuthenticatedUser() {
+  const user = await getAuthenticatedUser();
+
+  if (!user) {
+    return null;
+  }
+
+  await syncAuthUserToAppUser(getSupabaseAdminClient(), user);
+  return user;
+}

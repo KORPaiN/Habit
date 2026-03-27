@@ -6,6 +6,7 @@ import { startTransition, useMemo, useState } from "react";
 import { prepareRecoveryOptions, saveRecoveryChoice, type RecoveryOption } from "@/app/recover/actions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import type { Locale } from "@/lib/locale";
 import { minutesLabel } from "@/lib/utils/habit";
 import type { MicroAction } from "@/lib/validators/habit";
 
@@ -14,31 +15,43 @@ const failureReasonOptions = [
     value: "too_big",
     label: "It felt too difficult",
     hint: "We will make the next version clearly smaller.",
+    labelKo: "너무 어렵게 느껴졌어요",
+    hintKo: "다음 버전을 더 분명하게 작게 만들게요.",
   },
   {
     value: "too_tired",
     label: "I was too tired",
     hint: "We will lower effort and friction.",
+    labelKo: "너무 피곤했어요",
+    hintKo: "필요한 힘과 마찰을 더 낮출게요.",
   },
   {
     value: "forgot",
     label: "I forgot",
     hint: "We will make the step easier to remember.",
+    labelKo: "잊어버렸어요",
+    hintKo: "더 떠올리기 쉬운 단계로 바꿀게요.",
   },
   {
     value: "schedule_conflict",
     label: "My schedule got in the way",
     hint: "We will reshape it for a tighter day.",
+    labelKo: "일정이 겹쳤어요",
+    hintKo: "바쁜 하루에도 맞도록 다시 설계할게요.",
   },
   {
     value: "low_motivation",
     label: "Starting felt heavy",
     hint: "We will remove more pressure from the first step.",
+    labelKo: "시작이 너무 무겁게 느껴졌어요",
+    hintKo: "첫 단계의 압박을 더 줄일게요.",
   },
   {
     value: "other",
     label: "Something else got in the way",
     hint: "We will still make the step gentler.",
+    labelKo: "다른 이유가 있었어요",
+    hintKo: "그래도 더 부드러운 단계로 바꿀게요.",
   },
 ] as const;
 
@@ -46,9 +59,10 @@ type RecoveryFlowProps = {
   currentAction: MicroAction;
   goal: string;
   initialReason?: (typeof failureReasonOptions)[number]["value"];
+  locale: Locale;
 };
 
-export function RecoveryFlow({ currentAction, goal, initialReason = "too_big" }: RecoveryFlowProps) {
+export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", locale }: RecoveryFlowProps) {
   const router = useRouter();
   const [failureReason, setFailureReason] = useState<(typeof failureReasonOptions)[number]["value"]>(initialReason);
   const [options, setOptions] = useState<RecoveryOption[]>([]);
@@ -72,9 +86,17 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big" }:
         setOptions(result.options);
         setSelectedPosition(result.options[0]?.position ?? 1);
         setStep("options");
-        setStatusMessage("You do not need more force. Pick the version that feels easiest to start.");
+        setStatusMessage(
+          locale === "ko"
+            ? "더 힘을 내려고 하지 않아도 돼요. 가장 시작하기 쉬운 버전을 고르세요."
+            : "You do not need more force. Pick the version that feels easiest to start.",
+        );
       } catch {
-        setStatusMessage("We could not reshape the step just yet. Please try again.");
+        setStatusMessage(
+          locale === "ko"
+            ? "아직 더 작은 단계로 바꾸지 못했어요. 다시 시도해 주세요."
+            : "We could not reshape the step just yet. Please try again.",
+        );
       } finally {
         setIsPending(false);
       }
@@ -107,7 +129,11 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big" }:
 
         router.push(`/today?${params.toString()}`);
       } catch {
-        setStatusMessage("We could not save that smaller step. Please try again.");
+        setStatusMessage(
+          locale === "ko"
+            ? "더 작은 단계를 저장하지 못했어요. 다시 시도해 주세요."
+            : "We could not save that smaller step. Please try again.",
+        );
         setIsPending(false);
       }
     });
@@ -116,24 +142,34 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big" }:
   return (
     <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
       <Card>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">Current action</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
+          {locale === "ko" ? "현재 행동" : "Current action"}
+        </p>
         <h2 className="mt-3 text-2xl font-semibold">{currentAction.title}</h2>
         <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{currentAction.reason}</p>
         <div className="mt-5 inline-flex rounded-full bg-[var(--primary-soft)] px-4 py-2 text-sm font-medium text-[var(--primary)]">
-          {minutesLabel(currentAction.durationMinutes)}
+          {minutesLabel(currentAction.durationMinutes, locale)}
         </div>
         <p className="mt-5 rounded-2xl bg-white/70 p-4 text-sm leading-6 text-[var(--muted)]">
-          This is a redesign moment, not a guilt moment. We only need the next step to feel safe enough to begin.
+          {locale === "ko"
+            ? "이건 자책의 순간이 아니라 재설계의 순간이에요. 다음 단계가 시작할 수 있을 만큼만 편하면 됩니다."
+            : "This is a redesign moment, not a guilt moment. We only need the next step to feel safe enough to begin."}
         </p>
       </Card>
 
       <Card className="bg-[var(--danger-soft)]">
         {step === "reason" ? (
           <>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9a3412]">Step 1</p>
-            <h2 className="mt-3 text-2xl font-semibold">What made this step feel hard today?</h2>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9a3412]">
+              {locale === "ko" ? "1단계" : "Step 1"}
+            </p>
+            <h2 className="mt-3 text-2xl font-semibold">
+              {locale === "ko" ? "오늘 이 단계가 왜 어려웠나요?" : "What made this step feel hard today?"}
+            </h2>
             <p className="mt-3 text-sm leading-6 text-slate-700">
-              Pick the closest reason. We will use it to make {goal.toLowerCase()} feel smaller, not stricter.
+              {locale === "ko"
+                ? `${goal.toLowerCase()}를 더 엄격하게가 아니라 더 작게 만들기 위해 가장 가까운 이유를 골라주세요.`
+                : `Pick the closest reason. We will use it to make ${goal.toLowerCase()} feel smaller, not stricter.`}
             </p>
             <div className="mt-6 space-y-3">
               {failureReasonOptions.map((option) => (
@@ -151,23 +187,29 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big" }:
                     checked={failureReason === option.value}
                     onChange={() => setFailureReason(option.value)}
                   />
-                  <p className="font-medium text-slate-900">{option.label}</p>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">{option.hint}</p>
+                  <p className="font-medium text-slate-900">{locale === "ko" ? option.labelKo : option.label}</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">{locale === "ko" ? option.hintKo : option.hint}</p>
                 </label>
               ))}
             </div>
             <div className="mt-6">
               <Button fullWidth onClick={handleReasonSubmit} disabled={isPending}>
-                {isPending ? "Making it smaller..." : "Show smaller options"}
+                {isPending ? (locale === "ko" ? "더 작게 바꾸는 중..." : "Making it smaller...") : locale === "ko" ? "더 작은 옵션 보기" : "Show smaller options"}
               </Button>
             </div>
           </>
         ) : (
           <>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9a3412]">Step 2</p>
-            <h2 className="mt-3 text-2xl font-semibold">Choose the easiest version you could do today</h2>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9a3412]">
+              {locale === "ko" ? "2단계" : "Step 2"}
+            </p>
+            <h2 className="mt-3 text-2xl font-semibold">
+              {locale === "ko" ? "오늘 할 수 있을 만큼 가장 쉬운 버전을 고르세요" : "Choose the easiest version you could do today"}
+            </h2>
             <p className="mt-3 text-sm leading-6 text-slate-700">
-              Smaller counts. The best choice is the one you can actually begin without bracing.
+              {locale === "ko"
+                ? "작을수록 괜찮아요. 마음을 다잡지 않아도 시작할 수 있는 선택이 가장 좋은 선택입니다."
+                : "Smaller counts. The best choice is the one you can actually begin without bracing."}
             </p>
             <div className="mt-6 space-y-3">
               {options.map((option) => (
@@ -191,16 +233,18 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big" }:
                       <p className="mt-1 text-sm leading-6 text-slate-600">{option.reason}</p>
                     </div>
                     <span className="rounded-full bg-[#fff7ed] px-3 py-1 text-xs font-semibold text-[#c2410c]">
-                      {minutesLabel(option.durationMinutes)}
+                      {minutesLabel(option.durationMinutes, locale)}
                     </span>
                   </div>
-                  <p className="mt-3 text-sm text-[#9a3412]">Fallback: {option.fallbackAction}</p>
+                  <p className="mt-3 text-sm text-[#9a3412]">
+                    {locale === "ko" ? "대체 행동" : "Fallback"}: {option.fallbackAction}
+                  </p>
                 </label>
               ))}
             </div>
             <div className="mt-6">
               <Button fullWidth onClick={handleChoiceSubmit} disabled={isPending || !selectedOption}>
-                {isPending ? "Saving your smaller step..." : "Use this smaller step"}
+                {isPending ? (locale === "ko" ? "더 작은 단계를 저장하는 중..." : "Saving your smaller step...") : locale === "ko" ? "이 더 작은 단계 사용하기" : "Use this smaller step"}
               </Button>
             </div>
           </>

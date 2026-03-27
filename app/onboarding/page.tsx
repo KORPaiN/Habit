@@ -1,74 +1,99 @@
 import Link from "next/link";
 
+import { submitOnboarding } from "@/app/onboarding/actions";
 import { OnboardingPreview } from "@/components/onboarding/onboarding-preview";
 import { PageShell } from "@/components/ui/page-shell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { mockOnboardingData } from "@/lib/utils/mock-habit";
-import { minutesLabel } from "@/lib/utils/habit";
 import { generateHabitDecomposition } from "@/lib/ai";
+import { getLocale } from "@/lib/locale";
+import { minutesLabel } from "@/lib/utils/habit";
+import { mockOnboardingData } from "@/lib/utils/mock-habit";
 
-export default async function OnboardingPage() {
-  const decomposition = await generateHabitDecomposition(mockOnboardingData);
+export const dynamic = "force-dynamic";
+
+type OnboardingPageProps = {
+  searchParams?: Promise<{
+    error?: string;
+  }>;
+};
+
+export default async function OnboardingPage({ searchParams }: OnboardingPageProps) {
+  const params = (await searchParams) ?? {};
+  const locale = await getLocale();
+  const decomposition = await generateHabitDecomposition(mockOnboardingData, { locale });
 
   return (
     <PageShell
-      eyebrow="Onboarding"
-      title="Let's make the goal lighter."
-      description="Answer a few short questions so the plan starts small enough to actually happen. The result preview now runs through the server-side AI decomposition flow with schema validation and a safe fallback."
+      locale={locale}
+      path="/onboarding"
+      eyebrow={locale === "ko" ? "온보딩" : "Onboarding"}
+      title={locale === "ko" ? "목표를 더 가볍게 만들어볼게요." : "Let's make the goal lighter."}
+      description={
+        locale === "ko"
+          ? "몇 가지 짧은 질문에 답하면 실제로 실행 가능한 만큼 작은 계획으로 시작할 수 있어요. 결과 미리보기는 서버 측 AI 분해 흐름과 안전한 fallback을 사용합니다."
+          : "Answer a few short questions so the plan starts small enough to actually happen. The preview below is generated through the same server-side decomposition flow used when the plan is saved."
+      }
       className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]"
     >
       <Card>
-        <form className="space-y-5">
+        <form action={submitOnboarding} className="space-y-5">
           <div>
-            <label className="mb-2 block text-sm font-medium">What goal do you want help starting?</label>
-            <Input defaultValue={mockOnboardingData.goal} placeholder="Example: build a reading habit" />
+            <label className="mb-2 block text-sm font-medium">{locale === "ko" ? "어떤 목표를 시작하는 데 도움을 받고 싶나요?" : "What goal do you want help starting?"}</label>
+            <Input name="goal" defaultValue={mockOnboardingData.goal} placeholder={locale === "ko" ? "예: 독서 습관 만들기" : "Example: build a reading habit"} />
           </div>
           <div className="grid gap-5 sm:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-medium">Available minutes</label>
-              <Input defaultValue={String(mockOnboardingData.availableMinutes)} type="number" min={1} max={30} />
+              <label className="mb-2 block text-sm font-medium">{locale === "ko" ? "가능한 시간(분)" : "Available minutes"}</label>
+              <Input name="availableMinutes" defaultValue={String(mockOnboardingData.availableMinutes)} type="number" min={1} max={30} />
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium">Perceived difficulty</label>
-              <Select defaultValue={mockOnboardingData.difficulty}>
-                <option value="gentle">Gentle</option>
-                <option value="steady">Steady</option>
-                <option value="hard">Hard</option>
+              <label className="mb-2 block text-sm font-medium">{locale === "ko" ? "체감 난이도" : "Perceived difficulty"}</label>
+              <Select name="difficulty" defaultValue={mockOnboardingData.difficulty}>
+                <option value="gentle">{locale === "ko" ? "가벼움" : "Gentle"}</option>
+                <option value="steady">{locale === "ko" ? "보통" : "Steady"}</option>
+                <option value="hard">{locale === "ko" ? "어려움" : "Hard"}</option>
               </Select>
             </div>
           </div>
           <div className="grid gap-5 sm:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-medium">Preferred time</label>
-              <Select defaultValue={mockOnboardingData.preferredTime}>
-                <option value="morning">Morning</option>
-                <option value="afternoon">Afternoon</option>
-                <option value="evening">Evening</option>
+              <label className="mb-2 block text-sm font-medium">{locale === "ko" ? "선호 시간대" : "Preferred time"}</label>
+              <Select name="preferredTime" defaultValue={mockOnboardingData.preferredTime}>
+                <option value="morning">{locale === "ko" ? "아침" : "Morning"}</option>
+                <option value="afternoon">{locale === "ko" ? "오후" : "Afternoon"}</option>
+                <option value="evening">{locale === "ko" ? "저녁" : "Evening"}</option>
               </Select>
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium">Anchor</label>
-              <Select defaultValue={mockOnboardingData.anchor}>
-                <option value="after-coffee">After coffee</option>
-                <option value="after-shower">After shower</option>
-                <option value="before-work">Before work</option>
-                <option value="before-bed">Before bed</option>
+              <label className="mb-2 block text-sm font-medium">{locale === "ko" ? "앵커" : "Anchor"}</label>
+              <Select name="anchor" defaultValue={mockOnboardingData.anchor}>
+                <option value="after-coffee">{locale === "ko" ? "커피 마신 뒤" : "After coffee"}</option>
+                <option value="after-shower">{locale === "ko" ? "샤워한 뒤" : "After shower"}</option>
+                <option value="before-work">{locale === "ko" ? "일 시작 전" : "Before work"}</option>
+                <option value="before-bed">{locale === "ko" ? "잠들기 전" : "Before bed"}</option>
               </Select>
             </div>
           </div>
           <div className="rounded-3xl bg-[var(--primary-soft)] p-4 text-sm leading-6 text-[var(--primary)]">
-            We keep this short on purpose. You only need enough detail to shape today&apos;s first tiny step.
+            {locale === "ko"
+              ? "일부러 짧게 묻습니다. 오늘의 첫 아주 작은 단계를 만들 만큼의 정보면 충분해요."
+              : "We keep this short on purpose. You only need enough detail to shape today's first tiny step."}
           </div>
+          {params.error ? (
+            <div className="rounded-3xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+              {params.error}
+            </div>
+          ) : null}
           <div className="flex flex-col gap-3 sm:flex-row">
-            <Link href="/today" className="sm:flex-1">
-              <Button fullWidth>Generate micro-plan</Button>
-            </Link>
+            <Button type="submit" fullWidth className="sm:flex-1">
+              {locale === "ko" ? "마이크로 플랜 만들기" : "Generate micro-plan"}
+            </Button>
             <Link href="/login" className="sm:flex-1">
               <Button variant="ghost" fullWidth>
-                Save later
+                {locale === "ko" ? "나중에 저장" : "Save later"}
               </Button>
             </Link>
           </div>
@@ -76,33 +101,33 @@ export default async function OnboardingPage() {
       </Card>
 
       <div className="grid gap-6">
-        <OnboardingPreview values={mockOnboardingData} />
+        <OnboardingPreview values={mockOnboardingData} locale={locale} />
         <Card>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">Onboarding result</p>
-              <h3 className="mt-2 text-xl font-semibold">A calmer first plan for today</h3>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">{locale === "ko" ? "온보딩 결과" : "Onboarding result"}</p>
+              <h3 className="mt-2 text-xl font-semibold">{locale === "ko" ? "오늘을 위한 더 차분한 첫 계획" : "A calmer first plan for today"}</h3>
             </div>
             <span className="rounded-full bg-[var(--primary-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--primary)]">
-              {decomposition.source === "openai" ? "AI live" : "Fallback mock"}
+              {decomposition.source === "openai" ? (locale === "ko" ? "실시간 AI" : "AI live") : locale === "ko" ? "대체 목 데이터" : "Fallback plan"}
             </span>
           </div>
 
           <p className="mt-4 text-sm leading-6 text-[var(--muted)]">{decomposition.goalSummary}</p>
 
           <div className="mt-5 rounded-3xl bg-white/70 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--primary)]">Selected anchor</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--primary)]">{locale === "ko" ? "선택된 앵커" : "Selected anchor"}</p>
             <p className="mt-2 font-medium">{decomposition.selectedAnchor}</p>
           </div>
 
           <div className="mt-4 rounded-3xl bg-[var(--primary-soft)] p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--primary)]">Today action</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--primary)]">{locale === "ko" ? "오늘의 행동" : "Today action"}</p>
             <p className="mt-2 text-lg font-semibold">{decomposition.todayAction.title}</p>
             <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{decomposition.todayAction.reason}</p>
             <p className="mt-3 inline-flex rounded-full bg-white/80 px-3 py-1 text-sm font-medium text-[var(--primary)]">
-              {minutesLabel(decomposition.todayAction.durationMinutes)}
+              {minutesLabel(decomposition.todayAction.durationMinutes, locale)}
             </p>
-            <p className="mt-3 text-sm text-[var(--primary)]">Fallback: {decomposition.fallbackAction}</p>
+            <p className="mt-3 text-sm text-[var(--primary)]">{locale === "ko" ? "대체 행동" : "Fallback"}: {decomposition.fallbackAction}</p>
           </div>
 
           <div className="mt-4 space-y-4">
@@ -111,8 +136,8 @@ export default async function OnboardingPage() {
                 <p className="font-medium">{action.title}</p>
                 <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{action.reason}</p>
                 <div className="mt-3 flex items-center justify-between gap-4 text-sm">
-                  <span className="text-[var(--primary)]">Fallback: {action.fallbackAction}</span>
-                  <span className="text-[var(--muted)]">{minutesLabel(action.durationMinutes)}</span>
+                  <span className="text-[var(--primary)]">{locale === "ko" ? "대체 행동" : "Fallback"}: {action.fallbackAction}</span>
+                  <span className="text-[var(--muted)]">{minutesLabel(action.durationMinutes, locale)}</span>
                 </div>
               </div>
             ))}

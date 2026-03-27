@@ -1,14 +1,23 @@
+import type { Locale } from "@/lib/locale";
 import type { OnboardingInput } from "@/lib/validators/habit";
 import type { FailureReason } from "@/types";
 
-const anchorLabels: Record<OnboardingInput["anchor"], string> = {
-  "after-coffee": "After coffee",
-  "after-shower": "After your shower",
-  "before-work": "Before work",
-  "before-bed": "Before bed",
+const anchorLabels: Record<Locale, Record<OnboardingInput["anchor"], string>> = {
+  en: {
+    "after-coffee": "After coffee",
+    "after-shower": "After your shower",
+    "before-work": "Before work",
+    "before-bed": "Before bed",
+  },
+  ko: {
+    "after-coffee": "커피 마신 뒤",
+    "after-shower": "샤워한 뒤",
+    "before-work": "일 시작 전",
+    "before-bed": "잠들기 전",
+  },
 };
 
-export function buildHabitDecompositionPrompt(input: OnboardingInput, failureReason?: FailureReason) {
+export function buildHabitDecompositionPrompt(input: OnboardingInput, failureReason?: FailureReason, locale: Locale = "en") {
   const difficultyInstruction =
     input.difficulty === "hard"
       ? "The user feels high difficulty. Make actions extra small, usually 1 to 2 minutes, and make fallback actions even lighter."
@@ -31,12 +40,13 @@ export function buildHabitDecompositionPrompt(input: OnboardingInput, failureRea
     "Select one best anchor based on the user's preferred anchor and time window.",
     "todayAction must exactly match one item from microActions.",
     "fallbackAction must be the fallbackAction of todayAction.",
+    locale === "ko" ? "Write all user-facing strings in Korean." : "Write all user-facing strings in English.",
     "",
     `Goal: ${input.goal}`,
     `Available minutes: ${input.availableMinutes}`,
     `Difficulty: ${input.difficulty}`,
     `Preferred time: ${input.preferredTime}`,
-    `Preferred anchor: ${anchorLabels[input.anchor]}`,
+    `Preferred anchor: ${anchorLabels[locale][input.anchor]}`,
     failureReason ? `Failure reason: ${failureReason}` : "Failure reason: none",
   ].join("\n");
 }

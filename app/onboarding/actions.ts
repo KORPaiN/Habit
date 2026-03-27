@@ -1,0 +1,90 @@
+"use server";
+
+import { redirect } from "next/navigation";
+
+import { getLocale } from "@/lib/locale";
+import { assignDailyAction, createOnboardingFlow } from "@/lib/supabase/habit-service";
+import { ensureAppUser } from "@/lib/supabase/app-user";
+import { getAuthenticatedUser, syncAuthenticatedUser } from "@/lib/supabase/auth";
+import { getSupabaseAdminClient } from "@/lib/supabase/client";
+import { setHabitSession } from "@/lib/habit-session";
+import { buildAnchorLabel } from "@/lib/utils/habit";
+import { onboardingSchema } from "@/lib/validators/habit";
+
+function buildAnchorCue(anchor: ReturnType<typeof onboardingSchema.parse>["anchor"]) {
+  const cues: Record<ReturnType<typeof onboardingSchema.parse>["anchor"], string> = {
+    "after-coffee": "Right after your first sip of coffee.",
+    "after-shower": "As soon as you finish your shower.",
+    "before-work": "Just before you start work.",
+    "before-bed": "Right before getting into bed.",
+  };
+
+  return cues[anchor];
+}
+
+export async function submitOnboarding(formData: FormData) {
+  const locale = await getLocale();
+  const parsed = onboardingSchema.parse({
+    goal: formData.get("goal"),
+    availableMinutes: formData.get("availableMinutes"),
+    difficulty: formData.get("difficulty"),
+    preferredTime: formData.get("preferredTime"),
+    anchor: formData.get("anchor"),
+  });
+
+  try {
+    const client = getSupabaseAdminClient();
+    const authenticatedUser = await getAuthenticatedUser();
+
+    if (authenticatedUser) {
+      await syncAuthenticatedUser();
+    }
+
+    const userId = authenticatedUser?.id ?? (await ensureAppUser(client));
+    const result = (await createOnboardingFlow(client, {
+      userId,
+      goalTitle: parsed.goal,
+      goalWhy: null,
+      difficulty: parsed.difficulty,
+      availableMinutes: parsed.availableMinutes,
+      anchorKey: parsed.anchor,
+      anchorLabel: buildAnchorLabel(parsed.anchor, locale),
+      anchorCue: buildAnchorCue(parsed.anchor),
+      preferredTime: parsed.preferredTime,
+      locale,
+    })) as {
+      goal: { id: string };
+      initialPlan: {
+        plan: { id: string };
+        micro_actions: Array<{ id: string; position: number }>;
+      };
+    };
+
+    const selectedMicroAction = result.initialPlan.micro_actions.find((action) => action.position === 1);
+
+    if (!selectedMicroAction) {
+      throw new Error("The onboarding plan did not include a first action.");
+    }
+
+    const dailyAction = (await assignDailyAction(client, {
+      userId,
+      goalId: result.goal.id,
+      planId: result.initialPlan.plan.id,
+      microActionId: selectedMicroAction.id,
+      actionDate: new Date().toISOString().slice(0, 10),
+    })) as { id: string };
+
+    await setHabitSession({
+      userId,
+      goalId: result.goal.id,
+      planId: result.initialPlan.plan.id,
+      microActionId: selectedMicroAction.id,
+      dailyActionId: dailyAction.id,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : locale === "ko" ? "첫 계획을 만들지 못했어요." : "We could not create your first plan.";
+    redirect(`/onboarding?error=${encodeURIComponent(message)}`);
+  }
+
+  redirect("/today");
+}
