@@ -10,6 +10,7 @@ import { getLocale } from "@/lib/locale";
 import { getAuthenticatedUser, getAuthShellState } from "@/lib/supabase/auth";
 import { getUserAnchors } from "@/lib/supabase/habit-service";
 import { getSupabaseServerClient } from "@/lib/supabase/server-client";
+import { buildAnchorsPath, sanitizeReturnPath } from "@/lib/utils/return-path";
 import type { Database } from "@/types";
 
 type AnchorsPageProps = {
@@ -17,6 +18,7 @@ type AnchorsPageProps = {
     saved?: string;
     deleted?: string;
     error?: string;
+    returnTo?: string;
   }>;
 };
 
@@ -25,6 +27,7 @@ export default async function AnchorsPage({ searchParams }: AnchorsPageProps) {
   const locale = await getLocale();
   const auth = await getAuthShellState();
   const user = await getAuthenticatedUser();
+  const returnTo = sanitizeReturnPath(params.returnTo);
   const anchors: Array<Pick<Database["public"]["Tables"]["anchors"]["Row"], "id" | "cue" | "label" | "preferred_time" | "updated_at">> =
     user ? await getUserAnchors(await getSupabaseServerClient(), user.id) : [];
 
@@ -32,7 +35,7 @@ export default async function AnchorsPage({ searchParams }: AnchorsPageProps) {
     <PageShell
       auth={auth}
       locale={locale}
-      path="/anchors"
+      path={buildAnchorsPath({ returnTo })}
       title={locale === "ko" ? "저장된 기존 습관" : "Saved cues"}
       description={locale === "ko" ? "자주 하는 일을 저장해두면 바로 다시 고를 수 있어요." : "Save cues you reuse often so onboarding can reuse them quickly."}
       className="mx-auto max-w-3xl"
@@ -47,6 +50,7 @@ export default async function AnchorsPage({ searchParams }: AnchorsPageProps) {
         ) : (
           <Card className="bg-[var(--surface-strong)]">
             <form action={saveAnchorAction} className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+              <input type="hidden" name="returnTo" value={returnTo} />
               <div>
                 <label className="mb-2 block text-sm font-medium text-[var(--foreground-soft)]">
                   {locale === "ko" ? "기존 습관" : "Cue"}
@@ -64,7 +68,7 @@ export default async function AnchorsPage({ searchParams }: AnchorsPageProps) {
         <Card className="bg-[var(--surface-strong)]">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold">{locale === "ko" ? "저장된 기존 습관" : "Saved cues"}</h2>
-            <Link href="/onboarding">
+            <Link href={returnTo as any}>
               <Button variant="ghost" size="sm">{locale === "ko" ? "온보딩으로" : "Back to onboarding"}</Button>
             </Link>
           </div>
@@ -80,6 +84,7 @@ export default async function AnchorsPage({ searchParams }: AnchorsPageProps) {
                   <span>{anchor.cue}</span>
                   <form action={deleteAnchorAction}>
                     <input type="hidden" name="anchorId" value={anchor.id} />
+                    <input type="hidden" name="returnTo" value={returnTo} />
                     <button
                       type="submit"
                       className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--muted)] transition hover:bg-white hover:text-rose-600"

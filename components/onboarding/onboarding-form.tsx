@@ -106,6 +106,23 @@ function buildHelpHref(currentStep: number, isReviewMode: boolean, isReselect: b
   return `/onboarding/help?${search.toString()}`;
 }
 
+function buildAnchorsHref(currentStep: number, isReselect: boolean) {
+  const returnSearch = new URLSearchParams({
+    step: String(currentStep),
+    resume: "1",
+  });
+
+  if (isReselect) {
+    returnSearch.set("reselect", "1");
+  }
+
+  const search = new URLSearchParams({
+    returnTo: `/onboarding?${returnSearch.toString()}`,
+  });
+
+  return `/anchors?${search.toString()}`;
+}
+
 function StepPill({ currentStep }: { currentStep: number }) {
   return (
     <div className="flex gap-2">
@@ -383,7 +400,7 @@ export function OnboardingForm({
           <div className="flex gap-2">
             {effectiveStep === 4 ? (
               <Link
-                href="/anchors"
+                href={buildAnchorsHref(effectiveStep, isReselect) as any}
                 className="inline-flex min-h-10 items-center rounded-full border border-white/60 bg-white/76 px-4 text-sm font-medium text-[var(--foreground)] transition hover:bg-white"
               >
                 저장된 기존 습관
