@@ -267,11 +267,17 @@ function readGenerationStrategy(): GenerationStrategy {
 }
 
 function getFastModel() {
-  return process.env.OPENAI_MODEL_FAST ?? process.env.OPENAI_MODEL ?? "gpt-5-mini";
+  const configuredFast = process.env.OPENAI_MODEL_FAST?.trim();
+
+  if (configuredFast) {
+    return configuredFast;
+  }
+
+  return "gpt-5-mini";
 }
 
 function getQualityModel() {
-  return process.env.OPENAI_MODEL_QUALITY ?? "gpt-5";
+  return process.env.OPENAI_MODEL_QUALITY?.trim() || process.env.OPENAI_MODEL?.trim() || "gpt-5";
 }
 
 function getExperimentalModel() {
@@ -292,7 +298,27 @@ function pickModel(preference: ModelPreference = "fast") {
 
 function getOpenAITimeoutMs() {
   const raw = Number(process.env.OPENAI_TIMEOUT_MS);
-  return Number.isFinite(raw) && raw > 0 ? raw : 10000;
+  return Number.isFinite(raw) && raw > 0 ? raw : 20000;
+}
+
+function isGpt5Model(model: string) {
+  return /^gpt-5(\b|-)/i.test(model.trim());
+}
+
+function getReasoningEffort(model: string, modelPreference: ModelPreference) {
+  if (!isGpt5Model(model)) {
+    return undefined;
+  }
+
+  if (modelPreference === "quality") {
+    return "low";
+  }
+
+  return "minimal";
+}
+
+function getMaxOutputTokens(schema: typeof habitDecompositionJsonSchema | typeof behaviorSwarmJsonSchema) {
+  return schema === behaviorSwarmJsonSchema ? 700 : 900;
 }
 
 function logGenerationMetrics(metrics: GenerationMetrics) {
@@ -1071,6 +1097,7 @@ async function fetchOpenAIOnce(
   prompt: string,
   model: string,
   schema: typeof habitDecompositionJsonSchema | typeof behaviorSwarmJsonSchema = habitDecompositionJsonSchema,
+  modelPreference: ModelPreference = "fast",
 ) {
   const apiKey = process.env.OPENAI_API_KEY;
 
@@ -1081,6 +1108,8 @@ async function fetchOpenAIOnce(
   const controller = new AbortController();
   const timeoutMs = getOpenAITimeoutMs();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const reasoningEffort = getReasoningEffort(model, modelPreference);
+  const maxOutputTokens = getMaxOutputTokens(schema);
 
   try {
     const response = await fetch("https://api.openai.com/v1/responses", {
@@ -1101,6 +1130,14 @@ async function fetchOpenAIOnce(
             content: [{ type: "input_text", text: prompt }],
           },
         ],
+        ...(reasoningEffort
+          ? {
+              reasoning: {
+                effort: reasoningEffort,
+              },
+            }
+          : {}),
+        max_output_tokens: maxOutputTokens,
         text: {
           format: {
             type: "json_schema",
@@ -1144,12 +1181,13 @@ async function callOpenAI(
   prompt: string,
   model: string,
   schema: typeof habitDecompositionJsonSchema | typeof behaviorSwarmJsonSchema = habitDecompositionJsonSchema,
+  modelPreference: ModelPreference = "fast",
 ) {
   let lastError: unknown;
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      return await fetchOpenAIOnce(prompt, model, schema);
+      return await fetchOpenAIOnce(prompt, model, schema, modelPreference);
     } catch (error) {
       lastError = error;
 
@@ -1279,7 +1317,7 @@ export async function generateBehaviorSwarm(
   const openAIStartedAt = Date.now();
 
   try {
-    const payload = await callOpenAI(buildBehaviorSwarmPrompt(input, locale), model, behaviorSwarmJsonSchema);
+    const payload = await callOpenAI(buildBehaviorSwarmPrompt(input, locale), model, behaviorSwarmJsonSchema, modelPreference);
     const text = extractTextFromResponse(payload);
     const parsed = JSON.parse(text) as { candidates: BehaviorSwarmCandidate[] };
     const candidates = behaviorSwarmSchema.parse(parsed.candidates);
@@ -1399,7 +1437,7 @@ export async function generateHabitDecomposition(
         ? buildHybridRewritePrompt(input, classification, stripSource(draft), failureReason, locale)
         : buildAiOnlyHabitDecompositionPrompt(input, classification, failureReason, locale);
 
-    const payload = await callOpenAI(prompt, model);
+    const payload = await callOpenAI(prompt, model, habitDecompositionJsonSchema, modelPreference);
     const openaiMs = Date.now() - openAIStartedAt;
     const text = extractTextFromResponse(payload);
     const parsed = JSON.parse(text) as Omit<HabitDecomposition, "source">;

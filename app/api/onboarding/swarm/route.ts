@@ -21,8 +21,10 @@ export async function POST(request: Request) {
         motivationNote: input.motivationNote ?? "",
       },
       {
-      locale: "ko",
-      userId: auth.user.id,
+        locale: "ko",
+        strategy: "ai_only",
+        modelPreference: "fast",
+        userId: auth.user.id,
       },
     );
 

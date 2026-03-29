@@ -103,6 +103,8 @@ export async function regenerateOnboardingReviewPlan() {
     session.reviewMeta.selectedBehavior,
     {
       locale,
+      strategy: "ai_only",
+      modelPreference: "fast",
       userId: user.id,
       goalId: session.goalId,
       basedOnPlanId: session.planId,

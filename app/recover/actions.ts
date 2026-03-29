@@ -130,6 +130,8 @@ export async function prepareRecoveryOptions(input: { failureReason: RecoveryRea
     {
       failureReason: "too_big",
       locale,
+      strategy: "ai_only",
+      modelPreference: "fast",
       userId: authenticatedUser.id,
       goalId: session.goalId ?? undefined,
       basedOnPlanId: session.planId ?? undefined,

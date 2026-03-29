@@ -178,8 +178,7 @@ async function replaceSwarmCandidates(
 
   const { data, error } = await candidatesTable
     .insert(rows)
-    .select("id, title, selected")
-    .order("created_at", { ascending: true });
+    .select("id, title, selected");
 
   if (error) {
     throw new Error(error.message);
@@ -318,6 +317,8 @@ async function buildSelectionPlan(
     selectedBehavior,
     {
       locale: input.locale,
+      strategy: "ai_only",
+      modelPreference: "fast",
       userId: input.userId,
       goalId: input.goalId,
       basedOnPlanId: input.basedOnPlanId ?? undefined,
