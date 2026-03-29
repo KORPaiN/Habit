@@ -8,7 +8,7 @@ import { logSecurityEvent } from "@/lib/security/events";
 
 export const API_RATE_LIMITS = {
   ai: [
-    { name: "burst", limit: 5, windowMs: 1000 * 60 * 10 },
+    { name: "burst", limit: 8, windowMs: 1000 * 60 * 10 },
     { name: "daily", limit: 20, windowMs: 1000 * 60 * 60 * 24 },
   ],
   stateChange: [{ name: "minute", limit: 30, windowMs: 1000 * 60 }],

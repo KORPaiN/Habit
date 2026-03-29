@@ -67,6 +67,21 @@ type OpenAIUsageMetrics = {
   totalTokens?: number;
 };
 
+type OpenAIRequestMode = "default" | "expanded";
+
+type OpenAIAttempt = {
+  model: string;
+  modelPreference: ModelPreference;
+  timeoutMs: number;
+  maxOutputTokens: number;
+};
+
+type OpenAIStructuredResult<T> = {
+  data: T;
+  usage: OpenAIUsageMetrics;
+  model: string;
+};
+
 type GenerationMetrics = {
   strategy: GenerationStrategy;
   model?: string;
@@ -296,9 +311,15 @@ function pickModel(preference: ModelPreference = "fast") {
   return getFastModel();
 }
 
-function getOpenAITimeoutMs() {
+function getOpenAITimeoutMs(mode: OpenAIRequestMode = "default") {
   const raw = Number(process.env.OPENAI_TIMEOUT_MS);
-  return Number.isFinite(raw) && raw > 0 ? raw : 20000;
+  const baseTimeout = Number.isFinite(raw) && raw > 0 ? raw : 25000;
+
+  if (mode === "expanded") {
+    return Math.max(baseTimeout + 8000, Math.ceil(baseTimeout * 1.35));
+  }
+
+  return baseTimeout;
 }
 
 function isGpt5Model(model: string) {
@@ -317,8 +338,59 @@ function getReasoningEffort(model: string, modelPreference: ModelPreference) {
   return "minimal";
 }
 
-function getMaxOutputTokens(schema: typeof habitDecompositionJsonSchema | typeof behaviorSwarmJsonSchema) {
-  return schema === behaviorSwarmJsonSchema ? 700 : 900;
+function getMaxOutputTokens(
+  schema: typeof habitDecompositionJsonSchema | typeof behaviorSwarmJsonSchema,
+  mode: OpenAIRequestMode = "default",
+) {
+  if (schema === behaviorSwarmJsonSchema) {
+    return mode === "expanded" ? 1200 : 900;
+  }
+
+  return mode === "expanded" ? 1400 : 1100;
+}
+
+function buildOpenAIAttempts(
+  schema: typeof habitDecompositionJsonSchema | typeof behaviorSwarmJsonSchema,
+  modelPreference: ModelPreference,
+) {
+  const primaryModel = pickModel(modelPreference);
+  const qualityModel = getQualityModel();
+  const attempts: OpenAIAttempt[] = [
+    {
+      model: primaryModel,
+      modelPreference,
+      timeoutMs: getOpenAITimeoutMs("default"),
+      maxOutputTokens: getMaxOutputTokens(schema, "default"),
+    },
+  ];
+
+  if (modelPreference === "fast") {
+    attempts.push({
+      model: qualityModel,
+      modelPreference: "quality",
+      timeoutMs: getOpenAITimeoutMs("expanded"),
+      maxOutputTokens: getMaxOutputTokens(schema, "expanded"),
+    });
+  } else {
+    attempts.push({
+      model: primaryModel,
+      modelPreference,
+      timeoutMs: getOpenAITimeoutMs("expanded"),
+      maxOutputTokens: getMaxOutputTokens(schema, "expanded"),
+    });
+  }
+
+  return attempts.filter((attempt, index, list) => {
+    const firstIndex = list.findIndex(
+      (candidate) =>
+        candidate.model === attempt.model &&
+        candidate.modelPreference === attempt.modelPreference &&
+        candidate.timeoutMs === attempt.timeoutMs &&
+        candidate.maxOutputTokens === attempt.maxOutputTokens,
+    );
+
+    return firstIndex === index;
+  });
 }
 
 function logGenerationMetrics(metrics: GenerationMetrics) {
@@ -1098,6 +1170,10 @@ async function fetchOpenAIOnce(
   model: string,
   schema: typeof habitDecompositionJsonSchema | typeof behaviorSwarmJsonSchema = habitDecompositionJsonSchema,
   modelPreference: ModelPreference = "fast",
+  requestOptions?: {
+    timeoutMs?: number;
+    maxOutputTokens?: number;
+  },
 ) {
   const apiKey = process.env.OPENAI_API_KEY;
 
@@ -1106,10 +1182,10 @@ async function fetchOpenAIOnce(
   }
 
   const controller = new AbortController();
-  const timeoutMs = getOpenAITimeoutMs();
+  const timeoutMs = requestOptions?.timeoutMs ?? getOpenAITimeoutMs();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   const reasoningEffort = getReasoningEffort(model, modelPreference);
-  const maxOutputTokens = getMaxOutputTokens(schema);
+  const maxOutputTokens = requestOptions?.maxOutputTokens ?? getMaxOutputTokens(schema);
 
   try {
     const response = await fetch("https://api.openai.com/v1/responses", {
@@ -1182,12 +1258,16 @@ async function callOpenAI(
   model: string,
   schema: typeof habitDecompositionJsonSchema | typeof behaviorSwarmJsonSchema = habitDecompositionJsonSchema,
   modelPreference: ModelPreference = "fast",
+  requestOptions?: {
+    timeoutMs?: number;
+    maxOutputTokens?: number;
+  },
 ) {
   let lastError: unknown;
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      return await fetchOpenAIOnce(prompt, model, schema, modelPreference);
+      return await fetchOpenAIOnce(prompt, model, schema, modelPreference, requestOptions);
     } catch (error) {
       lastError = error;
 
@@ -1196,6 +1276,36 @@ async function callOpenAI(
       }
 
       await sleep(250);
+    }
+  }
+
+  throw lastError;
+}
+
+async function callOpenAIStructured<T>(
+  prompt: string,
+  schema: typeof habitDecompositionJsonSchema | typeof behaviorSwarmJsonSchema,
+  modelPreference: ModelPreference,
+  parser: (text: string) => T,
+): Promise<OpenAIStructuredResult<T>> {
+  const attempts = buildOpenAIAttempts(schema, modelPreference);
+  let lastError: unknown;
+
+  for (const attempt of attempts) {
+    try {
+      const payload = await callOpenAI(prompt, attempt.model, schema, attempt.modelPreference, {
+        timeoutMs: attempt.timeoutMs,
+        maxOutputTokens: attempt.maxOutputTokens,
+      });
+      const text = extractTextFromResponse(payload);
+
+      return {
+        data: parser(text),
+        usage: getOpenAIUsage(payload),
+        model: attempt.model,
+      };
+    } catch (error) {
+      lastError = error;
     }
   }
 
@@ -1313,31 +1423,34 @@ export async function generateBehaviorSwarm(
   }
 
   const releaseSlot = claimAiGenerationSlot(options?.userId);
-  const model = pickModel(modelPreference);
   const openAIStartedAt = Date.now();
 
   try {
-    const payload = await callOpenAI(buildBehaviorSwarmPrompt(input, locale), model, behaviorSwarmJsonSchema, modelPreference);
-    const text = extractTextFromResponse(payload);
-    const parsed = JSON.parse(text) as { candidates: BehaviorSwarmCandidate[] };
-    const candidates = behaviorSwarmSchema.parse(parsed.candidates);
-    const usage = getOpenAIUsage(payload);
+    const result = await callOpenAIStructured(
+      buildBehaviorSwarmPrompt(input, locale),
+      behaviorSwarmJsonSchema,
+      modelPreference,
+      (text) => {
+        const parsed = JSON.parse(text) as { candidates: BehaviorSwarmCandidate[] };
+        return behaviorSwarmSchema.parse(parsed.candidates);
+      },
+    );
 
     logGenerationMetrics({
       strategy,
-      model,
+      model: result.model,
       plannerMs: 0,
       openaiMs: Date.now() - openAIStartedAt,
       totalMs: Date.now() - startedAt,
       usedFallback: false,
-      ...usage,
+      ...result.usage,
     });
 
-    return candidates;
+    return result.data;
   } catch {
     logGenerationMetrics({
       strategy,
-      model,
+      model: pickModel(modelPreference),
       plannerMs: 0,
       openaiMs: Date.now() - openAIStartedAt,
       totalMs: Date.now() - startedAt,
@@ -1428,7 +1541,6 @@ export async function generateHabitDecomposition(
   }
 
   const releaseSlot = claimAiGenerationSlot(options?.userId);
-  const model = pickModel(modelPreference);
   const openAIStartedAt = Date.now();
 
   try {
@@ -1437,26 +1549,25 @@ export async function generateHabitDecomposition(
         ? buildHybridRewritePrompt(input, classification, stripSource(draft), failureReason, locale)
         : buildAiOnlyHabitDecompositionPrompt(input, classification, failureReason, locale);
 
-    const payload = await callOpenAI(prompt, model, habitDecompositionJsonSchema, modelPreference);
-    const openaiMs = Date.now() - openAIStartedAt;
-    const text = extractTextFromResponse(payload);
-    const parsed = JSON.parse(text) as Omit<HabitDecomposition, "source">;
-    validateDecompositionLocale(parsed, input, locale);
+    const result = await callOpenAIStructured(prompt, habitDecompositionJsonSchema, modelPreference, (text) => {
+      const parsed = JSON.parse(text) as Omit<HabitDecomposition, "source">;
+      validateDecompositionLocale(parsed, input, locale);
 
-    const decomposition = normalizeDecomposition(parsed, input, strategy === "hybrid" ? "hybrid" : "openai", failureReason, locale);
-    const usage = getOpenAIUsage(payload);
+      return normalizeDecomposition(parsed, input, strategy === "hybrid" ? "hybrid" : "openai", failureReason, locale);
+    });
+    const openaiMs = Date.now() - openAIStartedAt;
 
     logGenerationMetrics({
       strategy,
-      model,
+      model: result.model,
       plannerMs,
       openaiMs,
       totalMs: Date.now() - startedAt,
       usedFallback: false,
-      ...usage,
+      ...result.usage,
     });
 
-    return decomposition;
+    return result.data;
   } catch (error) {
     const openaiMs = Date.now() - openAIStartedAt;
 
@@ -1468,15 +1579,16 @@ export async function generateHabitDecomposition(
       statusCode: error instanceof OpenAIRequestError ? error.status : undefined,
       detail: {
         strategy,
-        model,
+        model: pickModel(modelPreference),
         goalId: options?.goalId ?? "",
         basedOnPlanId: options?.basedOnPlanId ?? "",
+        reason: error instanceof Error ? error.message.slice(0, 240) : "unknown",
       },
     });
 
     logGenerationMetrics({
       strategy,
-      model,
+      model: pickModel(modelPreference),
       plannerMs,
       openaiMs,
       totalMs: Date.now() - startedAt,

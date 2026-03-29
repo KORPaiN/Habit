@@ -352,7 +352,114 @@ test("generateBehaviorSwarm uses the fast GPT-5 settings when OPENAI_MODEL is sl
     assert.equal(requests.length, 1);
     assert.equal(requests[0]?.model, "gpt-5-mini");
     assert.deepEqual(requests[0]?.reasoning, { effort: "minimal" });
-    assert.equal(requests[0]?.max_output_tokens, 700);
+    assert.equal(requests[0]?.max_output_tokens, 900);
+  } finally {
+    global.fetch = originalFetch;
+
+    if (originalApiKey === undefined) {
+      delete process.env.OPENAI_API_KEY;
+    } else {
+      process.env.OPENAI_API_KEY = originalApiKey;
+    }
+
+    if (originalModel === undefined) {
+      delete process.env.OPENAI_MODEL;
+    } else {
+      process.env.OPENAI_MODEL = originalModel;
+    }
+
+    if (originalFastModel === undefined) {
+      delete process.env.OPENAI_MODEL_FAST;
+    } else {
+      process.env.OPENAI_MODEL_FAST = originalFastModel;
+    }
+
+    if (originalTimeout === undefined) {
+      delete process.env.OPENAI_TIMEOUT_MS;
+    } else {
+      process.env.OPENAI_TIMEOUT_MS = originalTimeout;
+    }
+  }
+});
+
+test("generateBehaviorSwarm retries with the quality model when the fast response is invalid", async () => {
+  const originalApiKey = process.env.OPENAI_API_KEY;
+  const originalModel = process.env.OPENAI_MODEL;
+  const originalFastModel = process.env.OPENAI_MODEL_FAST;
+  const originalTimeout = process.env.OPENAI_TIMEOUT_MS;
+  const originalFetch = global.fetch;
+  const requests: Array<Record<string, unknown>> = [];
+  let fetchCount = 0;
+
+  process.env.OPENAI_API_KEY = "test-key";
+  process.env.OPENAI_MODEL = "gpt-5";
+  delete process.env.OPENAI_MODEL_FAST;
+  delete process.env.OPENAI_TIMEOUT_MS;
+
+  global.fetch = (async (_input: URL | RequestInfo, init?: RequestInit) => {
+    fetchCount += 1;
+    requests.push(JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>);
+
+    if (fetchCount === 1) {
+      return new Response(
+        JSON.stringify({
+          output_text: JSON.stringify({
+            candidates: "not-an-array",
+          }),
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+    }
+
+    return new Response(
+      JSON.stringify({
+        output_text: JSON.stringify({
+          candidates: [
+            { title: "Read one sentence", details: "Tiny start.", durationMinutes: 1, desireScore: 4, abilityScore: 5, impactScore: 3 },
+            { title: "Open the book", details: "Setup only.", durationMinutes: 1, desireScore: 4, abilityScore: 5, impactScore: 3 },
+            { title: "Read one line", details: "Visible start.", durationMinutes: 1, desireScore: 4, abilityScore: 5, impactScore: 4 },
+            { title: "Put the book on the pillow", details: "Prep for later.", durationMinutes: 1, desireScore: 3, abilityScore: 5, impactScore: 2 },
+            { title: "Highlight one line", details: "Keep it easy.", durationMinutes: 1, desireScore: 3, abilityScore: 5, impactScore: 3 },
+            { title: "Read one paragraph", details: "Still short.", durationMinutes: 2, desireScore: 4, abilityScore: 4, impactScore: 4 },
+          ],
+        }),
+      }),
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
+    );
+  }) as typeof fetch;
+
+  try {
+    const result = await generateBehaviorSwarm(
+      {
+        goal: "Build a reading habit",
+        desiredOutcome: "Read a little each day.",
+        motivationNote: "I want reading to feel normal again.",
+        availableMinutes: 5,
+        difficulty: "steady",
+        preferredTime: "morning",
+      },
+      {
+        strategy: "ai_only",
+        locale: "en",
+      },
+    );
+
+    assert.equal(result.length, 6);
+    assert.equal(requests.length, 2);
+    assert.equal(requests[0]?.model, "gpt-5-mini");
+    assert.equal(requests[1]?.model, "gpt-5");
+    assert.deepEqual(requests[1]?.reasoning, { effort: "low" });
+    assert.equal(requests[1]?.max_output_tokens, 1200);
   } finally {
     global.fetch = originalFetch;
 
