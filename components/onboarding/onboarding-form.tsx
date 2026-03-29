@@ -554,12 +554,15 @@ export function OnboardingForm({
                   return;
                 }
 
-                await generateSwarm(3);
+                setStepError(null);
+                setCurrentStep(2);
                 return;
               }
 
               if (!canMoveFromStep(currentStep)) {
-                setStepError(currentStep === 3 ? "행동 하나를 골라주세요." : "앵커를 먼저 적어주세요.");
+                setStepError(
+                  currentStep === 2 ? "후보를 먼저 만들어주세요." : currentStep === 3 ? "행동 하나를 골라주세요." : "앵커를 먼저 적어주세요.",
+                );
                 return;
               }
 
