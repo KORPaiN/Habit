@@ -562,7 +562,7 @@ function buildRuleActions(
           title: locale === "ko" ? "공부 도구만 꺼내 두기" : "Take out your study tools and stop there",
           reason: locale === "ko" ? "준비만 해도 저항이 줄어요." : "Setup lowers the resistance.",
           durationMinutes: secondary,
-          fallbackAction: locale === "ko" ? "공부 도구 하나만 꺼내기" : "Take out one study tool",
+          fallbackAction: locale === "ko" ? "공부 책을 책상 위에 올리기" : "Place your study book on the desk",
         },
       ];
     case "exercise":
@@ -1016,10 +1016,10 @@ function fillBehaviorCandidates(
       fallbackAction: `"${input.goal}" 준비물 보기`,
     },
     {
-      title: "첫 화면 열기",
-      reason: "바로 시작하기 쉬운 준비 행동입니다.",
+      title: `"${input.goal}" 할 화면 한 개 열기`,
+      reason: "바로 시작할 화면을 먼저 띄워요.",
       durationMinutes: 1,
-      fallbackAction: "첫 화면 보기",
+      fallbackAction: `"${input.goal}" 할 화면 이름 말하기`,
     },
     {
       title: "한 문장만 보기",
@@ -1028,10 +1028,10 @@ function fillBehaviorCandidates(
       fallbackAction: "한 줄만 보기",
     },
     {
-      title: "시작 자리 정하기",
-      reason: "앉을 자리만 정해도 시작이 가벼워집니다.",
+      title: "앉을 자리로 가기",
+      reason: "시작할 자리까지 가면 붙기 쉬워져요.",
       durationMinutes: 1,
-      fallbackAction: "자리만 보기",
+      fallbackAction: "앉을 자리 보기",
     },
   ];
 

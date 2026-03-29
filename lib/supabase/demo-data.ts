@@ -1,10 +1,15 @@
+import type { HabitReviewMeta, HabitSession } from "@/lib/habit-session";
+import { buildCelebrationSuggestion, buildRecipeText } from "@/lib/utils/habit";
 import { getSupabaseServerClient } from "@/lib/supabase/server-client";
-import type { HabitSession } from "@/lib/habit-session";
 import type { Database, DailyActionStatus } from "@/types";
-import type { MicroAction, OnboardingInput } from "@/lib/validators/habit";
+import type { PlanMicroActionInput } from "@/lib/validators/backend";
+import type { BehaviorSwarmCandidate, MicroAction } from "@/lib/validators/habit";
 
 type GoalLookup = Database["public"]["Tables"]["goals"]["Row"];
 type AnchorLookup = Database["public"]["Tables"]["anchors"]["Row"];
+type GoalAnchorLookup = Database["public"]["Tables"]["goal_anchors"]["Row"];
+type BehaviorCandidateLookup = Database["public"]["Tables"]["behavior_swarm_candidates"]["Row"];
+type HabitPlanLookup = Database["public"]["Tables"]["habit_plans"]["Row"];
 type DailyActionLookup = Database["public"]["Tables"]["daily_actions"]["Row"];
 type MicroActionLookup = Database["public"]["Tables"]["micro_actions"]["Row"];
 type WeeklyReviewLookup = Database["public"]["Tables"]["weekly_reviews"]["Row"];
@@ -23,7 +28,6 @@ type TodayState = {
 
 type RecoveryContext = {
   goal: string;
-  onboarding: OnboardingInput;
   currentAction: MicroAction;
 };
 
@@ -53,6 +57,12 @@ type MonthlyReviewState = {
   nextAdjustment: string;
 };
 
+type HabitReviewState = {
+  meta: HabitReviewMeta;
+  planId: string;
+  reviewActions: PlanMicroActionInput[];
+};
+
 type SessionAccessContext = {
   client: Awaited<ReturnType<typeof getSupabaseServerClient>>;
   userId: string;
@@ -69,9 +79,59 @@ export function isSupabaseConfigured() {
 function mapRowToMicroAction(row: Pick<MicroActionLookup, "title" | "details" | "duration_minutes" | "fallback_title">): MicroAction {
   return {
     title: row.title,
-    reason: row.details ?? "눈에 보이는 작은 행동일수록 시작하기 쉽습니다.",
+    reason: row.details ?? "바로 할 수 있는 작은 행동이에요.",
     durationMinutes: row.duration_minutes,
     fallbackAction: row.fallback_title,
+  };
+}
+
+function mapRowToPlanAction(
+  row: Pick<
+    MicroActionLookup,
+    "position" | "title" | "details" | "duration_minutes" | "fallback_title" | "fallback_details" | "fallback_duration_minutes"
+  >,
+): PlanMicroActionInput {
+  return {
+    position: row.position,
+    title: row.title,
+    details: row.details ?? "",
+    durationMinutes: row.duration_minutes,
+    fallbackTitle: row.fallback_title,
+    fallbackDetails: row.fallback_details ?? "",
+    fallbackDurationMinutes: row.fallback_duration_minutes,
+  };
+}
+
+function mapCandidateRow(row: BehaviorCandidateLookup): BehaviorSwarmCandidate {
+  return {
+    id: row.id,
+    title: row.title,
+    details: row.details ?? "",
+    durationMinutes: row.duration_minutes,
+    desireScore: row.desire_score ?? 3,
+    abilityScore: row.ability_score ?? 3,
+    impactScore: row.impact_score ?? 3,
+  };
+}
+
+async function getSessionAccessContext(): Promise<SessionAccessContext | null> {
+  if (!isConfigured()) {
+    return null;
+  }
+
+  const client = await getSupabaseServerClient();
+  const {
+    data: { user },
+    error,
+  } = await client.auth.getUser();
+
+  if (error || !user) {
+    return null;
+  }
+
+  return {
+    client,
+    userId: user.id,
   };
 }
 
@@ -103,27 +163,6 @@ async function getGoalForSession(session: HabitSession) {
   return (data as GoalLookup | null) ?? null;
 }
 
-async function getSessionAccessContext(): Promise<SessionAccessContext | null> {
-  if (!isConfigured()) {
-    return null;
-  }
-
-  const client = await getSupabaseServerClient();
-  const {
-    data: { user },
-    error,
-  } = await client.auth.getUser();
-
-  if (error || !user) {
-    return null;
-  }
-
-  return {
-    client,
-    userId: user.id,
-  };
-}
-
 async function getAnchor(client: SessionAccessContext["client"], anchorId?: string | null) {
   if (!anchorId) {
     return null;
@@ -138,11 +177,290 @@ async function getAnchor(client: SessionAccessContext["client"], anchorId?: stri
   return (data as AnchorLookup | null) ?? null;
 }
 
-async function getDailyActionForGoal(
-  client: SessionAccessContext["client"],
-  goalId: string,
-  preferredDailyActionId?: string,
+async function getPlanForGoal(client: SessionAccessContext["client"], goalId: string, preferredPlanId?: string) {
+  if (preferredPlanId) {
+    const { data, error } = await client.from("habit_plans").select("*").eq("id", preferredPlanId).maybeSingle();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (data) {
+      return data as HabitPlanLookup;
+    }
+  }
+
+  const { data, error } = await client
+    .from("habit_plans")
+    .select("*")
+    .eq("goal_id", goalId)
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data as HabitPlanLookup | null) ?? null;
+}
+
+async function getPlanActions(client: SessionAccessContext["client"], planId: string) {
+  const { data, error } = await client
+    .from("micro_actions")
+    .select("position, title, details, duration_minutes, fallback_title, fallback_details, fallback_duration_minutes")
+    .eq("plan_id", planId)
+    .order("position", { ascending: true });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return ((data ?? []) as Array<
+    Pick<
+      MicroActionLookup,
+      "position" | "title" | "details" | "duration_minutes" | "fallback_title" | "fallback_details" | "fallback_duration_minutes"
+    >
+  >).map(mapRowToPlanAction);
+}
+
+async function getGoalAnchors(client: SessionAccessContext["client"], goal: GoalLookup) {
+  const { data, error } = await client
+    .from("goal_anchors")
+    .select("*")
+    .eq("goal_id", goal.id)
+    .order("sort_order", { ascending: true });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const goalAnchors = (data ?? []) as GoalAnchorLookup[];
+  const anchorIds = goalAnchors.map((item) => item.anchor_id);
+
+  if (anchorIds.length === 0) {
+    const fallback = await getAnchor(client, goal.anchor_id);
+    return {
+      primaryAnchor: fallback?.cue ?? fallback?.label ?? "",
+      preferredTime: fallback?.preferred_time ?? "morning",
+    };
+  }
+
+  const { data: anchors, error: anchorError } = await client.from("anchors").select("*").in("id", anchorIds);
+
+  if (anchorError) {
+    throw new Error(anchorError.message);
+  }
+
+  const anchorById = new Map(((anchors ?? []) as AnchorLookup[]).map((anchor) => [anchor.id, anchor]));
+  const primaryGoalAnchor = goalAnchors.find((item) => item.anchor_type === "primary");
+  const primaryAnchor = primaryGoalAnchor ? anchorById.get(primaryGoalAnchor.anchor_id) : undefined;
+
+  return {
+    primaryAnchor: primaryAnchor?.cue ?? primaryAnchor?.label ?? "",
+    preferredTime: primaryAnchor?.preferred_time ?? "morning",
+  };
+}
+
+async function getBehaviorCandidates(client: SessionAccessContext["client"], goalId: string) {
+  const { data, error } = await client
+    .from("behavior_swarm_candidates")
+    .select("*")
+    .eq("goal_id", goalId)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return ((data ?? []) as BehaviorCandidateLookup[]).map(mapCandidateRow);
+}
+
+function getSelectedBehavior(
+  swarmCandidates: BehaviorSwarmCandidate[],
+  selectedCandidateId: string | null,
+  reviewActions: PlanMicroActionInput[],
 ) {
+  const byId = selectedCandidateId ? swarmCandidates.find((candidate) => candidate.id === selectedCandidateId) : undefined;
+
+  if (byId) {
+    return byId;
+  }
+
+  if (swarmCandidates.length > 0) {
+    return swarmCandidates[0];
+  }
+
+  const firstAction = reviewActions[0];
+
+  if (!firstAction) {
+    return null;
+  }
+
+  return {
+    title: firstAction.title,
+    details: firstAction.details ?? "",
+    durationMinutes: firstAction.durationMinutes,
+    desireScore: 3,
+    abilityScore: 4,
+    impactScore: 3,
+  } satisfies BehaviorSwarmCandidate;
+}
+
+function getWeekStart(date = new Date()) {
+  const weekStart = new Date(date);
+  const day = weekStart.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  weekStart.setDate(weekStart.getDate() + diff);
+  weekStart.setHours(0, 0, 0, 0);
+  return weekStart.toISOString().slice(0, 10);
+}
+
+function getMonthStart(date = new Date()) {
+  const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+  monthStart.setHours(0, 0, 0, 0);
+  return monthStart;
+}
+
+function getMonthEnd(date = new Date()) {
+  const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+  monthEnd.setHours(0, 0, 0, 0);
+  return monthEnd;
+}
+
+function normalizeMonthDate(date = new Date()) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function getStatusCount(statuses: DailyActionStatus[], target: DailyActionStatus) {
+  return statuses.filter((status) => status === target).length;
+}
+
+function getBestStreak(statuses: DailyActionStatus[]) {
+  let best = 0;
+  let current = 0;
+
+  for (const status of statuses) {
+    if (status === "completed") {
+      current += 1;
+      best = Math.max(best, current);
+    } else {
+      current = 0;
+    }
+  }
+
+  return best;
+}
+
+function buildGeneratedReview(statuses: DailyActionStatus[]): WeeklyReviewState {
+  const completedDays = getStatusCount(statuses, "completed");
+  const failedDays = getStatusCount(statuses, "failed");
+  const skippedDays = getStatusCount(statuses, "skipped");
+  const streakDays = getBestStreak(statuses);
+
+  const difficultMoments =
+    failedDays > 0
+      ? "놓친 날이 있었어요. 행동을 더 줄이거나 붙일 습관을 더 또렷하게 잡아보세요."
+      : skippedDays > 1
+        ? "건너뛴 날이 있었다면 타이밍을 더 분명하게 잡는 편이 좋아요."
+        : "이번 주는 무리 없이 이어지고 있어요.";
+
+  const helpfulPattern =
+    completedDays >= 4
+      ? "작게 시작한 날에 더 잘 이어졌어요."
+      : "준비를 줄이면 시작이 더 쉬워질 수 있어요.";
+
+  const nextAdjustment =
+    failedDays > 0
+      ? "다음 주에는 첫 행동을 더 작게 줄여보세요."
+      : completedDays >= 4
+        ? "지금 크기를 유지하면서 반복해보세요."
+        : "기존 습관을 더 선명하게 정해보세요.";
+
+  return {
+    completedDays,
+    streakDays,
+    difficultMoments,
+    helpfulPattern,
+    nextAdjustment,
+    source: "Supabase",
+  };
+}
+
+function formatMonthLabel(date = new Date()) {
+  return `${date.getFullYear()}년 ${date.getMonth() + 1}월`;
+}
+
+function buildMonthlyCalendar(
+  actions: Array<Pick<DailyActionLookup, "action_date" | "status">>,
+  completedCountsByDate: Map<string, number>,
+  now = new Date(),
+) {
+  const start = getMonthStart(now);
+  const end = getMonthEnd(now);
+  const statusByDate = new Map(actions.map((action) => [action.action_date, action.status]));
+  const calendar: MonthlyReviewState["calendar"] = [];
+
+  for (let day = 1; day <= end.getDate(); day += 1) {
+    const current = new Date(start.getFullYear(), start.getMonth(), day);
+    const iso = current.toISOString().slice(0, 10);
+    const isFuture = current > now;
+
+    calendar.push({
+      date: iso,
+      day,
+      status: isFuture ? "none" : statusByDate.get(iso) ?? "none",
+      completedCount: isFuture ? 0 : completedCountsByDate.get(iso) ?? 0,
+    });
+  }
+
+  return calendar;
+}
+
+function buildMonthlyReview(
+  actions: Array<Pick<DailyActionLookup, "action_date" | "status">>,
+  completedCountsByDate: Map<string, number>,
+  now = new Date(),
+): MonthlyReviewState {
+  const statuses = actions.map((item) => item.status);
+  const completedCount = getStatusCount(statuses, "completed");
+  const totalCount = actions.length;
+  const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+  const bestStreak = getBestStreak(statuses);
+  const failedDays = getStatusCount(statuses, "failed");
+  const skippedDays = getStatusCount(statuses, "skipped");
+
+  const difficultMoments =
+    failedDays > 0
+      ? "막힌 날이 있었어요. 더 작은 시작이 필요했을 수 있어요."
+      : skippedDays > 2
+        ? "건너뛴 날이 많다면 붙일 습관을 더 선명하게 정해보세요."
+        : "이번 달 흐름은 비교적 부드러웠어요.";
+
+  const helpfulPattern =
+    completionRate >= 60
+      ? "작은 행동으로 시작한 날에 완료가 더 잘 이어졌어요."
+      : "어느 날이 쉬웠는지 찾으면 다음 달이 더 쉬워져요.";
+
+  const nextAdjustment =
+    completionRate >= 70
+      ? "다음 달에도 지금 크기를 유지해보세요."
+      : "다음 달에는 첫 행동을 더 줄여보세요.";
+
+  return {
+    monthLabel: formatMonthLabel(now),
+    completedCount,
+    totalCount,
+    completionRate,
+    bestStreak,
+    calendar: buildMonthlyCalendar(actions, completedCountsByDate, now),
+    difficultMoments,
+    helpfulPattern,
+    nextAdjustment,
+  };
+}
+
+async function getDailyActionForGoal(client: SessionAccessContext["client"], goalId: string, preferredDailyActionId?: string) {
   const today = new Date().toISOString().slice(0, 10);
 
   if (preferredDailyActionId) {
@@ -201,156 +519,56 @@ async function getMicroAction(client: SessionAccessContext["client"], microActio
   return (data as MicroActionLookup | null) ?? null;
 }
 
-function getWeekStart(date = new Date()) {
-  const weekStart = new Date(date);
-  const day = weekStart.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  weekStart.setDate(weekStart.getDate() + diff);
-  weekStart.setHours(0, 0, 0, 0);
-  return weekStart.toISOString().slice(0, 10);
-}
+export async function getHabitReviewStateFromSession(session: HabitSession): Promise<HabitReviewState | null> {
+  const context = await getSessionAccessContext();
 
-function getMonthStart(date = new Date()) {
-  const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
-  monthStart.setHours(0, 0, 0, 0);
-  return monthStart;
-}
-
-function getMonthEnd(date = new Date()) {
-  const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-  monthEnd.setHours(0, 0, 0, 0);
-  return monthEnd;
-}
-
-function normalizeMonthDate(date = new Date()) {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
-}
-
-function getStatusCount(statuses: DailyActionStatus[], target: DailyActionStatus) {
-  return statuses.filter((status) => status === target).length;
-}
-
-function getBestStreak(statuses: DailyActionStatus[]) {
-  let best = 0;
-  let current = 0;
-
-  for (const status of statuses) {
-    if (status === "completed") {
-      current += 1;
-      best = Math.max(best, current);
-    } else {
-      current = 0;
-    }
+  if (!context) {
+    return null;
   }
 
-  return best;
-}
+  const goal = await getGoalForSession(session);
 
-function buildGeneratedReview(statuses: DailyActionStatus[]): WeeklyReviewState {
-  const completedDays = getStatusCount(statuses, "completed");
-  const failedDays = getStatusCount(statuses, "failed");
-  const skippedDays = getStatusCount(statuses, "skipped");
-  const streakDays = getBestStreak(statuses);
-
-  const difficultMoments =
-    failedDays > 0
-      ? "버거운 날이 있었으니 첫 단계는 아직 한 번 더 줄일 여지가 있습니다."
-      : skippedDays > 1
-        ? "놓친 날이 있었다면 의지보다 앵커나 타이밍이 더 선명해야 한다는 신호입니다."
-        : "이번 주에는 눈에 띄는 저항이 크지 않았고, 그만큼 단계가 충분히 가벼웠다는 뜻입니다.";
-
-  const helpfulPattern =
-    completedDays >= 4
-      ? "단계를 작게 유지한 것이 다시 돌아오기 쉽게 만들었습니다."
-      : "잘된 날은 대체로 준비 마찰이 가장 적은 날이었을 가능성이 큽니다.";
-
-  const nextAdjustment =
-    failedDays > 0
-      ? "다음 주에는 첫 행동을 더 눈에 띄게 만들고 대체 행동을 더 보호하세요."
-      : completedDays >= 4
-        ? "당분간은 지금 크기를 유지하고 가장 쉬운 버전을 반복하세요."
-        : "앵커를 더 또렷하게 해서 오늘의 단계가 더 빨리 떠오르고 덜 힘들게 느껴지도록 해보세요.";
-
-  return {
-    completedDays,
-    streakDays,
-    difficultMoments,
-    helpfulPattern,
-    nextAdjustment,
-    source: "Supabase",
-  };
-}
-
-function formatMonthLabel(date = new Date()) {
-  return `${date.getFullYear()}년 ${date.getMonth() + 1}월`;
-}
-
-function buildMonthlyCalendar(
-  actions: Array<Pick<DailyActionLookup, "action_date" | "status">>,
-  completedCountsByDate: Map<string, number>,
-  now = new Date(),
-) {
-  const start = getMonthStart(now);
-  const end = getMonthEnd(now);
-  const statusByDate = new Map(actions.map((action) => [action.action_date, action.status]));
-  const calendar: MonthlyReviewState["calendar"] = [];
-
-  for (let day = 1; day <= end.getDate(); day += 1) {
-    const current = new Date(start.getFullYear(), start.getMonth(), day);
-    const iso = current.toISOString().slice(0, 10);
-    const isFuture = current > now;
-
-    calendar.push({
-      date: iso,
-      day,
-      status: isFuture ? "none" : statusByDate.get(iso) ?? "none",
-      completedCount: isFuture ? 0 : completedCountsByDate.get(iso) ?? 0,
-    });
+  if (!goal) {
+    return null;
   }
 
-  return calendar;
-}
+  const plan = await getPlanForGoal(context.client, goal.id, session.planId);
 
-function buildMonthlyReview(
-  actions: Array<Pick<DailyActionLookup, "action_date" | "status">>,
-  completedCountsByDate: Map<string, number>,
-  now = new Date(),
-): MonthlyReviewState {
-  const statuses = actions.map((item) => item.status);
-  const completedCount = getStatusCount(statuses, "completed");
-  const totalCount = actions.length;
-  const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-  const bestStreak = getBestStreak(statuses);
-  const failedDays = getStatusCount(statuses, "failed");
-  const skippedDays = getStatusCount(statuses, "skipped");
+  if (!plan) {
+    return null;
+  }
 
-  const difficultMoments =
-    failedDays > 0
-      ? "막힌 날이 있었다면 아직 더 줄일 여지가 있어요."
-      : skippedDays > 2
-        ? "놓친 날이 많다면 앵커를 더 또렷하게 잡는 편이 좋아요."
-        : "이번 달은 비교적 무리 없는 크기로 이어가고 있어요.";
+  const [goalAnchors, dbReviewActions, swarmCandidates] = await Promise.all([
+    getGoalAnchors(context.client, goal),
+    getPlanActions(context.client, plan.id),
+    getBehaviorCandidates(context.client, goal.id),
+  ]);
 
-  const helpfulPattern =
-    completionRate >= 60
-      ? "작게 유지한 날에 완료가 잘 이어졌어요."
-      : "잘된 날의 공통점을 찾으면 다음 달이 더 쉬워져요.";
+  const reviewActions = session.reviewActions?.length ? session.reviewActions : dbReviewActions;
+  const selectedBehavior = getSelectedBehavior(swarmCandidates, plan.selected_candidate_id, reviewActions);
 
-  const nextAdjustment =
-    completionRate >= 70
-      ? "다음 달에도 지금 크기를 유지해 보세요."
-      : "다음 달에는 첫 행동을 더 눈에 띄고 더 작게 만들어 보세요.";
+  if (!selectedBehavior) {
+    return null;
+  }
+
+  const primaryAnchor = goalAnchors.primaryAnchor || "식사 뒤";
+  const normalizedSwarmCandidates = swarmCandidates.length > 0 ? swarmCandidates : [selectedBehavior];
+  const recipeText = plan.recipe_text ?? buildRecipeText(primaryAnchor, selectedBehavior.title);
+  const celebrationText = plan.celebration_text ?? buildCelebrationSuggestion(goal.title);
 
   return {
-    monthLabel: formatMonthLabel(now),
-    completedCount,
-    totalCount,
-    completionRate,
-    bestStreak,
-    calendar: buildMonthlyCalendar(actions, completedCountsByDate, now),
-    difficultMoments,
-    helpfulPattern,
-    nextAdjustment,
+    planId: plan.id,
+    reviewActions,
+    meta: {
+      goal: goal.title,
+      desiredOutcome: goal.desired_outcome ?? goal.title,
+      selectedBehavior,
+      swarmCandidates: normalizedSwarmCandidates,
+      primaryAnchor,
+      recipeText,
+      celebrationText,
+      selectedCandidateId: plan.selected_candidate_id ?? selectedBehavior.id,
+    },
   };
 }
 
@@ -384,7 +602,7 @@ export async function getTodayStateFromSession(session: HabitSession): Promise<T
 
   return {
     goal: goal.title,
-    anchor: anchor?.label ?? "아직 앵커 없음",
+    anchor: anchor?.label ?? anchor?.cue ?? "기존 습관 없음",
     action: mapRowToMicroAction(microAction),
     source: "Supabase",
     status: dailyAction.status,
@@ -412,13 +630,6 @@ export async function getRecoveryContextFromSession(session: HabitSession): Prom
 
   return {
     goal: goal.title,
-    onboarding: {
-      goal: goal.title,
-      availableMinutes: goal.available_minutes,
-      difficulty: goal.difficulty,
-      preferredTime: anchor?.preferred_time ?? "morning",
-      anchor: anchor?.cue ?? anchor?.label ?? "아침 커피를 마신 직후",
-    },
     currentAction: todayState.action,
   };
 }
@@ -536,12 +747,11 @@ export async function getMonthlyReviewStateFromSession(session: HabitSession, ta
     }
 
     for (const action of (completedActions.data ?? []) as Array<{ action_date: string }>) {
-      const actionDate = action.action_date;
-      if (!actionDate) {
+      if (!action.action_date) {
         continue;
       }
 
-      completedCountsByDate.set(actionDate, (completedCountsByDate.get(actionDate) ?? 0) + 1);
+      completedCountsByDate.set(action.action_date, (completedCountsByDate.get(action.action_date) ?? 0) + 1);
     }
   }
 

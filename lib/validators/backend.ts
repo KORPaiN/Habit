@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+import {
+  DEFAULT_AVAILABLE_MINUTES,
+  DEFAULT_DIFFICULTY,
+  DEFAULT_PREFERRED_TIME,
+  hasMeaningfulText,
+} from "@/lib/validators/habit";
+
 export const difficultyLevelSchema = z.enum(["gentle", "steady", "hard"]);
 export const preferredTimeSchema = z.enum(["morning", "afternoon", "evening"]);
 export const anchorTypeSchema = z.enum(["primary", "backup"]);
@@ -18,6 +25,20 @@ export const failureReasonSchema = z.enum([
 export const uuidSchema = z.string().uuid();
 export const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expected YYYY-MM-DD date.");
 const optionalTextSchema = z.string().max(500).optional().nullable();
+
+const meaningfulGoalSchema = z
+  .string()
+  .trim()
+  .min(3)
+  .max(120)
+  .refine(hasMeaningfulText, "Please enter a short phrase instead of numbers only.");
+
+const meaningfulOutcomeSchema = z
+  .string()
+  .trim()
+  .min(2)
+  .max(200)
+  .refine(hasMeaningfulText, "Please enter a short phrase instead of numbers only.");
 
 export const behaviorSwarmCandidateInputSchema = z.object({
   id: z.string().min(1).max(80).optional(),
@@ -70,19 +91,17 @@ export const planMicroActionsSchema = z
 
 export const onboardingRequestSchema = z.object({
   userId: uuidSchema.optional(),
-  goalTitle: z.string().min(3).max(120),
+  goalTitle: meaningfulGoalSchema,
   goalWhy: z.string().max(300).optional().nullable(),
-  desiredOutcome: z.string().min(2).max(200),
-  motivationNote: z.string().max(200).optional().nullable(),
-  difficulty: difficultyLevelSchema,
-  availableMinutes: z.coerce.number().int().min(1).max(30),
+  desiredOutcome: meaningfulOutcomeSchema,
+  difficulty: difficultyLevelSchema.default(DEFAULT_DIFFICULTY),
+  availableMinutes: z.coerce.number().int().min(1).max(30).default(DEFAULT_AVAILABLE_MINUTES),
   anchorLabel: z.string().min(2).max(80),
   anchorCue: z.string().min(2).max(160),
-  preferredTime: preferredTimeSchema,
-  backupAnchors: z.array(z.string().min(2).max(120)).max(2).optional().default([]),
+  preferredTime: preferredTimeSchema.default(DEFAULT_PREFERRED_TIME),
   selectedBehavior: behaviorSwarmCandidateInputSchema,
   swarmCandidates: behaviorSwarmCandidatesSchema,
-  recipeText: z.string().min(6).max(220),
+  recipeText: z.string().min(3).max(220),
   celebrationText: z.string().min(1).max(120),
   rehearsalCount: z.coerce.number().int().min(0).max(7).default(0),
   microActions: planMicroActionsSchema.optional(),
@@ -102,12 +121,11 @@ export const createPlanRequestSchema = z.object({
 });
 
 export const behaviorSwarmRequestSchema = z.object({
-  goal: z.string().min(3).max(120),
-  desiredOutcome: z.string().min(2).max(200),
-  motivationNote: z.string().max(200).optional().nullable(),
-  difficulty: difficultyLevelSchema,
-  availableMinutes: z.coerce.number().int().min(1).max(30),
-  preferredTime: preferredTimeSchema,
+  goal: meaningfulGoalSchema,
+  desiredOutcome: meaningfulOutcomeSchema,
+  difficulty: difficultyLevelSchema.default(DEFAULT_DIFFICULTY),
+  availableMinutes: z.coerce.number().int().min(1).max(30).default(DEFAULT_AVAILABLE_MINUTES),
+  preferredTime: preferredTimeSchema.default(DEFAULT_PREFERRED_TIME),
 });
 
 export const assignDailyActionRequestSchema = z.object({

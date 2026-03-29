@@ -146,8 +146,7 @@ export function buildBehaviorSwarmPrompt(input: OnboardingBaseInput, locale: Loc
     locale === "ko" ? "Write all user-facing strings in Korean." : "Write all user-facing strings in English.",
     `DATA: ${JSON.stringify({
       goal: input.goal,
-      desiredOutcome: input.desiredOutcome,
-      motivationNote: input.motivationNote ?? "",
+      desiredOutcome: input.desiredOutcome ?? input.goal,
       difficulty: input.difficulty,
       availableMinutes: input.availableMinutes,
       preferredTime: input.preferredTime,
@@ -165,6 +164,7 @@ export function buildSelectedBehaviorPlanPrompt(
     buildAiOnlyHabitDecompositionPrompt(
       {
         goal: input.goal,
+        desiredOutcome: input.goal,
         availableMinutes: input.availableMinutes,
         difficulty: input.difficulty,
         preferredTime: input.preferredTime,

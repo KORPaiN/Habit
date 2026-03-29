@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { startTransition, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { prepareRecoveryOptions, saveRecoveryChoice, type RecoveryOption } from "@/app/recover/actions";
 import { Button } from "@/components/ui/button";
@@ -14,22 +14,22 @@ const failureReasonOptions = [
   {
     value: "forgot",
     label: "한 번 잊었어요",
-    hint: "신호를 더 잘 보이게 바꿉니다.",
+    hint: "기존 습관을 더 잘 보이게 바꿔요.",
   },
   {
     value: "too_big",
     label: "너무 컸어요",
-    hint: "더 작은 행동으로 줄입니다.",
+    hint: "더 작은 행동으로 줄여요.",
   },
   {
     value: "forgot_often",
     label: "자주 잊어요",
-    hint: "백업 앵커로 바꾸고 다시 연습합니다.",
+    hint: "기존 습관을 바꿔요.",
   },
   {
     value: "not_wanted",
-    label: "이건 원치 않아요",
-    hint: "행동을 다시 고릅니다.",
+    label: "지금은 안 맞아요",
+    hint: "행동을 다시 고를게요.",
   },
 ] as const;
 
@@ -58,29 +58,27 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", l
     setStatusMessage(null);
     setStatusTone("neutral");
 
-    startTransition(async () => {
-      try {
-        const result = await prepareRecoveryOptions({ failureReason });
-        setOptions(result.options);
-        setSelectedId(result.options[0]?.id ?? "");
-        setStep("options");
-        setStatusMessage(
-          failureReason === "not_wanted"
-            ? "지금 맞는 행동으로 다시 고를 수 있어요."
-            : failureReason === "forgot_often"
-              ? "앵커를 바꾸고 다시 리허설해요."
-              : failureReason === "forgot"
-                ? "신호를 더 잘 보이게 바꿔요."
-                : "오늘 할 수 있는 더 작은 버전을 고르세요.",
-        );
-        setStatusTone("neutral");
-      } catch {
-        setStatusMessage(locale === "ko" ? "복구 옵션을 만들지 못했어요. 잠시 후 다시 시도해 주세요." : "We could not prepare recovery options.");
-        setStatusTone("error");
-      } finally {
-        setIsPending(false);
-      }
-    });
+    try {
+      const result = await prepareRecoveryOptions({ failureReason });
+      setOptions(result.options);
+      setSelectedId(result.options[0]?.id ?? "");
+      setStep("options");
+      setStatusMessage(
+        failureReason === "not_wanted"
+          ? "지금 맞는 행동으로 다시 골라요."
+          : failureReason === "forgot_often"
+            ? "기존 습관을 바꿔볼게요."
+            : failureReason === "forgot"
+              ? "더 잘 떠오르는 기존 습관으로 붙여볼게요."
+              : "더 작은 행동으로 줄여볼게요.",
+      );
+      setStatusTone("neutral");
+    } catch {
+      setStatusMessage(locale === "ko" ? "리커버리 옵션을 만들지 못했어요. 다시 시도해주세요." : "We could not prepare recovery options.");
+      setStatusTone("error");
+    } finally {
+      setIsPending(false);
+    }
   }
 
   async function handleChoiceSubmit() {
@@ -92,39 +90,37 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", l
     setStatusMessage(null);
     setStatusTone("neutral");
 
-    startTransition(async () => {
-      try {
-        const result = await saveRecoveryChoice({
-          failureReason,
-          selectedId: selectedOption.id,
-          options,
-        });
+    try {
+      const result = await saveRecoveryChoice({
+        failureReason,
+        selectedId: selectedOption.id,
+        options,
+      });
 
-        if (result.redirectPath) {
-          router.push(result.redirectPath as never);
-          return;
-        }
-
-        if (selectedOption.mode === "anchor_shift") {
-          router.push("/today?recovered=1");
-          return;
-        }
-
-        const params = new URLSearchParams({
-          title: result.selectedAction?.title ?? currentAction.title,
-          reason: result.selectedAction?.reason ?? currentAction.reason,
-          duration: String(result.selectedAction?.durationMinutes ?? currentAction.durationMinutes),
-          fallback: result.selectedAction?.fallbackAction ?? currentAction.fallbackAction,
-          recovered: "1",
-        });
-
-        router.push(`/today?${params.toString()}`);
-      } catch {
-        setStatusMessage("복구 저장에 실패했어요.");
-        setStatusTone("error");
-        setIsPending(false);
+      if (result.redirectPath) {
+        router.push(result.redirectPath as never);
+        return;
       }
-    });
+
+      if (selectedOption.mode === "anchor_shift") {
+        router.push("/today?recovered=1");
+        return;
+      }
+
+      const params = new URLSearchParams({
+        title: result.selectedAction?.title ?? currentAction.title,
+        reason: result.selectedAction?.reason ?? currentAction.reason,
+        duration: String(result.selectedAction?.durationMinutes ?? currentAction.durationMinutes),
+        fallback: result.selectedAction?.fallbackAction ?? currentAction.fallbackAction,
+        recovered: "1",
+      });
+
+      router.push(`/today?${params.toString()}`);
+    } catch {
+      setStatusMessage("리커버리 저장에 실패했어요.");
+      setStatusTone("error");
+      setIsPending(false);
+    }
   }
 
   return (
@@ -136,8 +132,7 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", l
         {reviewMeta ? (
           <div className="mt-5 rounded-[var(--radius-md)] border border-white/60 bg-[var(--surface-muted)] p-4 text-sm leading-6 text-[var(--muted)]">
             <p>목표: {goal}</p>
-            <p>앵커: {reviewMeta.primaryAnchor}</p>
-            <p>백업: {reviewMeta.backupAnchors.length ? reviewMeta.backupAnchors.join(", ") : "없음"}</p>
+            <p>기존 습관: {reviewMeta.primaryAnchor}</p>
           </div>
         ) : null}
       </Card>
@@ -147,15 +142,13 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", l
           <>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9a3412]">1단계</p>
             <h2 className="mt-3 text-2xl font-semibold">무엇이 막혔나요?</h2>
-            <p className="mt-3 text-sm leading-6 text-slate-700">가장 가까운 이유를 하나 고르세요.</p>
+            <p className="mt-3 text-sm leading-6 text-slate-700">가장 가까운 이유 하나만 골라주세요.</p>
             <div className="mt-6 space-y-3">
               {failureReasonOptions.map((option) => (
                 <label
                   key={option.value}
                   className={`block rounded-3xl border p-4 transition ${
-                    failureReason === option.value
-                      ? "border-[color:var(--accent)] bg-white shadow-[var(--shadow-sm)]"
-                      : "border-white/60 bg-white/70"
+                    failureReason === option.value ? "border-[color:var(--accent)] bg-white shadow-[var(--shadow-sm)]" : "border-white/60 bg-white/70"
                   }`}
                 >
                   <input
@@ -172,7 +165,7 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", l
               ))}
             </div>
             <div className="mt-6">
-              <Button fullWidth size="lg" onClick={handleReasonSubmit} disabled={isPending}>
+              <Button fullWidth size="lg" onClick={() => void handleReasonSubmit()} disabled={isPending}>
                 {isPending ? "불러오는 중" : "다음"}
               </Button>
             </div>
@@ -181,7 +174,7 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", l
           <>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9a3412]">2단계</p>
             <h2 className="mt-3 text-2xl font-semibold">
-              {failureReason === "not_wanted" ? "다시 고르기" : failureReason === "too_big" ? "더 작은 버전" : "앵커 고르기"}
+              {failureReason === "not_wanted" ? "다시 고르기" : failureReason === "too_big" ? "더 작은 버전" : "기존 습관 고르기"}
             </h2>
             <p className="mt-3 text-sm leading-6 text-slate-700">{statusMessage}</p>
             <div className="mt-6 space-y-3">
@@ -202,14 +195,12 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", l
                   />
                   <p className="font-medium text-slate-900">{option.title}</p>
                   <p className="mt-1 text-sm leading-6 text-slate-600">{option.reason}</p>
-                  {option.mode === "smaller_action" ? (
-                    <p className="mt-2 text-sm text-[#9a3412]">대체 행동: {option.fallbackAction}</p>
-                  ) : null}
+                  {option.mode === "smaller_action" ? <p className="mt-2 text-sm text-[#9a3412]">대체 행동: {option.fallbackAction}</p> : null}
                 </label>
               ))}
             </div>
             <div className="mt-6">
-              <Button fullWidth size="lg" onClick={handleChoiceSubmit} disabled={isPending || !selectedOption}>
+              <Button fullWidth size="lg" onClick={() => void handleChoiceSubmit()} disabled={isPending || !selectedOption}>
                 {isPending ? "저장 중" : failureReason === "not_wanted" ? "다시 고르기" : "이걸로 바꾸기"}
               </Button>
             </div>

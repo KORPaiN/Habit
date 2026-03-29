@@ -2,6 +2,7 @@ import type { MicroAction, OnboardingInput } from "@/lib/validators/habit";
 
 export const mockOnboardingData: OnboardingInput = {
   goal: "독서 습관 만들기",
+  desiredOutcome: "매일 조금이라도 읽기",
   availableMinutes: 5,
   difficulty: "gentle",
   preferredTime: "morning",

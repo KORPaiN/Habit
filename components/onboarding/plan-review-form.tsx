@@ -1,20 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
-import {
-  adjustOnboardingReviewAction,
-  finalizeOnboardingReview,
-  regenerateOnboardingReviewPlan,
-} from "@/app/onboarding/review/actions";
+import { finalizeOnboardingReview, regenerateOnboardingReviewPlan } from "@/app/onboarding/review/actions";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import type { HabitReviewMeta } from "@/lib/habit-session";
 import type { Locale } from "@/lib/locale";
 import { minutesLabel } from "@/lib/utils/habit";
 import { getReviewActionSizeLabel } from "@/lib/utils/habit-rules";
 import type { PlanMicroActionInput } from "@/lib/validators/backend";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 
 type PlanReviewFormProps = {
   locale: Locale;
@@ -23,28 +18,34 @@ type PlanReviewFormProps = {
   reviewMeta: HabitReviewMeta;
 };
 
+function sortReviewOptions(actions: PlanMicroActionInput[]) {
+  return [...actions].sort((left, right) => {
+    if (left.durationMinutes !== right.durationMinutes) {
+      return left.durationMinutes - right.durationMinutes;
+    }
+
+    return left.position - right.position;
+  });
+}
+
 export function PlanReviewForm({ locale, initialActions, notice, reviewMeta }: PlanReviewFormProps) {
-  const [actions, setActions] = useState<PlanMicroActionInput[]>(initialActions.slice(0, 3));
+  const options = useMemo(() => sortReviewOptions(initialActions).slice(0, 3), [initialActions]);
+  const [selectedPosition, setSelectedPosition] = useState<number>(options[0]?.position ?? 1);
   const [isPending, setIsPending] = useState(false);
-  const makeEasierAction = adjustOnboardingReviewAction.bind(null, "easier");
-  const makeHarderAction = adjustOnboardingReviewAction.bind(null, "harder");
-  const regeneratePlanAction = regenerateOnboardingReviewPlan.bind(null);
-  const currentAction = actions[0];
+  const selectedIndex = Math.max(
+    0,
+    options.findIndex((option) => option.position === selectedPosition),
+  );
+  const currentAction = options[selectedIndex] ?? options[0];
+  const easierOption = selectedIndex > 0 ? options[selectedIndex - 1] : undefined;
+  const harderOption = selectedIndex < options.length - 1 ? options[selectedIndex + 1] : undefined;
   const sizeLabel = currentAction ? getReviewActionSizeLabel(currentAction.durationMinutes, locale) : "";
 
-  function updateAction(index: number, key: keyof PlanMicroActionInput, value: string | number) {
-    setActions((current) =>
-      current.map((action, actionIndex) =>
-        actionIndex === index
-          ? {
-              ...action,
-              [key]:
-                key === "durationMinutes" || key === "fallbackDurationMinutes" || key === "position"
-                  ? Number(value)
-                  : value,
-            }
-          : action,
-      ),
+  if (!currentAction) {
+    return (
+      <Card className="bg-[var(--surface-strong)] text-center">
+        <p className="text-sm text-[var(--muted)]">검토할 행동이 아직 없어요.</p>
+      </Card>
     );
   }
 
@@ -56,12 +57,9 @@ export function PlanReviewForm({ locale, initialActions, notice, reviewMeta }: P
       }}
       className="space-y-4"
     >
-      <input
-        type="hidden"
-        name="actionsJson"
-        value={JSON.stringify(actions.filter((action) => action.title.trim() && action.fallbackTitle.trim()))}
-      />
-      <input type="hidden" name="selectedPosition" value="1" />
+      <input type="hidden" name="actionsJson" value={JSON.stringify(initialActions)} />
+      <input type="hidden" name="selectedPosition" value={String(currentAction.position)} />
+
       {notice ? (
         <Card className="bg-[var(--surface-muted)] text-center">
           <p className="text-sm font-medium text-[var(--primary)]">{notice}</p>
@@ -69,54 +67,47 @@ export function PlanReviewForm({ locale, initialActions, notice, reviewMeta }: P
       ) : null}
 
       <Card className="bg-[var(--surface-strong)]">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">최종 레시피</p>
-        <div className="mt-4 grid gap-2 text-sm leading-6 text-[var(--foreground)]">
-          <p>변화: {reviewMeta.desiredOutcome}</p>
-          <p>행동: {reviewMeta.selectedBehavior.title}</p>
-          <p>기본 앵커: {reviewMeta.primaryAnchor}</p>
-          <p>백업 앵커: {reviewMeta.backupAnchors.length ? reviewMeta.backupAnchors.join(", ") : "없음"}</p>
+        <div className="grid gap-2 text-sm leading-6 text-[var(--foreground)]">
+          <p>원하는 변화: {reviewMeta.desiredOutcome}</p>
+          <p>고른 행동: {reviewMeta.selectedBehavior.title}</p>
+          <p>기존 습관: {reviewMeta.primaryAnchor}</p>
           <p>레시피: {reviewMeta.recipeText}</p>
           <p>축하: {reviewMeta.celebrationText}</p>
-          <p>리허설: {reviewMeta.rehearsalCount}/7</p>
         </div>
       </Card>
 
-      <div className="grid gap-4">
-        {actions.slice(0, 1).map((action, index) => (
-          <Card key={index} className="bg-[var(--surface-strong)]">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">오늘 행동</p>
-                <p className="mt-2 text-sm font-medium text-[var(--foreground-soft)]">
-                  {minutesLabel(action.durationMinutes, locale)} · {sizeLabel}
-                </p>
-              </div>
-              <div className="rounded-full bg-[var(--primary-soft)] px-3 py-1 text-xs font-semibold text-[var(--primary)]">
-                fallback 있음
-              </div>
-            </div>
-            <div className="mt-4 space-y-4">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-[var(--foreground-soft)]">행동</label>
-                <Input value={action.title} onChange={(event) => updateAction(index, "title", event.target.value)} placeholder="오늘 행동" />
-              </div>
-              <div className="rounded-[var(--radius-md)] bg-[var(--surface-muted)] px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--foreground-soft)]">대체 행동</p>
-                <p className="mt-2 text-sm text-[var(--foreground)]">{action.fallbackTitle}</p>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
+      <Card className="bg-[var(--surface-strong)]">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">오늘 행동</p>
+            <p className="mt-2 text-sm font-medium text-[var(--foreground-soft)]">
+              {minutesLabel(currentAction.durationMinutes, locale)} · {sizeLabel}
+            </p>
+          </div>
+          <div className="rounded-full bg-[var(--primary-soft)] px-3 py-1 text-xs font-semibold text-[var(--primary)]">
+            {selectedIndex + 1}/{options.length}
+          </div>
+        </div>
+        <div className="mt-4 space-y-4">
+          <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-white/70 p-4">
+            <p className="text-lg font-semibold">{currentAction.title}</p>
+            {currentAction.details ? <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{currentAction.details}</p> : null}
+          </div>
+          <div className="rounded-[var(--radius-md)] bg-[var(--surface-muted)] px-4 py-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--foreground-soft)]">대체 행동</p>
+            <p className="mt-2 text-sm text-[var(--foreground)]">{currentAction.fallbackTitle}</p>
+          </div>
+        </div>
+      </Card>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
-        <Button type="submit" variant="ghost" formAction={makeEasierAction} disabled={isPending}>
-          더 쉽게
+        <Button type="button" variant="ghost" onClick={() => easierOption && setSelectedPosition(easierOption.position)} disabled={isPending || !easierOption}>
+          쉽게
         </Button>
-        <Button type="submit" variant="ghost" formAction={makeHarderAction} disabled={isPending}>
-          조금 더
+        <Button type="button" variant="ghost" onClick={() => harderOption && setSelectedPosition(harderOption.position)} disabled={isPending || !harderOption}>
+          어렵게
         </Button>
-        <Button type="submit" variant="secondary" formAction={regeneratePlanAction} disabled={isPending}>
+        <Button type="submit" variant="secondary" formAction={regenerateOnboardingReviewPlan} disabled={isPending}>
           다시 만들기
         </Button>
         <Button type="submit" fullWidth disabled={isPending}>

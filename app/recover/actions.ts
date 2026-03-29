@@ -4,12 +4,12 @@ import { generateHabitDecompositionFromSelection } from "@/lib/ai";
 import { getHabitSession, setHabitSession } from "@/lib/habit-session";
 import { getLocale } from "@/lib/locale";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
-import { getRecoveryContextFromSession } from "@/lib/supabase/demo-data";
-import { assignDailyAction, createPlanVersion, failDailyAction, reselectGoalPlan } from "@/lib/supabase/habit-service";
+import { getHabitReviewStateFromSession, getRecoveryContextFromSession } from "@/lib/supabase/demo-data";
+import { assignDailyAction, createPlanVersion, failDailyAction, getUserAnchors, reselectGoalPlan } from "@/lib/supabase/habit-service";
 import { getSupabaseServerClient } from "@/lib/supabase/server-client";
-import { mapGeneratedActionsToPlanInput, prioritizeSelectedMicroAction } from "@/lib/utils/habit-rules";
+import { prioritizeSelectedMicroAction } from "@/lib/utils/habit-rules";
+import { DEFAULT_AVAILABLE_MINUTES, DEFAULT_DIFFICULTY, DEFAULT_PREFERRED_TIME, microActionSchema } from "@/lib/validators/habit";
 import { failureReasonSchema } from "@/lib/validators/backend";
-import { microActionSchema } from "@/lib/validators/habit";
 
 type RecoveryReason = "forgot" | "too_big" | "forgot_often" | "not_wanted";
 
@@ -40,6 +40,10 @@ function normalizeRecoveryReason(reason: string): RecoveryReason {
   return "forgot";
 }
 
+function dedupeCues(cues: string[]) {
+  return cues.filter((cue, index, list) => cue && list.indexOf(cue) === index);
+}
+
 export async function prepareRecoveryOptions(input: { failureReason: RecoveryReason }): Promise<RecoveryPreparationResult> {
   const locale = await getLocale();
   const rawReason = failureReasonSchema.parse(input.failureReason);
@@ -48,14 +52,13 @@ export async function prepareRecoveryOptions(input: { failureReason: RecoveryRea
   const authenticatedUser = await getAuthenticatedUser();
 
   if (!authenticatedUser) {
-    throw new Error(locale === "ko" ? "로그인 후 이용해 주세요." : "Please sign in with Google first.");
+    throw new Error(locale === "ko" ? "로그인 후 이용해주세요." : "Please sign in with Google first.");
   }
 
-  const context = await getRecoveryContextFromSession(session);
-  const reviewMeta = session.reviewMeta;
+  const [context, reviewState] = await Promise.all([getRecoveryContextFromSession(session), getHabitReviewStateFromSession(session)]);
 
-  if (!context || !reviewMeta) {
-    throw new Error(locale === "ko" ? "먼저 계획을 만들어 주세요." : "Create a plan before opening recovery.");
+  if (!context || !reviewState) {
+    throw new Error(locale === "ko" ? "먼저 계획을 만들어주세요." : "Create a plan before opening recovery.");
   }
 
   let savedFailure = false;
@@ -65,7 +68,7 @@ export async function prepareRecoveryOptions(input: { failureReason: RecoveryRea
       await failDailyAction(await getSupabaseServerClient(), session.dailyActionId, {
         userId: authenticatedUser.id,
         failureReason: rawReason,
-        notes: "복구 분기 진입",
+        notes: "리커버리 분기 진입",
         createRecoveryPlan: false,
       });
       savedFailure = true;
@@ -83,27 +86,31 @@ export async function prepareRecoveryOptions(input: { failureReason: RecoveryRea
           id: "reselect",
           mode: "reselect",
           title: "행동 다시 고르기",
-          reason: "지금 맞는 행동으로 다시 고릅니다.",
+          reason: "지금 맞는 행동으로 다시 골라요.",
         },
       ],
     };
   }
 
   if (reason === "forgot" || reason === "forgot_often") {
-    const anchorCandidates = [
-      reviewMeta.primaryAnchor,
-      ...reviewMeta.backupAnchors,
-      ...(reason === "forgot_often" ? ["집에 들어온 뒤", "양치한 뒤"] : []),
-    ].filter((cue, index, list) => cue && list.indexOf(cue) === index);
+    const client = await getSupabaseServerClient();
+    const savedAnchors = await getUserAnchors(client, authenticatedUser.id);
+    const anchorCandidates = dedupeCues([
+      ...savedAnchors.map((anchor: { cue: string }) => anchor.cue),
+      "커피 마신 뒤",
+      "양치 뒤",
+      "집에 들어오면",
+    ]).filter((cue) => cue !== reviewState.meta.primaryAnchor);
+    const fallbackCandidates = anchorCandidates.length > 0 ? anchorCandidates : [reviewState.meta.primaryAnchor];
 
     return {
       reason,
       savedFailure,
-      options: anchorCandidates.slice(0, 3).map((cue, index) => ({
+      options: fallbackCandidates.slice(0, 3).map((cue, index) => ({
         id: `anchor-${index + 1}`,
         mode: "anchor_shift",
         title: cue,
-        reason: reason === "forgot" ? "더 눈에 띄는 앵커로 붙입니다." : "백업 앵커로 바꾸고 다시 리허설합니다.",
+        reason: reason === "forgot" ? "눈에 더 잘 들어오는 기존 습관으로 붙여요." : "기존 습관을 바꿔서 다시 붙여요.",
         anchorCue: cue,
       })),
     };
@@ -111,22 +118,19 @@ export async function prepareRecoveryOptions(input: { failureReason: RecoveryRea
 
   const decomposition = await generateHabitDecompositionFromSelection(
     {
-      goal: reviewMeta.goal,
-      desiredOutcome: reviewMeta.desiredOutcome,
-      motivationNote: reviewMeta.motivationNote ?? "",
-      availableMinutes: reviewMeta.availableMinutes,
-      difficulty: reviewMeta.difficulty,
-      preferredTime: reviewMeta.preferredTime,
-      anchor: reviewMeta.primaryAnchor,
-      backupAnchors: reviewMeta.backupAnchors,
-      selectedBehavior: reviewMeta.selectedBehavior,
-      swarmCandidates: reviewMeta.swarmCandidates,
-      recipeText: reviewMeta.recipeText,
-      celebrationText: reviewMeta.celebrationText,
-      rehearsalCount: reviewMeta.rehearsalCount,
+      goal: reviewState.meta.goal,
+      desiredOutcome: reviewState.meta.desiredOutcome,
+      availableMinutes: DEFAULT_AVAILABLE_MINUTES,
+      difficulty: DEFAULT_DIFFICULTY,
+      preferredTime: DEFAULT_PREFERRED_TIME,
+      anchor: reviewState.meta.primaryAnchor,
+      selectedBehavior: reviewState.meta.selectedBehavior,
+      swarmCandidates: reviewState.meta.swarmCandidates,
+      recipeText: reviewState.meta.recipeText,
+      celebrationText: reviewState.meta.celebrationText,
       mode: "create",
     },
-    reviewMeta.selectedBehavior,
+    reviewState.meta.selectedBehavior,
     {
       failureReason: "too_big",
       locale,
@@ -134,7 +138,7 @@ export async function prepareRecoveryOptions(input: { failureReason: RecoveryRea
       modelPreference: "fast",
       userId: authenticatedUser.id,
       goalId: session.goalId ?? undefined,
-      basedOnPlanId: session.planId ?? undefined,
+      basedOnPlanId: reviewState.planId,
     },
   );
 
@@ -163,17 +167,17 @@ export async function saveRecoveryChoice(input: {
   redirectPath?: string;
   savedSelection: boolean;
 }> {
-  const reason = normalizeRecoveryReason(failureReasonSchema.parse(input.failureReason));
   const selectedOption = input.options.find((option) => option.id === input.selectedId) ?? input.options[0];
   const session = await getHabitSession();
   const authenticatedUser = await getAuthenticatedUser();
+  const reviewState = await getHabitReviewStateFromSession(session);
 
   if (!selectedOption) {
-    throw new Error("복구 옵션을 찾지 못했어요.");
+    throw new Error("리커버리 옵션을 찾지 못했어요.");
   }
 
-  if (!authenticatedUser || !session.goalId || !session.planId || !session.reviewMeta) {
-    throw new Error("로그인 정보가 필요합니다.");
+  if (!authenticatedUser || !session.goalId || !reviewState) {
+    throw new Error("로그인 정보가 필요해요.");
   }
 
   if (selectedOption.mode === "reselect") {
@@ -187,29 +191,23 @@ export async function saveRecoveryChoice(input: {
 
   if (selectedOption.mode === "anchor_shift" && selectedOption.anchorCue) {
     const nextPrimaryAnchor = selectedOption.anchorCue;
-    const nextBackupAnchors = [session.reviewMeta.primaryAnchor, ...session.reviewMeta.backupAnchors]
-      .filter((cue, index, list) => cue !== nextPrimaryAnchor && list.indexOf(cue) === index)
-      .slice(0, 2);
-
     const result = await reselectGoalPlan(client, {
       userId: authenticatedUser.id,
       goalId: session.goalId,
-      basedOnPlanId: session.planId,
-      goalTitle: session.reviewMeta.goal,
-      goalWhy: session.reviewMeta.motivationNote ?? null,
-      desiredOutcome: session.reviewMeta.desiredOutcome,
-      motivationNote: session.reviewMeta.motivationNote ?? null,
-      difficulty: session.reviewMeta.difficulty,
-      availableMinutes: session.reviewMeta.availableMinutes,
+      basedOnPlanId: reviewState.planId,
+      goalTitle: reviewState.meta.goal,
+      goalWhy: null,
+      desiredOutcome: reviewState.meta.desiredOutcome,
+      difficulty: DEFAULT_DIFFICULTY,
+      availableMinutes: DEFAULT_AVAILABLE_MINUTES,
       anchorLabel: nextPrimaryAnchor,
       anchorCue: nextPrimaryAnchor,
-      preferredTime: session.reviewMeta.preferredTime,
-      backupAnchors: nextBackupAnchors,
-      selectedBehavior: session.reviewMeta.selectedBehavior,
-      swarmCandidates: session.reviewMeta.swarmCandidates,
-      recipeText: session.reviewMeta.recipeText.replace(session.reviewMeta.primaryAnchor, nextPrimaryAnchor),
-      celebrationText: session.reviewMeta.celebrationText,
-      rehearsalCount: reason === "forgot_often" ? 0 : session.reviewMeta.rehearsalCount,
+      preferredTime: DEFAULT_PREFERRED_TIME,
+      selectedBehavior: reviewState.meta.selectedBehavior,
+      swarmCandidates: reviewState.meta.swarmCandidates,
+      recipeText: reviewState.meta.recipeText.replace(reviewState.meta.primaryAnchor, nextPrimaryAnchor),
+      celebrationText: reviewState.meta.celebrationText,
+      rehearsalCount: 0,
       locale: "ko",
     });
 
@@ -218,7 +216,7 @@ export async function saveRecoveryChoice(input: {
     );
 
     if (!selectedMicroAction) {
-      throw new Error("새 행동을 고르지 못했어요.");
+      throw new Error("오늘 행동을 고르지 못했어요.");
     }
 
     const dailyAction = (await assignDailyAction(client, {
@@ -230,18 +228,11 @@ export async function saveRecoveryChoice(input: {
     })) as { id: string };
 
     await setHabitSession({
-      ...session,
       userId: authenticatedUser.id,
+      goalId: session.goalId,
       planId: (result.initialPlan as { plan: { id: string } }).plan.id,
       microActionId: selectedMicroAction.id,
       dailyActionId: dailyAction.id,
-      reviewMeta: {
-        ...session.reviewMeta,
-        primaryAnchor: nextPrimaryAnchor,
-        backupAnchors: nextBackupAnchors,
-        recipeText: session.reviewMeta.recipeText.replace(session.reviewMeta.primaryAnchor, nextPrimaryAnchor),
-        rehearsalCount: reason === "forgot_often" ? 0 : session.reviewMeta.rehearsalCount,
-      },
     });
 
     return {
@@ -257,7 +248,7 @@ export async function saveRecoveryChoice(input: {
       title: option.title,
       details: option.reason,
       durationMinutes: option.durationMinutes ?? 1,
-      fallbackTitle: option.fallbackAction ?? "준비물 꺼내기",
+      fallbackTitle: option.fallbackAction ?? "더 작은 대체 행동",
       fallbackDetails: "더 작은 대체 행동",
       fallbackDurationMinutes: 1,
     }));
@@ -270,12 +261,12 @@ export async function saveRecoveryChoice(input: {
     userId: authenticatedUser.id,
     goalId: session.goalId,
     source: "recovery",
-    basedOnPlanId: session.planId,
-    notes: "복구 후 더 작은 행동",
-    recipeText: session.reviewMeta.recipeText,
-    celebrationText: session.reviewMeta.celebrationText,
-    rehearsalCount: session.reviewMeta.rehearsalCount,
-    selectedCandidateId: session.reviewMeta.selectedCandidateId ?? null,
+    basedOnPlanId: reviewState.planId,
+    notes: "리커버리에서 더 작은 행동 선택",
+    recipeText: reviewState.meta.recipeText,
+    celebrationText: reviewState.meta.celebrationText,
+    rehearsalCount: 0,
+    selectedCandidateId: reviewState.meta.selectedCandidateId ?? null,
     microActions: prioritizedActions,
   })) as {
     plan: { id: string };
@@ -285,7 +276,7 @@ export async function saveRecoveryChoice(input: {
   const selectedMicroActionId = planResult.micro_actions.find((item) => item.position === 1)?.id;
 
   if (!selectedMicroActionId) {
-    throw new Error("복구 행동을 저장하지 못했어요.");
+    throw new Error("리커버리 행동을 저장하지 못했어요.");
   }
 
   const dailyAction = (await assignDailyAction(client, {
@@ -297,7 +288,8 @@ export async function saveRecoveryChoice(input: {
   })) as { id: string };
 
   await setHabitSession({
-    ...session,
+    userId: authenticatedUser.id,
+    goalId: session.goalId,
     planId: planResult.plan.id,
     microActionId: selectedMicroActionId,
     dailyActionId: dailyAction.id,
@@ -311,7 +303,7 @@ export async function saveRecoveryChoice(input: {
 
 export async function getRecoveryPageState() {
   const session = await getHabitSession();
-  const context = await getRecoveryContextFromSession(session);
+  const [context, reviewState] = await Promise.all([getRecoveryContextFromSession(session), getHabitReviewStateFromSession(session)]);
 
   if (!context) {
     return null;
@@ -320,6 +312,6 @@ export async function getRecoveryPageState() {
   return {
     currentAction: context.currentAction,
     goal: context.goal,
-    reviewMeta: session.reviewMeta,
+    reviewMeta: reviewState?.meta,
   };
 }

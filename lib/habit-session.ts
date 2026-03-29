@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import type { DifficultyLevel, PreferredTime } from "@/types";
+
 import type { PlanMicroActionInput } from "@/lib/validators/backend";
 import type { BehaviorSwarmCandidate } from "@/lib/validators/habit";
 
@@ -8,17 +8,11 @@ const HABIT_SESSION_COOKIE = "habit_session";
 export type HabitReviewMeta = {
   goal: string;
   desiredOutcome: string;
-  motivationNote?: string;
-  availableMinutes: number;
-  difficulty: DifficultyLevel;
-  preferredTime: PreferredTime;
   selectedBehavior: BehaviorSwarmCandidate;
   swarmCandidates: BehaviorSwarmCandidate[];
   primaryAnchor: string;
-  backupAnchors: string[];
   recipeText: string;
   celebrationText: string;
-  rehearsalCount: number;
   selectedCandidateId?: string;
 };
 
@@ -29,12 +23,21 @@ export type HabitSession = {
   microActionId?: string;
   dailyActionId?: string;
   reviewActions?: PlanMicroActionInput[];
-  reviewDifficulty?: DifficultyLevel;
-  reviewMeta?: HabitReviewMeta;
 };
 
 function getDefaultSession(): HabitSession {
   return {};
+}
+
+function sanitizeSession(input: Partial<HabitSession>): HabitSession {
+  return {
+    userId: typeof input.userId === "string" ? input.userId : undefined,
+    goalId: typeof input.goalId === "string" ? input.goalId : undefined,
+    planId: typeof input.planId === "string" ? input.planId : undefined,
+    microActionId: typeof input.microActionId === "string" ? input.microActionId : undefined,
+    dailyActionId: typeof input.dailyActionId === "string" ? input.dailyActionId : undefined,
+    reviewActions: Array.isArray(input.reviewActions) ? input.reviewActions : undefined,
+  };
 }
 
 export async function getHabitSession() {
@@ -46,29 +49,17 @@ export async function getHabitSession() {
   }
 
   try {
-    const parsed = JSON.parse(raw) as Partial<HabitSession>;
-
-    if (
-      (parsed.userId === undefined || typeof parsed.userId === "string") &&
-      (parsed.goalId === undefined || typeof parsed.goalId === "string") &&
-      (parsed.planId === undefined || typeof parsed.planId === "string") &&
-      (parsed.microActionId === undefined || typeof parsed.microActionId === "string") &&
-      (parsed.dailyActionId === undefined || typeof parsed.dailyActionId === "string") &&
-      (parsed.reviewActions === undefined || Array.isArray(parsed.reviewActions)) &&
-      (parsed.reviewDifficulty === undefined || typeof parsed.reviewDifficulty === "string") &&
-      (parsed.reviewMeta === undefined || typeof parsed.reviewMeta === "object")
-    ) {
-      return parsed as HabitSession;
-    }
-  } catch {}
-
-  return getDefaultSession();
+    return sanitizeSession(JSON.parse(raw) as Partial<HabitSession>);
+  } catch {
+    return getDefaultSession();
+  }
 }
 
 export async function setHabitSession(session: HabitSession) {
   const cookieStore = await cookies();
+  const payload = JSON.stringify(sanitizeSession(session));
 
-  cookieStore.set(HABIT_SESSION_COOKIE, JSON.stringify(session), {
+  cookieStore.set(HABIT_SESSION_COOKIE, payload, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

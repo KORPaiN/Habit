@@ -16,10 +16,7 @@ export async function POST(request: Request) {
     const { data } = await readJson(request);
     const input = behaviorSwarmRequestSchema.parse(data);
     const candidates = await generateBehaviorSwarm(
-      {
-        ...input,
-        motivationNote: input.motivationNote ?? "",
-      },
+      input,
       {
         locale: "ko",
         strategy: "ai_only",

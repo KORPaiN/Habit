@@ -88,7 +88,6 @@ async function syncGoalAnchors(
     userId: string;
     goalId: string;
     primaryAnchor: string;
-    backupAnchors: string[];
     preferredTime: Database["public"]["Tables"]["anchors"]["Row"]["preferred_time"];
   },
 ) {
@@ -97,16 +96,6 @@ async function syncGoalAnchors(
     cue: input.primaryAnchor,
     preferredTime: input.preferredTime,
   });
-
-  const backups = await Promise.all(
-    input.backupAnchors.map((cue) =>
-      upsertAnchor(client, {
-        userId: input.userId,
-        cue,
-        preferredTime: input.preferredTime,
-      }),
-    ),
-  );
 
   const goalAnchorsTable = client.from("goal_anchors" as never) as any;
   const goalsTable = client.from("goals" as never) as any;
@@ -124,12 +113,6 @@ async function syncGoalAnchors(
       anchor_type: "primary",
       sort_order: 0,
     },
-    ...backups.map((anchor, index) => ({
-      goal_id: input.goalId,
-      anchor_id: anchor.id,
-      anchor_type: "backup" as const,
-      sort_order: index + 1,
-    })),
   ];
 
   const { error: insertError } = await goalAnchorsTable.insert(rows);
@@ -146,7 +129,6 @@ async function syncGoalAnchors(
 
   return {
     primary,
-    backups,
   };
 }
 
@@ -255,7 +237,7 @@ async function createOnboardingGoalWithAnchorReuse(
       title: input.goalTitle,
       why: input.goalWhy ?? null,
       desired_outcome: input.desiredOutcome,
-      motivation_note: input.motivationNote ?? input.goalWhy ?? null,
+      motivation_note: null,
       difficulty: input.difficulty,
       available_minutes: input.availableMinutes,
     } satisfies GoalInsert)
@@ -287,7 +269,6 @@ async function buildSelectionPlan(
     userId: input.userId,
     goalId: input.goalId,
     primaryAnchor: input.anchorCue,
-    backupAnchors: input.backupAnchors ?? [],
     preferredTime: input.preferredTime,
   });
 
@@ -301,17 +282,14 @@ async function buildSelectionPlan(
     {
       goal: input.goalTitle,
       desiredOutcome: input.desiredOutcome,
-      motivationNote: input.motivationNote ?? "",
       availableMinutes: input.availableMinutes,
       difficulty: input.difficulty,
       preferredTime: input.preferredTime,
       anchor: input.anchorCue,
-      backupAnchors: input.backupAnchors ?? [],
       selectedBehavior,
       swarmCandidates,
       recipeText: input.recipeText,
       celebrationText: input.celebrationText,
-      rehearsalCount: input.rehearsalCount,
       mode: "create",
     },
     selectedBehavior,
@@ -355,7 +333,7 @@ export async function createOnboardingFlow(client: ServiceClient, input: Authent
       p_goal_title: input.goalTitle,
       p_goal_why: input.goalWhy ?? null,
       p_desired_outcome: input.desiredOutcome,
-      p_motivation_note: input.motivationNote ?? input.goalWhy ?? null,
+      p_motivation_note: null,
       p_difficulty: input.difficulty,
       p_available_minutes: input.availableMinutes,
       p_anchor_label: input.anchorLabel,
@@ -392,7 +370,7 @@ export async function reselectGoalPlan(
       title: input.goalTitle,
       why: input.goalWhy ?? null,
       desired_outcome: input.desiredOutcome,
-      motivation_note: input.motivationNote ?? input.goalWhy ?? null,
+      motivation_note: null,
       difficulty: input.difficulty,
       available_minutes: input.availableMinutes,
     } satisfies GoalUpdate)
@@ -606,7 +584,7 @@ export async function generateWeeklyReview(client: ServiceClient, input: { userI
     failedDays > 0
       ? "어려운 날에는 행동을 더 작게 줄일 필요가 있었습니다."
       : skippedDays > 1
-        ? "바쁜 날에는 앵커가 더 분명해야 했습니다."
+        ? "바쁜 날에는 기존 습관이 더 분명해야 했습니다."
         : "이번 주 흐름은 비교적 가벼웠습니다.";
 
   const helpfulPattern =
@@ -621,7 +599,7 @@ export async function generateWeeklyReview(client: ServiceClient, input: { userI
       ? "다음 주에는 첫 행동을 더 가볍게 유지해 보세요."
       : completedDays >= 4
         ? "지금 크기를 유지하며 반복해 보세요."
-        : "앵커를 더 눈에 띄게 바꿔 보세요.";
+        : "기존 습관을 더 눈에 띄게 바꿔 보세요.";
 
   return upsertWeeklyReview(client, {
     userId: input.userId,

@@ -33,17 +33,15 @@ export default async function AnchorsPage({ searchParams }: AnchorsPageProps) {
       auth={auth}
       locale={locale}
       path="/anchors"
-      title={locale === "ko" ? "앵커를 저장해 둘 수 있어요." : "Save anchors for later"}
-      description={locale === "ko" ? "자주 쓰는 앵커를 저장하면 온보딩에서 바로 다시 고를 수 있어요." : "Save cues you reuse often so onboarding can reuse them quickly."}
+      title={locale === "ko" ? "저장된 기존 습관" : "Saved cues"}
+      description={locale === "ko" ? "자주 하는 일을 저장해두면 바로 다시 고를 수 있어요." : "Save cues you reuse often so onboarding can reuse them quickly."}
       className="mx-auto max-w-3xl"
     >
       <div className="grid gap-4">
         {!user ? (
           <Card className="bg-[var(--surface-strong)]">
             <p className="text-sm leading-6 text-[var(--muted)]">
-              {locale === "ko"
-                ? "앵커를 저장하려면 먼저 헤더의 로그인 버튼으로 로그인해 주세요."
-                : "Sign in from the header to save anchors."}
+              {locale === "ko" ? "저장하려면 먼저 로그인해 주세요." : "Sign in from the header to save cues."}
             </p>
           </Card>
         ) : (
@@ -51,36 +49,27 @@ export default async function AnchorsPage({ searchParams }: AnchorsPageProps) {
             <form action={saveAnchorAction} className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
               <div>
                 <label className="mb-2 block text-sm font-medium text-[var(--foreground-soft)]">
-                  {locale === "ko" ? "앵커 행동" : "Anchor cue"}
+                  {locale === "ko" ? "기존 습관" : "Cue"}
                 </label>
-                <Input
-                  name="cue"
-                  placeholder={locale === "ko" ? "예: 아침에 커피를 마신 직후" : "Example: right after my morning coffee"}
-                />
+                <Input name="cue" placeholder={locale === "ko" ? "예: 아침 커피 마신 뒤" : "Example: right after my morning coffee"} />
               </div>
               <Button type="submit">{locale === "ko" ? "저장" : "Save"}</Button>
             </form>
-            {params.saved === "1" ? (
-              <p className="mt-3 text-sm text-[var(--primary)]">{locale === "ko" ? "앵커를 저장했어요." : "Anchor saved."}</p>
-            ) : null}
-            {params.deleted === "1" ? (
-              <p className="mt-3 text-sm text-[var(--primary)]">{locale === "ko" ? "앵커를 삭제했어요." : "Anchor deleted."}</p>
-            ) : null}
+            {params.saved === "1" ? <p className="mt-3 text-sm text-[var(--primary)]">{locale === "ko" ? "저장했어요." : "Saved."}</p> : null}
+            {params.deleted === "1" ? <p className="mt-3 text-sm text-[var(--primary)]">{locale === "ko" ? "삭제했어요." : "Deleted."}</p> : null}
             {params.error ? <p className="mt-3 text-sm text-amber-800">{params.error}</p> : null}
           </Card>
         )}
 
         <Card className="bg-[var(--surface-strong)]">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold">{locale === "ko" ? "저장된 앵커" : "Saved anchors"}</h2>
+            <h2 className="text-lg font-semibold">{locale === "ko" ? "저장된 기존 습관" : "Saved cues"}</h2>
             <Link href="/onboarding">
               <Button variant="ghost" size="sm">{locale === "ko" ? "온보딩으로" : "Back to onboarding"}</Button>
             </Link>
           </div>
           {anchors.length === 0 ? (
-            <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
-              {locale === "ko" ? "아직 저장된 앵커가 없어요." : "No anchors saved yet."}
-            </p>
+            <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{locale === "ko" ? "아직 저장된 기존 습관이 없어요." : "No cues saved yet."}</p>
           ) : (
             <div className="mt-4 flex flex-wrap gap-3">
               {anchors.map((anchor) => (
@@ -94,7 +83,7 @@ export default async function AnchorsPage({ searchParams }: AnchorsPageProps) {
                     <button
                       type="submit"
                       className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--muted)] transition hover:bg-white hover:text-rose-600"
-                      aria-label={locale === "ko" ? "앵커 삭제" : "Delete anchor"}
+                      aria-label={locale === "ko" ? "삭제" : "Delete cue"}
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>

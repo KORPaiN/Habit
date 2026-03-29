@@ -279,7 +279,6 @@ test("generateBehaviorSwarm returns 6 to 10 concrete candidates", async () => {
     {
       goal: "Build a reading habit",
       desiredOutcome: "Read a little each day.",
-      motivationNote: "I want reading to feel normal again.",
       availableMinutes: 5,
       difficulty: "steady",
       preferredTime: "morning",
@@ -337,7 +336,6 @@ test("generateBehaviorSwarm uses the fast GPT-5 settings when OPENAI_MODEL is sl
       {
         goal: "Build a reading habit",
         desiredOutcome: "Read a little each day.",
-        motivationNote: "I want reading to feel normal again.",
         availableMinutes: 5,
         difficulty: "steady",
         preferredTime: "morning",
@@ -443,7 +441,6 @@ test("generateBehaviorSwarm retries with the quality model when the fast respons
       {
         goal: "Build a reading habit",
         desiredOutcome: "Read a little each day.",
-        motivationNote: "I want reading to feel normal again.",
         availableMinutes: 5,
         difficulty: "steady",
         preferredTime: "morning",
@@ -494,12 +491,10 @@ test("generateHabitDecompositionFromSelection keeps the selected behavior first"
     {
       goal: "Build a reading habit",
       desiredOutcome: "Read a little each day.",
-      motivationNote: "I want reading to feel normal again.",
       availableMinutes: 5,
       difficulty: "steady",
       preferredTime: "morning",
       anchor: "after coffee",
-      backupAnchors: ["after lunch"],
       selectedBehavior: {
         title: "Open the book and read one page",
         details: "A tiny visible start.",
@@ -560,7 +555,6 @@ test("generateHabitDecompositionFromSelection keeps the selected behavior first"
       ],
       recipeText: "After coffee, I will open the book and read one page.",
       celebrationText: "Nice. I did it.",
-      rehearsalCount: 2,
       mode: "create",
     },
     {

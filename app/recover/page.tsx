@@ -22,9 +22,9 @@ export default async function RecoveryPage({ searchParams }: RecoveryPageProps) 
 
   if (!state) {
     return (
-      <PageShell auth={auth} locale={locale} path="/recover" eyebrow="복구" title="먼저 계획이 필요해요" description="오늘 행동이 있어야 복구할 수 있어요.">
+      <PageShell auth={auth} locale={locale} path="/recover" eyebrow="복구" title="먼저 계획이 필요해요" description="오늘 행동이 있어야 복구도 도와드릴 수 있어요.">
         <Card className="text-center">
-          <p className="text-sm leading-6 text-[var(--muted)]">온보딩에서 아주 작은 계획을 먼저 만들어 주세요.</p>
+          <p className="text-sm leading-6 text-[var(--muted)]">온보딩에서 아주 작은 계획부터 만들어주세요.</p>
           <Link href="/onboarding" className="mt-5 inline-block">
             <Button>온보딩</Button>
           </Link>
@@ -34,7 +34,7 @@ export default async function RecoveryPage({ searchParams }: RecoveryPageProps) 
   }
 
   return (
-    <PageShell auth={auth} locale={locale} path="/recover" eyebrow="복구" title="어려우면 다시 줄여요" description="오늘 맞는 버전으로 바꾸면 됩니다.">
+    <PageShell auth={auth} locale={locale} path="/recover" eyebrow="복구" title="어려우면 다시 줄여요" description="오늘 맞는 버전으로 바꾸면 돼요.">
       <RecoveryFlow currentAction={state.currentAction} goal={state.goal} initialReason={params.reason} locale={locale} reviewMeta={state.reviewMeta} />
     </PageShell>
   );

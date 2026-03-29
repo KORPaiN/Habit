@@ -30,8 +30,8 @@ export async function saveAnchorAction(formData: FormData) {
       error instanceof Error
         ? error.message
         : locale === "ko"
-          ? "앵커를 저장하지 못했어요."
-          : "We could not save your anchor.";
+          ? "기존 습관을 저장하지 못했어요."
+          : "We could not save your cue.";
 
     redirect(`/anchors?error=${encodeURIComponent(message)}`);
   }
@@ -50,7 +50,7 @@ export async function deleteAnchorAction(formData: FormData) {
   const anchorId = String(formData.get("anchorId") ?? "");
 
   if (!anchorId) {
-    redirect(`/anchors?error=${encodeURIComponent(locale === "ko" ? "삭제할 앵커를 찾지 못했어요." : "We could not find that anchor.")}`);
+    redirect(`/anchors?error=${encodeURIComponent(locale === "ko" ? "삭제할 기존 습관을 찾지 못했어요." : "We could not find that cue.")}`);
   }
 
   try {
@@ -63,8 +63,8 @@ export async function deleteAnchorAction(formData: FormData) {
       error instanceof Error
         ? error.message
         : locale === "ko"
-          ? "앵커를 삭제하지 못했어요."
-          : "We could not delete that anchor.";
+          ? "기존 습관을 삭제하지 못했어요."
+          : "We could not delete that cue.";
 
     redirect(`/anchors?error=${encodeURIComponent(message)}`);
   }

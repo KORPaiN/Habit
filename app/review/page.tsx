@@ -1,11 +1,11 @@
 import Link from "next/link";
 
-import { getHabitSession } from "@/lib/habit-session";
 import { MonthPicker } from "@/components/review/month-picker";
-import { PageShell } from "@/components/ui/page-shell";
 import { StatPill } from "@/components/review/stat-pill";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { PageShell } from "@/components/ui/page-shell";
+import { getHabitSession } from "@/lib/habit-session";
 import { getLocale } from "@/lib/locale";
 import { getAuthShellState } from "@/lib/supabase/auth";
 import { getMonthlyReviewStateFromSession } from "@/lib/supabase/demo-data";
@@ -64,26 +64,15 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
 
   if (!monthlySummary) {
     return (
-      <PageShell
-        auth={auth}
-        locale={locale}
-        path="/review"
-        eyebrow={locale === "ko" ? "리뷰" : "Review"}
-        title={locale === "ko" ? "리뷰는 조금 뒤에 보여드릴게요." : "Your review will appear once the week has data."}
-        description={
-          locale === "ko"
-            ? "기록이 쌓이면 월간 흐름이 보입니다."
-            : "The review is generated from real completions, failures, and skips instead of placeholder summaries."
-        }
-      >
+      <PageShell auth={auth} locale={locale} path="/review" eyebrow={locale === "ko" ? "리뷰" : "Review"} title={locale === "ko" ? "아직 볼 리뷰가 없어요." : "No review yet."} description={locale === "ko" ? "먼저 온보딩을 마치고 오늘 행동을 만들어보세요." : "Finish onboarding and create today's action first."}>
         <Card className="bg-[var(--surface-strong)] text-center">
           <p className="text-sm leading-6 text-[var(--muted)]">
             {locale === "ko"
-              ? "아직 볼 리뷰가 없어요. 먼저 시작해 보세요."
-              : "There is no active goal to review yet. Complete onboarding and mark actions done during the week to build your first summary."}
+              ? "저장된 행동이 생기면 여기서 바로 흐름을 볼 수 있어요."
+              : "Your review will appear here once the first saved action exists."}
           </p>
           <Link href="/onboarding" className="mt-5 inline-block">
-            <Button>{locale === "ko" ? "온보딩 시작하기" : "Start onboarding"}</Button>
+            <Button>{locale === "ko" ? "온보딩 시작" : "Start onboarding"}</Button>
           </Link>
         </Card>
       </PageShell>
@@ -96,31 +85,26 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
       locale={locale}
       path="/review"
       eyebrow={locale === "ko" ? "리뷰" : "Review"}
-      title={locale === "ko" ? `${monthlySummary.monthLabel} 흐름을 볼게요.` : "Look for patterns, not proof."}
+      title={locale === "ko" ? `${monthlySummary.monthLabel} 흐름 보기` : "Look for patterns, not proof."}
       description={
         locale === "ko"
-          ? "이번 달뿐 아니라 지난달 흐름도 볼 수 있어요."
-          : "The weekly review is here to notice what made starting easier, where friction showed up, and what should become smaller next week."
+          ? "완벽함보다 어떤 날이 쉬웠는지 보는 화면이에요."
+          : "Notice what made starting easier, where friction showed up, and what should become smaller."
       }
       className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]"
     >
       <Card className="h-fit bg-[var(--surface-muted)] text-center">
         {params.completed === "1" ? (
           <div className="mb-4 rounded-[var(--radius-md)] bg-[var(--primary-soft)] px-4 py-3 text-sm leading-6 text-[var(--primary)]">
-            {locale === "ko"
-              ? "오늘 완료한 내용이 반영됐어요."
-              : "Today's action was marked complete. The next review will catch up as weekly data is saved."}
+            {locale === "ko" ? "오늘 완료가 반영됐어요." : "Today's completion was saved."}
           </div>
         ) : null}
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
-          {locale === "ko" ? "한눈에 보기" : "Month at a glance"}
+          {locale === "ko" ? "이번 달 한눈에" : "Month at a glance"}
         </p>
         <div className="mt-4 grid gap-3 justify-items-center">
-          <StatPill label={locale === "ko" ? "완료" : "Completed"} value={locale === "ko" ? `${monthlySummary.completedCount}회` : `${monthlySummary.completedCount}`} />
-          <StatPill
-            label={locale === "ko" ? "완료율" : "Completion rate"}
-            value={locale === "ko" ? `${monthlySummary.completionRate}%` : `${monthlySummary.completionRate}%`}
-          />
+          <StatPill label={locale === "ko" ? "완료" : "Completed"} value={locale === "ko" ? `${monthlySummary.completedCount}번` : `${monthlySummary.completedCount}`} />
+          <StatPill label={locale === "ko" ? "완료율" : "Completion rate"} value={`${monthlySummary.completionRate}%`} />
           <StatPill label={locale === "ko" ? "최고 연속" : "Best streak"} value={locale === "ko" ? `${monthlySummary.bestStreak}일` : `${monthlySummary.bestStreak} days`} />
         </div>
         <p className="mt-4 text-sm leading-6 text-[var(--muted)]">
@@ -143,16 +127,13 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
           />
           <div className="mt-2 text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
-              {locale === "ko" ? "달력으로 보기" : "Calendar"}
+              {locale === "ko" ? "달력" : "Calendar"}
             </p>
             <p className="mt-2 text-lg font-semibold text-[var(--foreground)]">{monthlySummary.monthLabel}</p>
           </div>
           <div className="mt-4 grid grid-cols-7 gap-2">
             {WEEKDAY_LABELS[locale].map((label) => (
-              <div
-                key={label}
-                className="text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--muted-strong)]"
-              >
+              <div key={label} className="text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--muted-strong)]">
                 {label}
               </div>
             ))}
@@ -172,18 +153,10 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
                 <div
                   key={entry.date}
                   className={`flex aspect-square flex-col items-center justify-center rounded-[var(--radius-md)] border px-1 text-sm font-medium ${tone}`}
-                  title={
-                    locale === "ko"
-                      ? `${entry.day}일, 완료 ${entry.completedCount}개`
-                      : `${entry.day}, ${entry.completedCount} completed`
-                  }
+                  title={locale === "ko" ? `${entry.day}일 · 완료 ${entry.completedCount}개` : `${entry.day}, ${entry.completedCount} completed`}
                 >
                   <span>{entry.day}</span>
-                  {entry.completedCount > 0 ? (
-                    <span className="mt-1 text-[10px] font-semibold leading-none">
-                      {locale === "ko" ? `${entry.completedCount}개` : `${entry.completedCount}`}
-                    </span>
-                  ) : null}
+                  {entry.completedCount > 0 ? <span className="mt-1 text-[10px] font-semibold leading-none">{locale === "ko" ? `${entry.completedCount}개` : `${entry.completedCount}`}</span> : null}
                 </div>
               );
             })}

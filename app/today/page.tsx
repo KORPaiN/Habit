@@ -7,7 +7,7 @@ import { PageShell } from "@/components/ui/page-shell";
 import { getHabitSession } from "@/lib/habit-session";
 import { getLocale } from "@/lib/locale";
 import { getAuthShellState } from "@/lib/supabase/auth";
-import { getTodayStateFromSession } from "@/lib/supabase/demo-data";
+import { getHabitReviewStateFromSession, getTodayStateFromSession } from "@/lib/supabase/demo-data";
 import { buildAnchorReminder } from "@/lib/utils/habit";
 import { microActionSchema } from "@/lib/validators/habit";
 
@@ -30,20 +30,20 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
   const locale = await getLocale();
   const auth = await getAuthShellState();
   const session = await getHabitSession();
-  const todayState = await getTodayStateFromSession(session);
-  const recipeText = session.reviewMeta?.recipeText;
-  const celebrationText = session.reviewMeta?.celebrationText;
-  const anchorReminder = session.reviewMeta
-    ? buildAnchorReminder(session.reviewMeta.primaryAnchor, session.reviewMeta.backupAnchors, locale)
+  const [todayState, reviewState] = await Promise.all([getTodayStateFromSession(session), getHabitReviewStateFromSession(session)]);
+  const recipeText = reviewState?.meta.recipeText;
+  const celebrationText = reviewState?.meta.celebrationText;
+  const anchorReminder = reviewState
+    ? buildAnchorReminder(reviewState.meta.primaryAnchor, locale)
     : todayState
-      ? `앵커: ${todayState.anchor}`
+      ? `기존 습관: ${todayState.anchor}`
       : undefined;
 
   if (!todayState) {
     return (
-      <PageShell auth={auth} locale={locale} path="/today" eyebrow="오늘" title="오늘 행동이 아직 없어요" description="온보딩을 마치면 여기서 바로 시작할 수 있어요.">
+      <PageShell auth={auth} locale={locale} path="/today" eyebrow="오늘" title="오늘 행동이 아직 없어요" description="온보딩을 마치면 바로 시작할 수 있어요.">
         <Card className="bg-[var(--surface-strong)] text-center">
-          <p className="text-sm leading-6 text-[var(--muted)]">먼저 아주 작은 계획을 만들어 주세요.</p>
+          <p className="text-sm leading-6 text-[var(--muted)]">먼저 아주 작은 계획부터 만들어주세요.</p>
           <Link href="/onboarding" className="mt-5 inline-block">
             <Button>온보딩</Button>
           </Link>
@@ -72,7 +72,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
       path="/today"
       eyebrow="오늘"
       title="오늘은 하나면 충분해요"
-      description="오늘 할 일 하나만 봅니다."
+      description="오늘 할 것은 하나만 보면 돼요."
       className="grid gap-6 lg:grid-cols-[1fr_0.88fr]"
     >
       <div className="grid gap-6">
@@ -85,7 +85,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
         {isRecovered ? (
           <Card className="bg-[var(--primary-soft)] text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">복구 완료</p>
-            <p className="mt-3 text-sm leading-6 text-[var(--foreground)]">더 쉬운 버전으로 바꿨어요.</p>
+            <p className="mt-3 text-sm leading-6 text-[var(--foreground)]">오늘 맞는 버전으로 바꿨어요.</p>
           </Card>
         ) : null}
         <ActionCard
@@ -102,7 +102,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
         <Card className="bg-[var(--surface-strong)] text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">대체 행동</p>
           <p className="mt-3 text-2xl font-semibold leading-tight">{action.fallbackAction}</p>
-          <p className="mt-3 text-sm leading-6 text-[var(--muted)]">부담되면 이것만 해도 됩니다.</p>
+          <p className="mt-3 text-sm leading-6 text-[var(--muted)]">버겁다면 이것만 해도 충분해요.</p>
         </Card>
       </div>
     </PageShell>

@@ -52,7 +52,7 @@ export function ActionCard({
       <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
         <form action={completeTodayAction} className="sm:flex-1">
           <Button type="submit" fullWidth size="lg" disabled={isCompleted}>
-            {isCompleted ? "완료" : "끝냈어요"}
+            {isCompleted ? "완료" : "해냈어요"}
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </form>

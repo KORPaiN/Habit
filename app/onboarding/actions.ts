@@ -8,7 +8,14 @@ import { getAuthenticatedUser, syncAuthenticatedUser } from "@/lib/supabase/auth
 import { createOnboardingFlow, reselectGoalPlan } from "@/lib/supabase/habit-service";
 import { getSupabaseServerClient } from "@/lib/supabase/server-client";
 import { mapGeneratedActionsToPlanInput } from "@/lib/utils/habit-rules";
-import { behaviorSwarmSchema, behaviorSwarmCandidateSchema, onboardingSchema } from "@/lib/validators/habit";
+import {
+  DEFAULT_AVAILABLE_MINUTES,
+  DEFAULT_DIFFICULTY,
+  DEFAULT_PREFERRED_TIME,
+  behaviorSwarmCandidateSchema,
+  behaviorSwarmSchema,
+  onboardingSchema,
+} from "@/lib/validators/habit";
 
 function parseJsonField<T>(value: FormDataEntryValue | null, fallback: T): T {
   if (typeof value !== "string" || !value.trim()) {
@@ -26,21 +33,14 @@ export async function submitOnboarding(formData: FormData) {
   const locale = await getLocale();
   const selectedBehavior = behaviorSwarmCandidateSchema.parse(parseJsonField(formData.get("selectedBehaviorJson"), {}));
   const swarmCandidates = behaviorSwarmSchema.parse(parseJsonField(formData.get("swarmCandidatesJson"), []));
-  const backupAnchors = parseJsonField<string[]>(formData.get("backupAnchorsJson"), []);
   const parsed = onboardingSchema.parse({
     goal: formData.get("goal"),
     desiredOutcome: formData.get("desiredOutcome"),
-    motivationNote: formData.get("motivationNote"),
-    availableMinutes: formData.get("availableMinutes"),
-    difficulty: formData.get("difficulty"),
-    preferredTime: formData.get("preferredTime"),
     anchor: formData.get("anchor"),
-    backupAnchors,
     selectedBehavior,
     swarmCandidates,
     recipeText: formData.get("recipeText"),
     celebrationText: formData.get("celebrationText"),
-    rehearsalCount: formData.get("rehearsalCount"),
     mode: formData.get("mode") ?? "create",
   });
 
@@ -48,7 +48,11 @@ export async function submitOnboarding(formData: FormData) {
     const authenticatedUser = await getAuthenticatedUser();
 
     if (!authenticatedUser) {
-      redirect(`/login?next=${encodeURIComponent("/onboarding")}&error=${encodeURIComponent(locale === "ko" ? "로그인 후 계속할 수 있어요." : "Sign in with Google before saving your plan.")}`);
+      redirect(
+        `/login?next=${encodeURIComponent("/onboarding?resume=1&step=5")}&error=${encodeURIComponent(
+          locale === "ko" ? "로그인 후 저장할 수 있어요." : "Sign in with Google before saving your plan.",
+        )}`,
+      );
     }
 
     await syncAuthenticatedUser();
@@ -56,50 +60,32 @@ export async function submitOnboarding(formData: FormData) {
     const client = await getSupabaseServerClient();
     const userId = authenticatedUser.id;
     const session = await getHabitSession();
+    const basePayload = {
+      userId,
+      goalTitle: parsed.goal,
+      goalWhy: null,
+      desiredOutcome: parsed.desiredOutcome,
+      difficulty: DEFAULT_DIFFICULTY,
+      availableMinutes: DEFAULT_AVAILABLE_MINUTES,
+      anchorLabel: parsed.anchor,
+      anchorCue: parsed.anchor,
+      preferredTime: DEFAULT_PREFERRED_TIME,
+      selectedBehavior: parsed.selectedBehavior,
+      swarmCandidates: parsed.swarmCandidates,
+      recipeText: parsed.recipeText,
+      celebrationText: parsed.celebrationText,
+      rehearsalCount: 0,
+      locale,
+    };
     const result = (
       parsed.mode === "reselect" && session.goalId
         ? await reselectGoalPlan(client, {
-            userId,
+            ...basePayload,
             goalId: session.goalId,
             basedOnPlanId: session.planId ?? null,
-            goalTitle: parsed.goal,
-            goalWhy: parsed.motivationNote || null,
-            desiredOutcome: parsed.desiredOutcome,
-            motivationNote: parsed.motivationNote || null,
-            difficulty: parsed.difficulty,
-            availableMinutes: parsed.availableMinutes,
-            anchorLabel: parsed.anchor,
-            anchorCue: parsed.anchor,
-            preferredTime: parsed.preferredTime,
-            backupAnchors: parsed.backupAnchors,
-            selectedBehavior: parsed.selectedBehavior,
-            swarmCandidates: parsed.swarmCandidates,
-            recipeText: parsed.recipeText,
-            celebrationText: parsed.celebrationText,
-            rehearsalCount: parsed.rehearsalCount,
-            locale,
           })
-        : await createOnboardingFlow(client, {
-            userId,
-            goalTitle: parsed.goal,
-            goalWhy: parsed.motivationNote || null,
-            desiredOutcome: parsed.desiredOutcome,
-            motivationNote: parsed.motivationNote || null,
-            difficulty: parsed.difficulty,
-            availableMinutes: parsed.availableMinutes,
-            anchorLabel: parsed.anchor,
-            anchorCue: parsed.anchor,
-            preferredTime: parsed.preferredTime,
-            backupAnchors: parsed.backupAnchors,
-            selectedBehavior: parsed.selectedBehavior,
-            swarmCandidates: parsed.swarmCandidates,
-            recipeText: parsed.recipeText,
-            celebrationText: parsed.celebrationText,
-            rehearsalCount: parsed.rehearsalCount,
-            locale,
-          })) as {
+        : await createOnboardingFlow(client, basePayload)) as {
       goal: { id: string };
-      selectedCandidateId?: string | null;
       decomposition: {
         microActions: Array<{
           title: string;
@@ -110,7 +96,6 @@ export async function submitOnboarding(formData: FormData) {
       };
       initialPlan: {
         plan: { id: string };
-        micro_actions: Array<{ id: string; position: number }>;
       };
     };
 
@@ -119,23 +104,6 @@ export async function submitOnboarding(formData: FormData) {
       goalId: result.goal.id,
       planId: result.initialPlan.plan.id,
       reviewActions: mapGeneratedActionsToPlanInput(result.decomposition.microActions),
-      reviewDifficulty: parsed.difficulty,
-      reviewMeta: {
-        goal: parsed.goal,
-        desiredOutcome: parsed.desiredOutcome,
-        motivationNote: parsed.motivationNote,
-        availableMinutes: parsed.availableMinutes,
-        difficulty: parsed.difficulty,
-        preferredTime: parsed.preferredTime,
-        selectedBehavior: parsed.selectedBehavior,
-        swarmCandidates: parsed.swarmCandidates,
-        primaryAnchor: parsed.anchor,
-        backupAnchors: parsed.backupAnchors,
-        recipeText: parsed.recipeText,
-        celebrationText: parsed.celebrationText,
-        rehearsalCount: parsed.rehearsalCount,
-        selectedCandidateId: result.selectedCandidateId ?? undefined,
-      },
     });
   } catch (error) {
     unstable_rethrow(error);
@@ -143,5 +111,5 @@ export async function submitOnboarding(formData: FormData) {
     redirect(`/onboarding?error=${encodeURIComponent(message)}`);
   }
 
-  redirect("/onboarding/review");
+  redirect("/onboarding?review=1");
 }
