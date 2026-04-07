@@ -36,8 +36,8 @@ export default async function AnchorsPage({ searchParams }: AnchorsPageProps) {
       auth={auth}
       locale={locale}
       path={buildAnchorsPath({ returnTo })}
-      title={locale === "ko" ? "저장된 기존 습관" : "Saved cues"}
-      description={locale === "ko" ? "자주 하는 일을 저장해두면 바로 다시 고를 수 있어요." : "Save cues you reuse often so onboarding can reuse them quickly."}
+      title={locale === "ko" ? "저장된 루틴" : "Saved cues"}
+      description={locale === "ko" ? "자주 쓰는 루틴을 저장해두면 바로 다시 고를 수 있어요." : "Save cues you reuse often so onboarding can reuse them quickly."}
       className="mx-auto max-w-3xl"
     >
       <div className="grid gap-4">
@@ -53,7 +53,7 @@ export default async function AnchorsPage({ searchParams }: AnchorsPageProps) {
               <input type="hidden" name="returnTo" value={returnTo} />
               <div>
                 <label className="mb-2 block text-sm font-medium text-[var(--foreground-soft)]">
-                  {locale === "ko" ? "기존 습관" : "Cue"}
+                  {locale === "ko" ? "붙일 루틴" : "Cue"}
                 </label>
                 <Input name="cue" placeholder={locale === "ko" ? "예: 아침 커피 마신 뒤" : "Example: right after my morning coffee"} />
               </div>
@@ -67,13 +67,13 @@ export default async function AnchorsPage({ searchParams }: AnchorsPageProps) {
 
         <Card className="bg-[var(--surface-strong)]">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold">{locale === "ko" ? "저장된 기존 습관" : "Saved cues"}</h2>
+            <h2 className="text-lg font-semibold">{locale === "ko" ? "저장된 루틴" : "Saved cues"}</h2>
             <Link href={returnTo as any}>
               <Button variant="ghost" size="sm">{locale === "ko" ? "온보딩으로" : "Back to onboarding"}</Button>
             </Link>
           </div>
           {anchors.length === 0 ? (
-            <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{locale === "ko" ? "아직 저장된 기존 습관이 없어요." : "No cues saved yet."}</p>
+            <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{locale === "ko" ? "아직 저장된 루틴이 없어요." : "No cues saved yet."}</p>
           ) : (
             <div className="mt-4 flex flex-wrap gap-3">
               {anchors.map((anchor) => (

@@ -36,7 +36,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
   const anchorReminder = reviewState
     ? buildAnchorReminder(reviewState.meta.primaryAnchor, locale)
     : todayState
-      ? `기존 습관: ${todayState.anchor}`
+      ? `시작 신호: ${todayState.anchor}`
       : undefined;
 
   if (!todayState) {

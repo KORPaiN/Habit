@@ -32,7 +32,7 @@ export async function saveAnchorAction(formData: FormData) {
       error instanceof Error
         ? error.message
         : locale === "ko"
-          ? "기존 습관을 저장하지 못했어요."
+          ? "루틴을 저장하지 못했어요."
           : "We could not save your cue.";
 
     redirect(buildAnchorsPath({ returnTo, error: message }) as any);
@@ -53,7 +53,7 @@ export async function deleteAnchorAction(formData: FormData) {
   const anchorId = String(formData.get("anchorId") ?? "");
 
   if (!anchorId) {
-    redirect(buildAnchorsPath({ returnTo, error: locale === "ko" ? "삭제할 기존 습관을 찾지 못했어요." : "We could not find that cue." }) as any);
+    redirect(buildAnchorsPath({ returnTo, error: locale === "ko" ? "삭제할 루틴을 찾지 못했어요." : "We could not find that cue." }) as any);
   }
 
   try {
@@ -66,7 +66,7 @@ export async function deleteAnchorAction(formData: FormData) {
       error instanceof Error
         ? error.message
         : locale === "ko"
-          ? "기존 습관을 삭제하지 못했어요."
+          ? "루틴을 삭제하지 못했어요."
           : "We could not delete that cue.";
 
     redirect(buildAnchorsPath({ returnTo, error: message }) as any);

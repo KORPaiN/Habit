@@ -1,6 +1,7 @@
 import type { Locale } from "@/lib/locale";
 import type { BehaviorSwarmCandidate, HabitDecomposition, OnboardingBaseInput, OnboardingInput } from "@/lib/validators/habit";
 import type { FailureReason } from "@/types";
+import { buildStressPromptInstructions, detectAnchorCueType, isStressReliefGoal } from "@/lib/ai/anchor-patterns";
 
 export type GoalArchetype = "reading" | "writing" | "study" | "exercise" | "tidy" | "digital" | "self_care" | "generic";
 export type GoalIntent = "start" | "continue" | "setup" | "review" | "prepare" | "journal" | "mobility" | "surface";
@@ -27,6 +28,7 @@ function buildPromptPayload(
   failureReason?: FailureReason,
 ) {
   const normalized = normalizeClassification(classification);
+  const stressCueType = isStressReliefGoal(input.goal) ? detectAnchorCueType(input.anchor) : "none";
 
   return JSON.stringify({
     goal: input.goal,
@@ -34,6 +36,7 @@ function buildPromptPayload(
     anchor: input.anchor,
     category: normalized.archetype,
     intent: normalized.intent,
+    stressCueType,
     failureReason: failureReason ?? "none",
   });
 }
@@ -70,6 +73,101 @@ function buildFailureInstruction(failureReason?: FailureReason) {
     : "Fallback actions must be easier than the main action while staying observable.";
 }
 
+function buildArchetypeInstructions(classification: GoalClassification | GoalArchetype) {
+  const normalized = normalizeClassification(classification);
+
+  switch (normalized.archetype) {
+    case "reading":
+      return [
+        "For reading, prefer one line, one sentence, opening the book, or placing a bookmark.",
+        "Avoid page-, chapter-, or session-sized reading tasks unless they are the clearly smallest viable step.",
+      ];
+    case "writing":
+      return [
+        "For writing, prefer one sentence, one title, one keyword, or opening the notes app.",
+        "Avoid paragraph-, essay-, journal-entry-, or blog-post-sized tasks.",
+      ];
+    case "study":
+      return [
+        "For study, prefer opening the page, reading one line, or taking out the study material.",
+        "Avoid full problem sets, full lessons, or broad review sessions.",
+      ];
+    case "exercise":
+      return [
+        "For exercise, prefer one minute, one setup action, one stretch, or putting on shoes.",
+        "Avoid full workouts or anything that feels like a full session.",
+      ];
+    case "tidy":
+      return [
+        "For tidying, prefer one item, one visible spot, or one setup action.",
+        "Avoid room-sized or category-sized cleaning tasks.",
+      ];
+    case "digital":
+      return [
+        "For digital habits, prefer closing one app, turning off one notification, or opening one settings screen.",
+        "Avoid broad detox, cleanup, or reset tasks.",
+      ];
+    case "self_care":
+      return [
+        "For self-care, prefer one glass of water, one breath, or one preparation action.",
+        "Avoid routines that require a full session or strong motivation.",
+      ];
+    default:
+      return [
+        "Prefer the smallest visible entry step: open, place, take out, look at, or write one thing.",
+        "Avoid anything that sounds like a full session, milestone, or transformation task.",
+      ];
+  }
+}
+
+function buildStressSpecificInstructions(input: Pick<OnboardingInput, "goal" | "anchor">, locale: Locale) {
+  if (!isStressReliefGoal(input.goal)) {
+    return [];
+  }
+
+  return buildStressPromptInstructions(input.anchor, locale);
+}
+
+function buildAnchorContextInstructions(anchor: string, locale: Locale) {
+  const cueType = detectAnchorCueType(anchor);
+
+  if (locale !== "ko") {
+    switch (cueType) {
+      case "morning":
+      case "shower":
+      case "coffee":
+        return ["This cue happens at the start of a routine, so prefer actions that begin instantly with almost no setup."];
+      case "midday":
+      case "appointment":
+      case "commute":
+      case "outside":
+        return ["This cue happens away from a long work block, so prefer portable actions that do not require a desk or full setup."];
+      case "evening":
+      case "bedtime":
+        return ["This cue happens when energy is lower, so prefer quieter and lower-stimulation actions."];
+      default:
+        return ["Make the action fit the body position and environment implied by the anchor cue."];
+    }
+  }
+
+  switch (cueType) {
+    case "morning":
+    case "shower":
+    case "coffee":
+      return ["이 루틴은 시작 지점이 분명하므로, 바로 붙일 수 있는 무설정 행동을 우선하세요."];
+    case "midday":
+    case "appointment":
+    case "commute":
+    case "outside":
+      return ["이 루틴은 이동 중이거나 잠깐 비는 순간이므로, 자리나 도구를 거의 안 쓰는 행동을 우선하세요."];
+    case "evening":
+    case "bedtime":
+      return ["이 루틴은 에너지가 내려간 시간대이므로, 조용하고 자극이 적은 행동을 우선하세요."];
+    default:
+      return ["루틴이 일어나는 상황과 자세에 맞는 행동을 고르세요."];
+  }
+}
+
 export function buildAiOnlyHabitDecompositionPrompt(
   input: OnboardingInput,
   classification: GoalClassification | GoalArchetype,
@@ -86,6 +184,9 @@ export function buildAiOnlyHabitDecompositionPrompt(
     "Keep goalSummary and each reason to one short sentence.",
     "Do not add praise, guilt, mindset coaching, or emotional framing.",
     "Prefer actions like open, place, read one line, write one sentence, close one app, or take out what you need.",
+    ...buildArchetypeInstructions(classification),
+    ...buildAnchorContextInstructions(input.anchor, locale),
+    ...buildStressSpecificInstructions(input, locale),
     buildDurationInstruction(input),
     buildFailureInstruction(failureReason),
     "Choose 2 micro-actions by default. Use 3 only if clearly useful.",
@@ -111,6 +212,9 @@ export function buildHybridRewritePrompt(
     "Keep every action concrete and observable.",
     "Shorten goalSummary and each reason.",
     "If two options feel similar, prefer the easier entry step.",
+    ...buildArchetypeInstructions(classification),
+    ...buildAnchorContextInstructions(input.anchor, locale),
+    ...buildStressSpecificInstructions(input, locale),
     "Make fallback actions clearly smaller than the main action.",
     "Do not add motivation, praise, or long explanations.",
     locale === "ko" ? "Write all user-facing strings in Korean." : "Write all user-facing strings in English.",
@@ -143,6 +247,7 @@ export function buildBehaviorSwarmPrompt(input: OnboardingBaseInput, locale: Loc
     "Keep each candidate to 1 to 5 minutes.",
     "Do not use vague phrases like do your best, keep going, or work on it.",
     "Each candidate needs desireScore, abilityScore, and impactScore from 1 to 5.",
+    ...(isStressReliefGoal(input.goal) ? buildStressPromptInstructions(undefined, locale) : []),
     locale === "ko" ? "Write all user-facing strings in Korean." : "Write all user-facing strings in English.",
     `DATA: ${JSON.stringify({
       goal: input.goal,

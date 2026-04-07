@@ -360,7 +360,7 @@ function buildGeneratedReview(statuses: DailyActionStatus[]): WeeklyReviewState 
 
   const difficultMoments =
     failedDays > 0
-      ? "놓친 날이 있었어요. 행동을 더 줄이거나 붙일 습관을 더 또렷하게 잡아보세요."
+      ? "놓친 날이 있었어요. 행동을 더 줄이거나 붙일 루틴을 더 또렷하게 잡아보세요."
       : skippedDays > 1
         ? "건너뛴 날이 있었다면 타이밍을 더 분명하게 잡는 편이 좋아요."
         : "이번 주는 무리 없이 이어지고 있어요.";
@@ -375,7 +375,7 @@ function buildGeneratedReview(statuses: DailyActionStatus[]): WeeklyReviewState 
       ? "다음 주에는 첫 행동을 더 작게 줄여보세요."
       : completedDays >= 4
         ? "지금 크기를 유지하면서 반복해보세요."
-        : "기존 습관을 더 선명하게 정해보세요.";
+        : "붙일 루틴을 더 선명하게 정해보세요.";
 
   return {
     completedDays,
@@ -434,7 +434,7 @@ function buildMonthlyReview(
     failedDays > 0
       ? "막힌 날이 있었어요. 더 작은 시작이 필요했을 수 있어요."
       : skippedDays > 2
-        ? "건너뛴 날이 많다면 붙일 습관을 더 선명하게 정해보세요."
+        ? "건너뛴 날이 많다면 붙일 루틴을 더 선명하게 정해보세요."
         : "이번 달 흐름은 비교적 부드러웠어요.";
 
   const helpfulPattern =
@@ -602,7 +602,7 @@ export async function getTodayStateFromSession(session: HabitSession): Promise<T
 
   return {
     goal: goal.title,
-    anchor: anchor?.label ?? anchor?.cue ?? "기존 습관 없음",
+    anchor: anchor?.label ?? anchor?.cue ?? "루틴 없음",
     action: mapRowToMicroAction(microAction),
     source: "Supabase",
     status: dailyAction.status,

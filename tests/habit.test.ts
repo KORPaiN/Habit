@@ -25,5 +25,5 @@ test("buildRecipeText composes a short Korean recipe", () => {
 });
 
 test("buildAnchorReminder returns the primary habit only", () => {
-  assert.equal(buildAnchorReminder("커피 마신 뒤"), "기존 습관: 커피 마신 뒤");
+  assert.equal(buildAnchorReminder("커피 마신 뒤"), "시작 신호: 커피 마신 뒤");
 });

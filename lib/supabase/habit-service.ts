@@ -584,7 +584,7 @@ export async function generateWeeklyReview(client: ServiceClient, input: { userI
     failedDays > 0
       ? "어려운 날에는 행동을 더 작게 줄일 필요가 있었습니다."
       : skippedDays > 1
-        ? "바쁜 날에는 기존 습관이 더 분명해야 했습니다."
+        ? "바쁜 날에는 붙일 루틴이 더 분명해야 했습니다."
         : "이번 주 흐름은 비교적 가벼웠습니다.";
 
   const helpfulPattern =
@@ -599,7 +599,7 @@ export async function generateWeeklyReview(client: ServiceClient, input: { userI
       ? "다음 주에는 첫 행동을 더 가볍게 유지해 보세요."
       : completedDays >= 4
         ? "지금 크기를 유지하며 반복해 보세요."
-        : "기존 습관을 더 눈에 띄게 바꿔 보세요.";
+        : "붙일 루틴을 더 눈에 띄게 바꿔 보세요.";
 
   return upsertWeeklyReview(client, {
     userId: input.userId,

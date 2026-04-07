@@ -10,6 +10,7 @@ import { PlanReviewForm } from "@/components/onboarding/plan-review-form";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { getLearnedCommonAnchorExamples } from "@/lib/ai/anchor-patterns";
 import type { HabitReviewMeta } from "@/lib/habit-session";
 import type { Locale } from "@/lib/locale";
 import { buildCelebrationSuggestion, buildRecipeText } from "@/lib/utils/habit";
@@ -49,7 +50,7 @@ type DraftState = {
 };
 
 const DRAFT_KEY = "habit_onboarding_wizard_v3";
-const habitExamples = ["커피 마신 뒤", "양치 뒤", "집에 들어오면", "책상 앞에 앉으면"] as const;
+const genericHabitExamples = ["커피 마신 뒤", "양치 뒤", "집에 들어오면", "책상 앞에 앉으면"] as const;
 
 function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -165,8 +166,12 @@ export function OnboardingForm({
   const [hasHydratedDraft, setHasHydratedDraft] = useState(false);
 
   const savedCueOptions = useMemo(
-    () => [...savedAnchors.map((anchor) => anchor.cue), ...habitExamples].filter((cue, index, list) => list.indexOf(cue) === index),
-    [savedAnchors],
+    () => {
+      const learnedExamples = [...getLearnedCommonAnchorExamples(locale), ...genericHabitExamples];
+
+      return [...savedAnchors.map((anchor) => anchor.cue), ...learnedExamples].filter((cue, index, list) => list.indexOf(cue) === index);
+    },
+    [locale, savedAnchors],
   );
 
   useEffect(() => {
@@ -363,7 +368,7 @@ export function OnboardingForm({
 
     if (currentStep === 4) {
       if (!canMoveFromStep(4)) {
-        setStepError("기존 습관을 적어주세요.");
+        setStepError("붙일 루틴을 적어주세요.");
         return;
       }
 
@@ -386,14 +391,14 @@ export function OnboardingForm({
               {effectiveStep === 1 && "무엇을 바꾸고 싶나요?"}
               {effectiveStep === 2 && "작은 행동 후보"}
               {effectiveStep === 3 && "하나만 고르기"}
-              {effectiveStep === 4 && "기존 습관 붙이기"}
+              {effectiveStep === 4 && "루틴 붙이기"}
               {effectiveStep === 5 && "마지막 확인"}
             </h2>
             <p className="mt-2 text-sm text-[var(--muted)]">
               {effectiveStep === 1 && "목표와 원하는 변화만 적어요."}
               {effectiveStep === 2 && "바로 할 수 있는 것만 보여줘요."}
               {effectiveStep === 3 && "지금 제일 쉬운 걸 고르면 돼요."}
-              {effectiveStep === 4 && "이미 하는 일 뒤에 붙이면 기억하기 쉬워요."}
+              {effectiveStep === 4 && "이미 하는 루틴 뒤에 붙이면 시작 신호가 또렷해져요."}
               {effectiveStep === 5 && "오늘 할 행동만 고르면 끝이에요."}
             </p>
           </div>
@@ -403,7 +408,7 @@ export function OnboardingForm({
                 href={buildAnchorsHref(effectiveStep, isReselect) as any}
                 className="inline-flex min-h-10 items-center rounded-full border border-white/60 bg-white/76 px-4 text-sm font-medium text-[var(--foreground)] transition hover:bg-white"
               >
-                저장된 기존 습관
+                저장된 루틴
               </Link>
             ) : null}
             <Link
@@ -511,9 +516,9 @@ export function OnboardingForm({
             <Card className="bg-[var(--surface-strong)]">
               <div className="grid gap-4">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-[var(--foreground-soft)]">기존 습관</label>
+                  <label className="mb-2 block text-sm font-medium text-[var(--foreground-soft)]">붙일 루틴</label>
                   <Input value={values.primaryAnchor} onChange={(event) => updateValue("primaryAnchor", event.target.value)} placeholder="예: 커피 마신 뒤" />
-                  <p className="mt-2 text-xs text-[var(--muted)]">이미 자주 하는 일 하나면 충분해요.</p>
+                  <p className="mt-2 text-xs text-[var(--muted)]">이미 자주 하는 루틴 하나면 충분해요.</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {savedCueOptions.map((cue) => (
@@ -539,7 +544,7 @@ export function OnboardingForm({
                   <div className="mt-3 grid gap-2 text-sm">
                     <p>변화: {values.desiredOutcome}</p>
                     <p>행동: {values.selectedBehavior?.title}</p>
-                    <p>기존 습관: {values.primaryAnchor}</p>
+                    <p>붙일 루틴: {values.primaryAnchor}</p>
                   </div>
                 </div>
                 <div>

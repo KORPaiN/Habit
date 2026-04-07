@@ -70,7 +70,7 @@ export function PlanReviewForm({ locale, initialActions, notice, reviewMeta }: P
         <div className="grid gap-2 text-sm leading-6 text-[var(--foreground)]">
           <p>원하는 변화: {reviewMeta.desiredOutcome}</p>
           <p>고른 행동: {reviewMeta.selectedBehavior.title}</p>
-          <p>기존 습관: {reviewMeta.primaryAnchor}</p>
+          <p>붙일 루틴: {reviewMeta.primaryAnchor}</p>
           <p>레시피: {reviewMeta.recipeText}</p>
           <p>축하: {reviewMeta.celebrationText}</p>
         </div>

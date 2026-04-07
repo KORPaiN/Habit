@@ -5,3 +5,6 @@ coverage
 *.log
 .npm-cache
 .tmp
+.claude/
+supabase/.branches/
+supabase/.temp/

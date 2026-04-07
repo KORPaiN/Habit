@@ -49,7 +49,7 @@ export default async function OnboardingHelpPage({ searchParams }: OnboardingHel
           { title: "1. 목표 적기", body: "만들고 싶은 변화를 짧게 적어요." },
           { title: "2. 작은 행동 보기", body: "바로 할 수 있는 것만 보여줘요." },
           { title: "3. 하나 고르기", body: "지금 제일 쉬운 걸 고르면 돼요." },
-          { title: "4. 기존 습관 붙이기", body: "이미 하는 일 뒤에 붙이면 기억하기 쉬워요." },
+          { title: "4. 루틴 붙이기", body: "이미 하는 루틴 뒤에 붙이면 시작 신호가 또렷해져요." },
           { title: "5. 마지막 확인", body: "오늘 할 행동만 정하면 끝이에요." },
         ]
       : [

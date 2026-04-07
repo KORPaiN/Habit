@@ -26,7 +26,7 @@ export function buildCelebrationSuggestion(_goal: string, locale: Locale = "ko")
 }
 
 export function buildAnchorReminder(primaryAnchor: string, locale: Locale = "ko") {
-  return locale === "ko" ? `기존 습관: ${primaryAnchor}` : `Saved cue: ${primaryAnchor}`;
+  return locale === "ko" ? `시작 신호: ${primaryAnchor}` : `Saved cue: ${primaryAnchor}`;
 }
 
 export function shrinkAction(action: MicroAction, locale: Locale = "ko"): MicroAction {

@@ -53,9 +53,9 @@ const meaningfulOutcomeSchema = z
 const habitTextSchema = z
   .string()
   .trim()
-  .min(2, "기존 습관을 적어주세요.")
+  .min(2, "붙일 루틴을 적어주세요.")
   .max(120)
-  .refine(hasMeaningfulText, "숫자만 말고 익숙한 행동을 적어주세요.");
+  .refine(hasMeaningfulText, "숫자만 말고 익숙한 루틴을 적어주세요.");
 
 const shortTextSchema = z.string().trim().min(1);
 
