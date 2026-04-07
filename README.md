@@ -218,3 +218,132 @@ npx tsc --noEmit
 - [lib/supabase/habit-service.ts](lib/supabase/habit-service.ts)
 - [supabase/schema.sql](supabase/schema.sql)
 - [supabase/migrations/20260328140000_habit_v1_wizard.sql](supabase/migrations/20260328140000_habit_v1_wizard.sql)
+
+---
+
+## Codex 개발 워크플로
+
+이 저장소는 제품 안에 멀티 에이전트 기능을 넣는 것이 아니라,  
+**Codex의 planner / builder / reviewer 구조로 Habit 웹을 더 안정적으로 개발하기 위한 저장소 운영 레이어**를 함께 사용합니다.
+
+### 추가 파일
+
+아래 파일을 저장소 루트에 추가합니다.
+
+```text
+AGENTS.md
+.codex/config.toml
+.codex/agents/planner.toml
+.codex/agents/builder.toml
+.codex/agents/reviewer.toml
+.agents/skills/product-prd/SKILL.md
+.agents/skills/prompt-contract/SKILL.md
+.agents/skills/eval-gate/SKILL.md
+```
+
+### 각 파일 역할
+
+- `AGENTS.md`
+  - 저장소 전체 공통 규칙
+  - 현재 Habit 제품의 가드레일
+  - Planner / Builder / Reviewer handoff 형식
+- `.codex/agents/planner.toml`
+  - 새 기능을 작은 MVP 기획으로 정리
+- `.codex/agents/builder.toml`
+  - 승인된 범위만 최소 diff로 구현
+- `.codex/agents/reviewer.toml`
+  - acceptance criteria와 회귀 위험 기준으로 검토
+- `.agents/skills/product-prd/SKILL.md`
+  - 기능 기획 정리
+- `.agents/skills/prompt-contract/SKILL.md`
+  - AI 구조 변경 시 입력/출력 계약, fallback, retry, timeout 정리
+- `.agents/skills/eval-gate/SKILL.md`
+  - 구현 후 pass / conditional pass / fail 검토
+
+### 권장 기본 설정
+
+`.codex/config.toml`
+
+```toml
+[agents]
+max_threads = 3
+max_depth = 1
+```
+
+### 개발 루프
+
+1. planner로 기능 범위와 acceptance criteria를 먼저 정리
+2. builder로 승인된 범위만 구현
+3. reviewer로 회귀 위험과 요구사항 충족 여부 검토
+4. 필요한 경우 builder가 최소 수정
+5. reviewer가 최종 verdict 정리
+
+### 한국어 호출 예시
+
+#### 1. 기획
+
+```text
+planner를 사용해서 Habit 저장소 기준으로 이 기능을 작은 MVP로 기획해 주세요.
+
+먼저 아래 파일을 읽고 시작하세요.
+- README.md
+- app/onboarding/page.tsx
+- lib/ai/index.ts
+- lib/supabase/habit-service.ts
+
+product-prd skill을 사용하고,
+반드시 아래 순서로 정리하세요.
+- 문제
+- 사용자 가치
+- 현재 Habit 흐름에서 붙는 위치
+- MVP 범위
+- 비범위
+- 영향 파일
+- acceptance criteria
+- 리스크
+- Builder handoff notes
+
+기능:
+[여기에 기능 설명]
+```
+
+#### 2. 구현
+
+```text
+builder를 사용해서 Habit 저장소에 구현해 주세요.
+
+조건:
+- planner가 정의한 범위만 구현
+- diff는 최소화
+- AI 출력 구조를 건드리면 prompt-contract skill을 먼저 사용
+- 끝나면 변경 파일, 구현 요약, 검증 방법, known limitations를 한국어로 정리
+
+기획 문서:
+[여기에 planner 결과 붙여넣기]
+```
+
+#### 3. 검토
+
+```text
+reviewer를 사용해서 Habit 저장소 변경 사항을 검토해 주세요.
+
+조건:
+- eval-gate skill 사용
+- acceptance criteria 기준으로만 평가
+- onboarding / today / recovery / AI 계약 / 서비스 흐름 회귀를 우선 확인
+- verdict, 요구사항 충족 여부, 결함, UX 이슈, 위험 평가, 우선 수정 항목, 출시 권고를 한국어로 정리
+
+기획 문서:
+[planner 결과]
+
+구현 요약:
+[builder 결과]
+```
+
+### 이 워크플로를 쓸 때 주의할 점
+
+- 제품 기능 추가와 버그 수정 범위를 섞지 않습니다.
+- `lib/ai/index.ts`를 건드릴 때는 schema validation, fallback, retry, timeout을 반드시 확인합니다.
+- `lib/supabase/habit-service.ts`를 건드릴 때는 goal -> plan -> daily action 흐름이 깨지지 않는지 확인합니다.
+- 모바일에서 한 화면이 무거워지지 않도록 유지합니다.
+- Habit을 일반적인 habit tracker 방향으로 넓히지 않습니다.
