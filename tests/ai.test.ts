@@ -8,6 +8,7 @@ import {
 } from "@/lib/ai/prompt";
 import {
   buildMockHabitDecomposition,
+  buildRuleBasedBehaviorSwarm,
   buildRuleBasedHabitDecomposition,
   classifyGoal,
   collectRecentContext,
@@ -17,6 +18,7 @@ import {
   generateHabitDecomposition,
   generateHabitDecompositionFromSelection,
 } from "@/lib/ai";
+import { detectAnchorCueType, getLearnedCommonAnchorExamples, isStressReliefGoal } from "@/lib/ai/anchor-patterns";
 import { isLocalizedString, validateDecompositionLocale } from "@/lib/ai/locale-validation";
 import { microActionSchema } from "@/lib/validators/habit";
 
@@ -136,6 +138,14 @@ test("goal archetype and intent classification recognize representative goals", 
   assert.equal(detectGoalArchetype("독서 습관 만들기"), "reading");
   assert.deepEqual(classifyGoal("아침 일기 쓰기"), { archetype: "writing", intent: "journal" });
   assert.deepEqual(classifyGoal("책상 정리하기"), { archetype: "tidy", intent: "surface" });
+  assert.equal(detectGoalArchetype("스트레스 줄이기"), "self_care");
+});
+
+test("learned anchor examples stay available as common cues", () => {
+  assert.equal(isStressReliefGoal("스트레스 줄이기"), true);
+  assert.equal(getLearnedCommonAnchorExamples("ko").some((cue) => cue === "커피를 따르면"), true);
+  assert.equal(getLearnedCommonAnchorExamples("ko").some((cue) => cue === "침대에 누우면"), true);
+  assert.equal(detectAnchorCueType("점심을 먹고 나서"), "midday");
 });
 
 test("collectRecentContext returns empty context without ids", async () => {
@@ -224,6 +234,57 @@ test("forgot reason makes anchor-friendly copy more direct", async () => {
   assert.match(result.todayAction.reason, /아침 커피 뒤/);
 });
 
+test("stress relief rules pick a cue-matched calming action", () => {
+  const result = buildRuleBasedHabitDecomposition(
+    {
+      goal: "스트레스 줄이기",
+      availableMinutes: 5,
+      difficulty: "steady",
+      preferredTime: "morning",
+      anchor: "커피를 따르면",
+    },
+    undefined,
+    {
+      locale: "ko",
+    },
+  );
+
+  assert.match(result.todayAction.title, /컵|숨|노트/);
+  assert.notEqual(result.todayAction.title, result.fallbackAction);
+});
+
+test("anchor context instructions appear even for non-stress goals", () => {
+  const prompt = buildAiOnlyHabitDecompositionPrompt(
+    {
+      goal: "독서 습관 만들기",
+      availableMinutes: 5,
+      difficulty: "steady",
+      preferredTime: "morning",
+      anchor: "지하철에 앉으면",
+    },
+    {
+      archetype: "reading",
+      intent: "start",
+    },
+    undefined,
+    "ko",
+  );
+
+  assert.match(prompt, /이동 중이거나 잠깐 비는 순간/);
+});
+
+test("stress behavior swarm uses learned cue defaults", () => {
+  const candidates = buildRuleBasedBehaviorSwarm({
+    goal: "스트레스 줄이기",
+    desiredOutcome: "하루에 한 번 숨을 돌리고 싶어요",
+    difficulty: "steady",
+    availableMinutes: 5,
+    preferredTime: "evening",
+  });
+
+  assert.equal(candidates.some((candidate) => /불 하나|숨 세 번|컵|차|휴대폰/.test(candidate.title)), true);
+});
+
 test("rules_only strategy returns a rules source without calling AI", async () => {
   const result = await generateHabitDecomposition(
     {
@@ -270,6 +331,143 @@ test("hybrid strategy falls back to rules even when mock fallback is disabled", 
       delete process.env.OPENAI_API_KEY;
     } else {
       process.env.OPENAI_API_KEY = originalApiKey;
+    }
+  }
+});
+
+test("generateHabitDecomposition retries with the quality model when the fast response is low quality", async () => {
+  const originalApiKey = process.env.OPENAI_API_KEY;
+  const originalModel = process.env.OPENAI_MODEL;
+  const originalFastModel = process.env.OPENAI_MODEL_FAST;
+  const originalTimeout = process.env.OPENAI_TIMEOUT_MS;
+  const originalFetch = global.fetch;
+  const requests: Array<Record<string, unknown>> = [];
+  let fetchCount = 0;
+
+  process.env.OPENAI_API_KEY = "test-key";
+  process.env.OPENAI_MODEL = "gpt-5";
+  delete process.env.OPENAI_MODEL_FAST;
+  delete process.env.OPENAI_TIMEOUT_MS;
+
+  global.fetch = (async (_input: URL | RequestInfo, init?: RequestInit) => {
+    fetchCount += 1;
+    requests.push(JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>);
+
+    if (fetchCount === 1) {
+      return new Response(
+        JSON.stringify({
+          output_text: JSON.stringify({
+            goalSummary: "A weekly plan to transform your life through discipline.",
+            selectedAnchor: "after coffee",
+            microActions: [
+              {
+                title: "Read a chapter",
+                reason: "This will build consistency and transform your routine.",
+                durationMinutes: 5,
+                fallbackAction: "Read one page",
+              },
+            ],
+            todayAction: {
+              title: "Read a chapter",
+              reason: "This will build consistency and transform your routine.",
+              durationMinutes: 5,
+              fallbackAction: "Read one page",
+            },
+            fallbackAction: "Read one page",
+          }),
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+    }
+
+    return new Response(
+      JSON.stringify({
+        output_text: JSON.stringify({
+          goalSummary: 'Today, we turn "Build a reading habit" into one doable step.',
+          selectedAnchor: "after coffee",
+          microActions: [
+            {
+              title: "Open the book and read one line",
+              reason: "One line is enough for today.",
+              durationMinutes: 1,
+              fallbackAction: "Open the book and stop",
+            },
+            {
+              title: "Place a bookmark and stop there",
+              reason: "Setup makes it easier to return.",
+              durationMinutes: 1,
+              fallbackAction: "Leave the book where you can see it",
+            },
+          ],
+          todayAction: {
+            title: "Open the book and read one line",
+            reason: "One line is enough for today.",
+            durationMinutes: 1,
+            fallbackAction: "Open the book and stop",
+          },
+          fallbackAction: "Open the book and stop",
+        }),
+      }),
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
+    );
+  }) as typeof fetch;
+
+  try {
+    const result = await generateHabitDecomposition(
+      {
+        goal: "Build a reading habit",
+        availableMinutes: 5,
+        difficulty: "steady",
+        preferredTime: "morning",
+        anchor: "after coffee",
+      },
+      {
+        strategy: "ai_only",
+        locale: "en",
+      },
+    );
+
+    assert.equal(requests.length, 2);
+    assert.equal(requests[0]?.model, "gpt-5-mini");
+    assert.equal(requests[1]?.model, "gpt-5");
+    assert.deepEqual(requests[1]?.reasoning, { effort: "low" });
+    assert.equal(result.source, "openai");
+    assert.equal(result.todayAction.title, "Open the book and read one line");
+  } finally {
+    global.fetch = originalFetch;
+
+    if (originalApiKey === undefined) {
+      delete process.env.OPENAI_API_KEY;
+    } else {
+      process.env.OPENAI_API_KEY = originalApiKey;
+    }
+
+    if (originalModel === undefined) {
+      delete process.env.OPENAI_MODEL;
+    } else {
+      process.env.OPENAI_MODEL = originalModel;
+    }
+
+    if (originalFastModel === undefined) {
+      delete process.env.OPENAI_MODEL_FAST;
+    } else {
+      process.env.OPENAI_MODEL_FAST = originalFastModel;
+    }
+
+    if (originalTimeout === undefined) {
+      delete process.env.OPENAI_TIMEOUT_MS;
+    } else {
+      process.env.OPENAI_TIMEOUT_MS = originalTimeout;
     }
   }
 });
@@ -594,6 +792,7 @@ test("homepage tone is reflected in the AI prompt", () => {
 
   assert.match(prompt, /today, one small step is enough/i);
   assert.match(prompt, /smaller than the user's resistance/i);
+  assert.match(prompt, /prefer one line, one sentence, opening the book, or placing a bookmark/i);
 });
 
 test("rule-based decomposition matches the calmer homepage tone", async () => {

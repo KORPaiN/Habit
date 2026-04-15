@@ -12,7 +12,6 @@ type BehaviorCandidateLookup = Database["public"]["Tables"]["behavior_swarm_cand
 type HabitPlanLookup = Database["public"]["Tables"]["habit_plans"]["Row"];
 type DailyActionLookup = Database["public"]["Tables"]["daily_actions"]["Row"];
 type MicroActionLookup = Database["public"]["Tables"]["micro_actions"]["Row"];
-type WeeklyReviewLookup = Database["public"]["Tables"]["weekly_reviews"]["Row"];
 
 type TodayState = {
   goal: string;
@@ -29,15 +28,6 @@ type TodayState = {
 type RecoveryContext = {
   goal: string;
   currentAction: MicroAction;
-};
-
-type WeeklyReviewState = {
-  completedDays: number;
-  streakDays: number;
-  difficultMoments: string;
-  helpfulPattern: string;
-  nextAdjustment: string;
-  source: "Supabase";
 };
 
 type MonthlyReviewState = {
@@ -70,10 +60,6 @@ type SessionAccessContext = {
 
 function isConfigured() {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-}
-
-export function isSupabaseConfigured() {
-  return isConfigured();
 }
 
 function mapRowToMicroAction(row: Pick<MicroActionLookup, "title" | "details" | "duration_minutes" | "fallback_title">): MicroAction {
@@ -120,19 +106,24 @@ async function getSessionAccessContext(): Promise<SessionAccessContext | null> {
   }
 
   const client = await getSupabaseServerClient();
-  const {
-    data: { user },
-    error,
-  } = await client.auth.getUser();
+  try {
+    const {
+      data: { user },
+      error,
+    } = await client.auth.getUser();
 
-  if (error || !user) {
+    if (error || !user) {
+      return null;
+    }
+
+    return {
+      client,
+      userId: user.id,
+    };
+  } catch (error) {
+    console.warn("[supabase-demo-data] Failed to resolve session access context.", error);
     return null;
   }
-
-  return {
-    client,
-    userId: user.id,
-  };
 }
 
 async function getGoalForSession(session: HabitSession) {
@@ -307,15 +298,6 @@ function getSelectedBehavior(
   } satisfies BehaviorSwarmCandidate;
 }
 
-function getWeekStart(date = new Date()) {
-  const weekStart = new Date(date);
-  const day = weekStart.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  weekStart.setDate(weekStart.getDate() + diff);
-  weekStart.setHours(0, 0, 0, 0);
-  return weekStart.toISOString().slice(0, 10);
-}
-
 function getMonthStart(date = new Date()) {
   const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
   monthStart.setHours(0, 0, 0, 0);
@@ -350,41 +332,6 @@ function getBestStreak(statuses: DailyActionStatus[]) {
   }
 
   return best;
-}
-
-function buildGeneratedReview(statuses: DailyActionStatus[]): WeeklyReviewState {
-  const completedDays = getStatusCount(statuses, "completed");
-  const failedDays = getStatusCount(statuses, "failed");
-  const skippedDays = getStatusCount(statuses, "skipped");
-  const streakDays = getBestStreak(statuses);
-
-  const difficultMoments =
-    failedDays > 0
-      ? "놓친 날이 있었어요. 행동을 더 줄이거나 붙일 습관을 더 또렷하게 잡아보세요."
-      : skippedDays > 1
-        ? "건너뛴 날이 있었다면 타이밍을 더 분명하게 잡는 편이 좋아요."
-        : "이번 주는 무리 없이 이어지고 있어요.";
-
-  const helpfulPattern =
-    completedDays >= 4
-      ? "작게 시작한 날에 더 잘 이어졌어요."
-      : "준비를 줄이면 시작이 더 쉬워질 수 있어요.";
-
-  const nextAdjustment =
-    failedDays > 0
-      ? "다음 주에는 첫 행동을 더 작게 줄여보세요."
-      : completedDays >= 4
-        ? "지금 크기를 유지하면서 반복해보세요."
-        : "기존 습관을 더 선명하게 정해보세요.";
-
-  return {
-    completedDays,
-    streakDays,
-    difficultMoments,
-    helpfulPattern,
-    nextAdjustment,
-    source: "Supabase",
-  };
 }
 
 function formatMonthLabel(date = new Date()) {
@@ -434,7 +381,7 @@ function buildMonthlyReview(
     failedDays > 0
       ? "막힌 날이 있었어요. 더 작은 시작이 필요했을 수 있어요."
       : skippedDays > 2
-        ? "건너뛴 날이 많다면 붙일 습관을 더 선명하게 정해보세요."
+        ? "건너뛴 날이 많다면 붙일 루틴을 더 선명하게 정해보세요."
         : "이번 달 흐름은 비교적 부드러웠어요.";
 
   const helpfulPattern =
@@ -602,7 +549,7 @@ export async function getTodayStateFromSession(session: HabitSession): Promise<T
 
   return {
     goal: goal.title,
-    anchor: anchor?.label ?? anchor?.cue ?? "기존 습관 없음",
+    anchor: anchor?.label ?? anchor?.cue ?? "루틴 없음",
     action: mapRowToMicroAction(microAction),
     source: "Supabase",
     status: dailyAction.status,
@@ -621,8 +568,6 @@ export async function getRecoveryContextFromSession(session: HabitSession): Prom
   }
 
   const goal = await getGoalForSession({ ...session, goalId: todayState.goalId });
-  const context = await getSessionAccessContext();
-  const anchor = goal?.anchor_id && context ? await getAnchor(context.client, goal.anchor_id) : null;
 
   if (!goal) {
     return null;
@@ -632,66 +577,6 @@ export async function getRecoveryContextFromSession(session: HabitSession): Prom
     goal: goal.title,
     currentAction: todayState.action,
   };
-}
-
-export async function getWeeklyReviewStateFromSession(session: HabitSession): Promise<WeeklyReviewState | null> {
-  const context = await getSessionAccessContext();
-
-  if (!context) {
-    return null;
-  }
-
-  const goal = await getGoalForSession(session);
-
-  if (!goal) {
-    return null;
-  }
-
-  const weekStart = getWeekStart();
-
-  const existingReview = await context.client
-    .from("weekly_reviews")
-    .select("*")
-    .eq("user_id", context.userId)
-    .eq("goal_id", goal.id)
-    .eq("week_start", weekStart)
-    .maybeSingle();
-
-  if (existingReview.error) {
-    throw new Error(existingReview.error.message);
-  }
-
-  if (existingReview.data) {
-    const data = existingReview.data as WeeklyReviewLookup;
-    return {
-      completedDays: data.completed_days,
-      streakDays: data.best_streak,
-      difficultMoments: data.difficult_moments,
-      helpfulPattern: data.helpful_pattern,
-      nextAdjustment: data.next_adjustment,
-      source: "Supabase",
-    };
-  }
-
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekEnd.getDate() + 6);
-  const weekEndString = weekEnd.toISOString().slice(0, 10);
-
-  const weeklyActions = await context.client
-    .from("daily_actions")
-    .select("status")
-    .eq("goal_id", goal.id)
-    .gte("action_date", weekStart)
-    .lte("action_date", weekEndString)
-    .order("action_date", { ascending: true });
-
-  if (weeklyActions.error) {
-    throw new Error(weeklyActions.error.message);
-  }
-
-  const statuses = ((weeklyActions.data ?? []) as Array<{ status: DailyActionStatus }>).map((item) => item.status);
-
-  return buildGeneratedReview(statuses);
 }
 
 export async function getMonthlyReviewStateFromSession(session: HabitSession, targetMonth = new Date()): Promise<MonthlyReviewState | null> {

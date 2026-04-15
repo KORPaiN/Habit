@@ -23,7 +23,7 @@ export type RecoveryOption = {
   anchorCue?: string;
 };
 
-export type RecoveryPreparationResult = {
+type RecoveryPreparationResult = {
   reason: RecoveryReason;
   options: RecoveryOption[];
   savedFailure: boolean;
@@ -110,7 +110,7 @@ export async function prepareRecoveryOptions(input: { failureReason: RecoveryRea
         id: `anchor-${index + 1}`,
         mode: "anchor_shift",
         title: cue,
-        reason: reason === "forgot" ? "눈에 더 잘 들어오는 기존 습관으로 붙여요." : "기존 습관을 바꿔서 다시 붙여요.",
+        reason: reason === "forgot" ? "눈에 더 잘 들어오는 루틴으로 붙여요." : "붙일 루틴을 바꿔서 다시 붙여요.",
         anchorCue: cue,
       })),
     };

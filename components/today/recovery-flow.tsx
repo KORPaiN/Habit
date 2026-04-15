@@ -14,7 +14,7 @@ const failureReasonOptions = [
   {
     value: "forgot",
     label: "한 번 잊었어요",
-    hint: "기존 습관을 더 잘 보이게 바꿔요.",
+    hint: "붙일 루틴을 더 잘 떠오르게 바꿔요.",
   },
   {
     value: "too_big",
@@ -24,7 +24,7 @@ const failureReasonOptions = [
   {
     value: "forgot_often",
     label: "자주 잊어요",
-    hint: "기존 습관을 바꿔요.",
+    hint: "붙일 루틴을 바꿔요.",
   },
   {
     value: "not_wanted",
@@ -65,11 +65,11 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", l
       setStep("options");
       setStatusMessage(
         failureReason === "not_wanted"
-          ? "지금 맞는 행동으로 다시 골라요."
+            ? "지금 맞는 행동으로 다시 골라요."
           : failureReason === "forgot_often"
-            ? "기존 습관을 바꿔볼게요."
+            ? "붙일 루틴을 바꿔볼게요."
             : failureReason === "forgot"
-              ? "더 잘 떠오르는 기존 습관으로 붙여볼게요."
+              ? "더 잘 떠오르는 루틴으로 붙여볼게요."
               : "더 작은 행동으로 줄여볼게요.",
       );
       setStatusTone("neutral");
@@ -132,7 +132,7 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", l
         {reviewMeta ? (
           <div className="mt-5 rounded-[var(--radius-md)] border border-white/60 bg-[var(--surface-muted)] p-4 text-sm leading-6 text-[var(--muted)]">
             <p>목표: {goal}</p>
-            <p>기존 습관: {reviewMeta.primaryAnchor}</p>
+            <p>붙일 루틴: {reviewMeta.primaryAnchor}</p>
           </div>
         ) : null}
       </Card>
@@ -174,7 +174,7 @@ export function RecoveryFlow({ currentAction, goal, initialReason = "too_big", l
           <>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9a3412]">2단계</p>
             <h2 className="mt-3 text-2xl font-semibold">
-              {failureReason === "not_wanted" ? "다시 고르기" : failureReason === "too_big" ? "더 작은 버전" : "기존 습관 고르기"}
+              {failureReason === "not_wanted" ? "다시 고르기" : failureReason === "too_big" ? "더 작은 버전" : "루틴 바꾸기"}
             </h2>
             <p className="mt-3 text-sm leading-6 text-slate-700">{statusMessage}</p>
             <div className="mt-6 space-y-3">

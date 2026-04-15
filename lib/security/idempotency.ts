@@ -1,16 +1,16 @@
 import { createHash } from "node:crypto";
 
-export type IdempotencyReplay = {
+type IdempotencyReplay = {
   state: "replay";
   status: number;
   response: unknown;
 };
 
-export type IdempotencyConflict = {
+type IdempotencyConflict = {
   state: "conflict";
 };
 
-export type IdempotencyClaim = {
+type IdempotencyClaim = {
   state: "started";
   commit: (response: unknown, status?: number) => void;
   clear: () => void;

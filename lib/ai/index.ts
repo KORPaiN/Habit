@@ -4,14 +4,14 @@ import {
   buildBehaviorSwarmPrompt,
   buildAiOnlyHabitDecompositionPrompt,
   buildHybridRewritePrompt,
-  buildSelectedBehaviorPlanPrompt,
   behaviorSwarmJsonSchema,
   habitDecompositionJsonSchema,
   type GoalArchetype,
   type GoalClassification,
   type GoalIntent,
 } from "@/lib/ai/prompt";
-import { validateDecompositionLocale } from "@/lib/ai/locale-validation";
+import { detectAnchorCueType, getDefaultLearnedAnchor, isStressReliefGoal, type AnchorCueType } from "@/lib/ai/anchor-patterns";
+import { isLocalizedString, validateDecompositionLocale } from "@/lib/ai/locale-validation";
 import { logSecurityEvent } from "@/lib/security/events";
 import { API_RATE_LIMITS } from "@/lib/security/route-guard";
 import { consumeRateLimits } from "@/lib/security/rate-limit";
@@ -103,16 +103,16 @@ declare global {
   var __habitAiInflightUsers: Set<string> | undefined;
 }
 
-export type GenerationStrategy = "hybrid" | "ai_only" | "rules_only";
-export type ModelPreference = "fast" | "quality" | "experimental";
-export type RecentContext = {
+type GenerationStrategy = "hybrid" | "ai_only" | "rules_only";
+type ModelPreference = "fast" | "quality" | "experimental";
+type RecentContext = {
   recentStatuses: string[];
   recentFailureReasons: string[];
   recentUsedFallbackCount: number;
   recentCompletedStreak: number;
   usedUserLevelPattern: boolean;
 };
-export type DraftTemplate = {
+type DraftTemplate = {
   archetype: GoalArchetype;
   intent: GoalIntent;
   microActions: MicroAction[];
@@ -145,10 +145,6 @@ function getInflightUsers() {
   }
 
   return globalThis.__habitAiInflightUsers;
-}
-
-function isRecentContext(value: unknown): value is RecentContext {
-  return typeof value === "object" && value !== null && "recentStatuses" in value;
 }
 
 function hasJsonContent(content: OpenAIContentItem): content is { type?: string; json?: unknown } {
@@ -230,6 +226,118 @@ function normalizeDecomposition(
     fallbackAction,
     source,
   });
+}
+
+function getAiQualityPatterns(locale: Locale) {
+  if (locale === "ko") {
+    return {
+      bannedSummary: /(인생|변화시키|완전히|이번 주|꾸준한 루틴|동기|의지|열심히|성공할 수)/,
+      bannedReason: /(의지|동기|꾸준|성장|변화|성공|잘 해낼|완벽)/,
+    };
+  }
+
+  return {
+    bannedSummary: /(life reset|transform|whole new|weekly plan|motivation|discipline|consistency)/i,
+    bannedReason: /(motivation|discipline|consistency|mindset|success|transform)/i,
+  };
+}
+
+function hasSmallActionCue(title: string, classification: GoalClassification) {
+  const normalized = title.toLowerCase();
+
+  switch (classification.archetype) {
+    case "reading":
+      return /책|줄|문장|펴|bookmark|line|sentence|open/.test(normalized);
+    case "writing":
+      return /메모|문장|제목|키워드|열|notes|sentence|title|keyword|open/.test(normalized);
+    case "study":
+      return /페이지|줄|교재|도구|page|line|material|tool|open/.test(normalized);
+    case "exercise":
+      return /1분|운동화|매트|스트레칭|minute|shoes|mat|stretch|put on/.test(normalized);
+    case "tidy":
+      return /하나|칸|자리|spot|item|one/.test(normalized);
+    case "digital":
+      return /앱 하나|알림 하나|설정|app|notification|settings|one/.test(normalized);
+    case "self_care":
+      return /한 컵|숨|컵|glass|breath|cup|one/.test(normalized);
+    default:
+      return /하나|첫|준비|one|first|open|take out|look/.test(normalized);
+  }
+}
+
+function hasOversizedCue(title: string, classification: GoalClassification) {
+  const normalized = title.toLowerCase();
+
+  switch (classification.archetype) {
+    case "reading":
+      return /페이지|chapter|챕터|독서|read for|session|long/.test(normalized) && !/한 줄|one line|문장|sentence/.test(normalized);
+    case "writing":
+      return /에세이|블로그|단락|paragraph|journal entry|essay|post/.test(normalized);
+    case "study":
+      return /세트|full|lesson|강의|session|chapter|문제들/.test(normalized);
+    case "exercise":
+      return /workout|러닝|운동하기|full|session|30분|20분/.test(normalized);
+    case "tidy":
+      return /방|서랍 전체|전체|room|closet|deep clean/.test(normalized);
+    case "digital":
+      return /detox|정리하기|reset|cleanup|전체 정리/.test(normalized);
+    case "self_care":
+      return /routine|루틴|session|full/.test(normalized);
+    default:
+      return /finish|complete|full|session|transform/.test(normalized);
+  }
+}
+
+function isReasonTooLong(reason: string, locale: Locale) {
+  return locale === "ko" ? reason.trim().length > 28 : reason.trim().length > 110;
+}
+
+function isSummaryTooLong(summary: string, locale: Locale) {
+  return locale === "ko" ? summary.trim().length > 40 : summary.trim().length > 120;
+}
+
+function assertAiDecompositionQuality(
+  decomposition: HabitDecomposition,
+  input: OnboardingInput,
+  classification: GoalClassification,
+  locale: Locale,
+  draft?: HabitDecomposition,
+) {
+  const patterns = getAiQualityPatterns(locale);
+
+  if (isSummaryTooLong(decomposition.goalSummary, locale) || patterns.bannedSummary.test(decomposition.goalSummary)) {
+    throw new Error("AI decomposition summary quality was too low.");
+  }
+
+  if (decomposition.todayAction.title.trim() === decomposition.fallbackAction.trim()) {
+    throw new Error("AI decomposition fallback was identical to the main action.");
+  }
+
+  if (!hasSmallActionCue(decomposition.todayAction.title, classification) || hasOversizedCue(decomposition.todayAction.title, classification)) {
+    throw new Error("AI decomposition main action was too large for the requested tone.");
+  }
+
+  if (isReasonTooLong(decomposition.todayAction.reason, locale) || patterns.bannedReason.test(decomposition.todayAction.reason)) {
+    throw new Error("AI decomposition reason quality was too low.");
+  }
+
+  for (const action of decomposition.microActions) {
+    if (action.title.trim() === action.fallbackAction.trim()) {
+      throw new Error("AI decomposition contained an identical fallback.");
+    }
+
+    if (isReasonTooLong(action.reason, locale) || patterns.bannedReason.test(action.reason)) {
+      throw new Error("AI decomposition contained an overly long or motivational reason.");
+    }
+  }
+
+  if (draft && decomposition.todayAction.durationMinutes > draft.todayAction.durationMinutes + 1) {
+    throw new Error("AI decomposition expanded the first action too much.");
+  }
+
+  if (input.difficulty === "hard" && decomposition.todayAction.durationMinutes > 2) {
+    throw new Error("AI decomposition exceeded the hard difficulty limit.");
+  }
 }
 
 function extractTextFromResponse(payload: OpenAIResponsePayload) {
@@ -433,7 +541,7 @@ export function detectGoalArchetype(goal: string): GoalArchetype {
     return "digital";
   }
 
-  if (/sleep|rest|water|meditat|care|health|수면|휴식|물 마시|건강|마음챙김/.test(normalized)) {
+  if (/sleep|rest|water|meditat|care|health|stress|anxiety|calm|breath|gratitude|수면|휴식|물 마시|건강|마음챙김|스트레스|불안|차분|진정|호흡|숨|명상|감사/.test(normalized)) {
     return "self_care";
   }
 
@@ -491,12 +599,518 @@ function buildGoalSummary(goal: string, locale: Locale) {
     : `Today, we turn "${goal}" into one doable step.`;
 }
 
+function createMicroAction(
+  locale: Locale,
+  copy: {
+    ko: { title: string; reason: string; fallbackAction: string };
+    en: { title: string; reason: string; fallbackAction: string };
+  },
+  durationMinutes: number,
+): MicroAction {
+  const localized = locale === "ko" ? copy.ko : copy.en;
+
+  return microActionSchema.parse({
+    ...localized,
+    durationMinutes,
+  });
+}
+
+function buildStressRuleActions(
+  input: OnboardingInput,
+  failureReason: FailureReason | undefined,
+  locale: Locale,
+): MicroAction[] {
+  const { primary, secondary } = getActionDurations(input);
+  const smallerPrimary = failureReason === "too_big" ? 1 : primary;
+  const cueType = detectAnchorCueType(input.anchor);
+
+  switch (cueType) {
+    case "morning":
+      return [
+        createMicroAction(
+          locale,
+          {
+            ko: {
+              title: "창문 열고 숨 세 번 쉬기",
+              reason: "몸부터 가볍게 깨우면 긴장이 덜 남아요.",
+              fallbackAction: "창문만 열기",
+            },
+            en: {
+              title: "Open a window and take three slow breaths",
+              reason: "A physical reset makes the morning feel lighter.",
+              fallbackAction: "Open the window and stop",
+            },
+          },
+          smallerPrimary,
+        ),
+        createMicroAction(
+          locale,
+          {
+            ko: {
+              title: "물 한 컵 따르기",
+              reason: "작은 돌봄부터 시작하면 압박이 줄어요.",
+              fallbackAction: "컵만 꺼내기",
+            },
+            en: {
+              title: "Pour one glass of water",
+              reason: "A tiny act of care lowers the pressure.",
+              fallbackAction: "Take out a cup",
+            },
+          },
+          secondary,
+        ),
+      ];
+    case "shower":
+      return [
+        createMicroAction(
+          locale,
+          {
+            ko: {
+              title: "샤워 물 틀고 숨 세 번 쉬기",
+              reason: "물 소리에 맞춰 멈추면 몸이 먼저 풀려요.",
+              fallbackAction: "샤워 물만 틀기",
+            },
+            en: {
+              title: "Turn on the shower and take three slow breaths",
+              reason: "Pausing with the water sound helps your body settle first.",
+              fallbackAction: "Turn on the shower and stop",
+            },
+          },
+          smallerPrimary,
+        ),
+        createMicroAction(
+          locale,
+          {
+            ko: {
+              title: "어깨 힘 한 번 빼기",
+              reason: "짧은 이완만으로도 긴장이 조금 내려갑니다.",
+              fallbackAction: "고개 한 번 돌리기",
+            },
+            en: {
+              title: "Drop your shoulders once",
+              reason: "A quick release is enough to lower the tension a little.",
+              fallbackAction: "Roll your neck once",
+            },
+          },
+          secondary,
+        ),
+      ];
+    case "coffee":
+      return [
+        createMicroAction(
+          locale,
+          {
+            ko: {
+              title: "컵 내려놓고 숨 세 번 쉬기",
+              reason: "멈추는 신호가 분명해서 바로 붙기 쉬워요.",
+              fallbackAction: "컵 내려놓기",
+            },
+            en: {
+              title: "Set the cup down and take three slow breaths",
+              reason: "The cue is clear, so it is easy to attach right away.",
+              fallbackAction: "Set the cup down",
+            },
+          },
+          smallerPrimary,
+        ),
+        createMicroAction(
+          locale,
+          {
+            ko: {
+              title: "노트 열고 한 줄 적기",
+              reason: "머릿속 긴장을 밖으로 조금 꺼내둡니다.",
+              fallbackAction: "노트만 열기",
+            },
+            en: {
+              title: "Open a journal and write one line",
+              reason: "One line is enough to move some of the stress out of your head.",
+              fallbackAction: "Open the journal and stop",
+            },
+          },
+          secondary,
+        ),
+      ];
+    case "midday":
+      return [
+        createMicroAction(
+          locale,
+          {
+            ko: {
+              title: "밖으로 나가 1분 걷기",
+              reason: "점심 뒤엔 몸을 조금 움직이면 머리가 가벼워져요.",
+              fallbackAction: "문밖 공기 한 번 마시기",
+            },
+            en: {
+              title: "Step outside and walk for one minute",
+              reason: "A little movement after lunch clears the head quickly.",
+              fallbackAction: "Step to the door and take one breath of outside air",
+            },
+          },
+          smallerPrimary,
+        ),
+        createMicroAction(
+          locale,
+          {
+            ko: {
+              title: "휴대폰 없이 하늘 보기",
+              reason: "시선을 멀리 두면 긴장이 한 번 끊겨요.",
+              fallbackAction: "창밖 보기",
+            },
+            en: {
+              title: "Look at the sky without your phone",
+              reason: "Looking farther away gives the tension a clean break.",
+              fallbackAction: "Look out the window",
+            },
+          },
+          secondary,
+        ),
+      ];
+    case "appointment":
+      return [
+        createMicroAction(
+          locale,
+          {
+            ko: {
+              title: "휴대폰 뒤집고 숨 세 번 쉬기",
+              reason: "기다리는 시간에 자극을 하나 줄이면 훨씬 차분해져요.",
+              fallbackAction: "휴대폰 뒤집기",
+            },
+            en: {
+              title: "Turn your phone over and take three slow breaths",
+              reason: "Removing one source of stimulation helps you settle while you wait.",
+              fallbackAction: "Turn your phone over",
+            },
+          },
+          smallerPrimary,
+        ),
+        createMicroAction(
+          locale,
+          {
+            ko: {
+              title: "어깨 힘 빼고 발바닥 느끼기",
+              reason: "몸 감각으로 돌아오면 긴장이 덜 커져요.",
+              fallbackAction: "어깨 한 번 내리기",
+            },
+            en: {
+              title: "Drop your shoulders and feel your feet",
+              reason: "Returning to the body keeps the tension from growing.",
+              fallbackAction: "Drop your shoulders once",
+            },
+          },
+          secondary,
+        ),
+      ];
+    case "commute":
+      return [
+        createMicroAction(
+          locale,
+          {
+            ko: {
+              title: "눈 감고 숨 세 번 세기",
+              reason: "이동 중엔 짧은 호흡이 가장 붙기 쉬워요.",
+              fallbackAction: "숨 한 번 세기",
+            },
+            en: {
+              title: "Close your eyes and count three breaths",
+              reason: "A short breathing reset is easy to do during transit.",
+              fallbackAction: "Count one breath",
+            },
+          },
+          smallerPrimary,
+        ),
+        createMicroAction(
+          locale,
+          {
+            ko: {
+              title: "명상 앱 열고 1분 듣기",
+              reason: "바로 틀 수 있는 진정 신호를 하나 만듭니다.",
+              fallbackAction: "명상 앱만 열기",
+            },
+            en: {
+              title: "Open your meditation app and listen for one minute",
+              reason: "Give yourself one ready-made calming cue.",
+              fallbackAction: "Open the meditation app",
+            },
+          },
+          secondary,
+        ),
+      ];
+    case "request":
+      return [
+        createMicroAction(
+          locale,
+          {
+            ko: {
+              title: "답장 전에 숨 세 번 쉬기",
+              reason: "바로 반응하지 않으면 압박이 조금 줄어요.",
+              fallbackAction: "답장창 잠깐 닫기",
+            },
+            en: {
+              title: "Take three slow breaths before replying",
+              reason: "Not reacting right away takes some pressure off.",
+              fallbackAction: "Close the reply box for a moment",
+            },
+          },
+          smallerPrimary,
+        ),
+        createMicroAction(
+          locale,
+          {
+            ko: {
+              title: "지금 가능한지만 한 줄 적기",
+              reason: "설명보다 경계부터 분명히 하면 덜 지쳐요.",
+              fallbackAction: "가능 여부만 적기",
+            },
+            en: {
+              title: "Write one line about what is possible right now",
+              reason: "Naming the boundary first costs less energy than explaining everything.",
+              fallbackAction: "Write only yes or no",
+            },
+          },
+          secondary,
+        ),
+      ];
+    case "conflict":
+      return [
+        createMicroAction(
+          locale,
+          {
+            ko: {
+              title: "물 한 컵 마시기",
+              reason: "몸을 먼저 진정시키면 감정이 덜 커집니다.",
+              fallbackAction: "컵에 물 따르기",
+            },
+            en: {
+              title: "Drink one glass of water",
+              reason: "Calming the body first keeps the emotion from growing.",
+              fallbackAction: "Pour water into a cup",
+            },
+          },
+          smallerPrimary,
+        ),
+        createMicroAction(
+          locale,
+          {
+            ko: {
+              title: "문 쪽까지 걸어갔다 오기",
+              reason: "짧은 거리 이동만으로도 긴장이 한번 끊겨요.",
+              fallbackAction: "문 쪽 보기",
+            },
+            en: {
+              title: "Walk to the door and back",
+              reason: "A very short movement can interrupt the tension.",
+              fallbackAction: "Look toward the door",
+            },
+          },
+          secondary,
+        ),
+      ];
+    case "outside":
+      return [
+        createMicroAction(
+          locale,
+          {
+            ko: {
+              title: "보이는 나무 하나 보기",
+              reason: "시선을 바깥에 두면 머리 과열이 조금 식어요.",
+              fallbackAction: "하늘 한번 보기",
+            },
+            en: {
+              title: "Look at one tree you can see",
+              reason: "Putting your eyes on the outside world cools the mind a little.",
+              fallbackAction: "Look at the sky once",
+            },
+          },
+          smallerPrimary,
+        ),
+        createMicroAction(
+          locale,
+          {
+            ko: {
+              title: "걸음 다섯 번 천천히 걷기",
+              reason: "리듬을 늦추면 몸이 먼저 따라옵니다.",
+              fallbackAction: "걸음 한 번 늦추기",
+            },
+            en: {
+              title: "Walk five slow steps",
+              reason: "Slowing the rhythm helps the body settle first.",
+              fallbackAction: "Slow down one step",
+            },
+          },
+          secondary,
+        ),
+      ];
+    case "evening":
+      return [
+        createMicroAction(
+          locale,
+          {
+            ko: {
+              title: "허브티 물 올리기",
+              reason: "저녁엔 따뜻한 준비 동작이 마음을 누그러뜨려요.",
+              fallbackAction: "컵 하나 꺼내기",
+            },
+            en: {
+              title: "Put water on for herbal tea",
+              reason: "A warm setup action helps the evening feel softer.",
+              fallbackAction: "Take out one cup",
+            },
+          },
+          smallerPrimary,
+        ),
+        createMicroAction(
+          locale,
+          {
+            ko: {
+              title: "불 하나 끄기",
+              reason: "자극을 하나 줄이면 밤 모드로 넘어가기 쉬워요.",
+              fallbackAction: "스위치에 손 올리기",
+            },
+            en: {
+              title: "Turn off one light",
+              reason: "Removing one source of stimulation makes it easier to shift into night mode.",
+              fallbackAction: "Put your hand on the switch",
+            },
+          },
+          secondary,
+        ),
+      ];
+    case "bedtime":
+      return [
+        createMicroAction(
+          locale,
+          {
+            ko: {
+              title: "눈 감고 숨 세 번 세기",
+              reason: "잠들기 전엔 짧은 호흡이 가장 부담이 적어요.",
+              fallbackAction: "숨 한 번 세기",
+            },
+            en: {
+              title: "Close your eyes and count three breaths",
+              reason: "Right before sleep, a short breathing reset is the lightest option.",
+              fallbackAction: "Count one breath",
+            },
+          },
+          smallerPrimary,
+        ),
+        createMicroAction(
+          locale,
+          {
+            ko: {
+              title: "휴대폰 내려두고 눈 감기",
+              reason: "마지막 자극을 끊으면 몸이 더 빨리 쉬어요.",
+              fallbackAction: "휴대폰 내려두기",
+            },
+            en: {
+              title: "Put your phone down and close your eyes",
+              reason: "Cutting the last stimulation helps the body rest sooner.",
+              fallbackAction: "Put your phone down",
+            },
+          },
+          secondary,
+        ),
+      ];
+    default:
+      return [
+        createMicroAction(
+          locale,
+          {
+            ko: {
+              title: "숨 세 번 쉬기",
+              reason: "가장 빨리 할 수 있는 진정 동작부터 갑니다.",
+              fallbackAction: "숨 한 번 쉬기",
+            },
+            en: {
+              title: "Take three slow breaths",
+              reason: "Start with the quickest calming action you can do right now.",
+              fallbackAction: "Take one slow breath",
+            },
+          },
+          smallerPrimary,
+        ),
+        createMicroAction(
+          locale,
+          {
+            ko: {
+              title: "물 한 컵 따르기",
+              reason: "몸을 돌보는 작은 동작이 압박을 낮춰줘요.",
+              fallbackAction: "컵만 꺼내기",
+            },
+            en: {
+              title: "Pour one glass of water",
+              reason: "A tiny act of care lowers the pressure.",
+              fallbackAction: "Take out a cup",
+            },
+          },
+          secondary,
+        ),
+      ];
+  }
+}
+
+function buildStressMinimalAction(input: OnboardingInput, locale: Locale): MicroAction {
+  const cueType: AnchorCueType = detectAnchorCueType(input.anchor);
+
+  switch (cueType) {
+    case "coffee":
+      return microActionSchema.parse({
+        title: locale === "ko" ? "컵 내려놓고 숨 한 번 쉬기" : "Set the cup down and take one breath",
+        reason: locale === "ko" ? "멈추는 신호만 남겨도 충분해요." : "Keeping only the pause is enough for now.",
+        durationMinutes: 1,
+        fallbackAction: locale === "ko" ? "컵 내려놓기" : "Set the cup down",
+      });
+    case "midday":
+    case "outside":
+      return microActionSchema.parse({
+        title: locale === "ko" ? "문밖 공기 한 번 마시기" : "Take one breath of outside air",
+        reason: locale === "ko" ? "몸을 밖으로 조금만 돌려도 흐름이 바뀌어요." : "Turning your body outward a little is enough to change the rhythm.",
+        durationMinutes: 1,
+        fallbackAction: locale === "ko" ? "문 쪽 보기" : "Look toward the door",
+      });
+    case "appointment":
+    case "commute":
+      return microActionSchema.parse({
+        title: locale === "ko" ? "휴대폰 뒤집고 숨 한 번 쉬기" : "Turn your phone over and take one breath",
+        reason: locale === "ko" ? "자극 하나만 줄여도 긴장이 덜 커져요." : "Removing one source of stimulation keeps the tension smaller.",
+        durationMinutes: 1,
+        fallbackAction: locale === "ko" ? "휴대폰 뒤집기" : "Turn your phone over",
+      });
+    case "request":
+    case "conflict":
+      return microActionSchema.parse({
+        title: locale === "ko" ? "물 한 컵 따르기" : "Pour one glass of water",
+        reason: locale === "ko" ? "바로 반응하기 전에 몸부터 진정시켜요." : "Calm the body before you react.",
+        durationMinutes: 1,
+        fallbackAction: locale === "ko" ? "컵만 꺼내기" : "Take out a cup",
+      });
+    case "evening":
+    case "bedtime":
+      return microActionSchema.parse({
+        title: locale === "ko" ? "불 하나 끄기" : "Turn off one light",
+        reason: locale === "ko" ? "밤 모드로 넘어가는 신호만 만들면 돼요." : "You only need a small signal that it is time to slow down.",
+        durationMinutes: 1,
+        fallbackAction: locale === "ko" ? "스위치에 손 올리기" : "Put your hand on the switch",
+      });
+    default:
+      return microActionSchema.parse({
+        title: locale === "ko" ? "숨 한 번 크게 쉬기" : "Take one slow breath",
+        reason: locale === "ko" ? "가장 작은 진정 동작이면 충분해요." : "The smallest calming action is enough for today.",
+        durationMinutes: 1,
+        fallbackAction: locale === "ko" ? "어깨 힘 빼기" : "Drop your shoulders once",
+      });
+  }
+}
+
 function buildRuleActions(
   archetype: GoalArchetype,
   input: OnboardingInput,
   failureReason?: FailureReason,
   locale: Locale = "ko",
 ): MicroAction[] {
+  if (isStressReliefGoal(input.goal)) {
+    return buildStressRuleActions(input, failureReason, locale);
+  }
+
   const { primary, secondary } = getActionDurations(input);
   const tooBig = failureReason === "too_big";
   const goal = input.goal;
@@ -663,6 +1277,10 @@ function buildRuleActions(
 }
 
 function buildSmallerAction(archetype: GoalArchetype, input: OnboardingInput, locale: Locale): MicroAction {
+  if (isStressReliefGoal(input.goal)) {
+    return buildStressMinimalAction(input, locale);
+  }
+
   switch (archetype) {
     case "reading":
       return microActionSchema.parse({
@@ -787,7 +1405,8 @@ function normalizeRuleBuildArgs(
 }
 
 function stripSource(decomposition: HabitDecomposition): Omit<HabitDecomposition, "source"> {
-  const { source: _source, ...rest } = decomposition;
+  const { source, ...rest } = decomposition;
+  void source;
   return rest;
 }
 
@@ -869,11 +1488,12 @@ export function buildMockHabitDecomposition(
   return buildRuleBasedHabitDecomposition(input, failureReason, { locale });
 }
 
-export async function collectRecentContext(_: {
+export async function collectRecentContext(input: {
   userId?: string;
   goalId?: string;
   basedOnPlanId?: string;
 }): Promise<RecentContext> {
+  void input;
   return EMPTY_RECENT_CONTEXT;
 }
 
@@ -950,7 +1570,11 @@ function scoreAbility(durationMinutes: number, difficulty: OnboardingBaseInput["
 function scoreDesire(title: string, durationMinutes: number) {
   let score = durationMinutes <= 2 ? 4 : 3;
 
-  if (/열|펴|꺼내|놓|보기|닫기|신기|한 줄|한 문장|한 컵|한 칸|one line|one sentence|open|take out|close|put on/i.test(title)) {
+  if (
+    /열|펴|꺼내|놓|보기|닫기|신기|한 줄|한 문장|한 컵|한 칸|숨|호흡|불 하나|휴대폰 뒤집|하늘 보기|창문 열기|one line|one sentence|open|take out|close|put on|breath|light|phone|sky|window/i.test(
+      title,
+    )
+  ) {
     score += 1;
   }
 
@@ -964,7 +1588,7 @@ function scoreImpact(title: string, classification: GoalClassification) {
     score += 1;
   }
 
-  if (/첫|한 줄|한 문장|한 컵|앱 하나|물건 하나|한 칸|one line|one sentence|one glass|one item/i.test(title)) {
+  if (/첫|한 줄|한 문장|한 컵|앱 하나|물건 하나|한 칸|숨 세 번|불 하나|1분 걷기|one line|one sentence|one glass|one item|three breaths|one light|one minute/i.test(title)) {
     score += 1;
   }
 
@@ -989,13 +1613,19 @@ function toBehaviorCandidate(
 }
 
 function buildBehaviorSwarmFallbackInput(input: OnboardingBaseInput): OnboardingInput {
+  const anchor = isStressReliefGoal(input.goal)
+    ? getDefaultLearnedAnchor(input.preferredTime, "ko")
+    : input.preferredTime === "evening"
+      ? "잠들기 전"
+      : "커피 마신 뒤";
+
   return onboardingBaseSchema
     .extend({
-      anchor: z.string().default(input.preferredTime === "evening" ? "잠들기 전" : "커피 마신 뒤"),
+      anchor: z.string().default(anchor),
     })
     .parse({
       ...input,
-      anchor: input.preferredTime === "evening" ? "잠들기 전" : "커피 마신 뒤",
+      anchor,
     }) as OnboardingInput;
 }
 
@@ -1072,6 +1702,93 @@ function fillBehaviorCandidates(
   return nextCandidates.slice(0, 8);
 }
 
+function sortBehaviorSwarmCandidates(
+  candidates: Array<{
+    candidate: BehaviorSwarmCandidate;
+    originalIndex: number;
+  }>,
+) {
+  return candidates.sort((left, right) => {
+    if (left.candidate.durationMinutes !== right.candidate.durationMinutes) {
+      return left.candidate.durationMinutes - right.candidate.durationMinutes;
+    }
+
+    if (left.candidate.abilityScore !== right.candidate.abilityScore) {
+      return right.candidate.abilityScore - left.candidate.abilityScore;
+    }
+
+    if (left.candidate.impactScore !== right.candidate.impactScore) {
+      return right.candidate.impactScore - left.candidate.impactScore;
+    }
+
+    if (left.candidate.desireScore !== right.candidate.desireScore) {
+      return right.candidate.desireScore - left.candidate.desireScore;
+    }
+
+    return left.originalIndex - right.originalIndex;
+  });
+}
+
+function isLocalizedBehaviorSwarmCandidate(candidate: BehaviorSwarmCandidate, input: OnboardingBaseInput, locale: Locale) {
+  return isLocalizedString(candidate.title, locale, input.goal) && isLocalizedString(candidate.details ?? "", locale, input.goal);
+}
+
+function normalizeBehaviorSwarmCandidates(
+  rawCandidates: unknown,
+  draft: BehaviorSwarmCandidate[],
+  input: OnboardingBaseInput,
+  locale: Locale,
+) {
+  if (!Array.isArray(rawCandidates)) {
+    throw new Error("Behavior swarm candidates were not an array.");
+  }
+
+  const seen = new Set<string>();
+  const nextCandidates: Array<{ candidate: BehaviorSwarmCandidate; originalIndex: number }> = [];
+
+  rawCandidates.forEach((rawCandidate, index) => {
+    const parsed = behaviorSwarmCandidateSchema.safeParse(rawCandidate);
+
+    if (!parsed.success) {
+      return;
+    }
+
+    if (!isLocalizedBehaviorSwarmCandidate(parsed.data, input, locale)) {
+      return;
+    }
+
+    const key = parsed.data.title.trim().toLowerCase();
+
+    if (seen.has(key)) {
+      return;
+    }
+
+    seen.add(key);
+    nextCandidates.push({ candidate: parsed.data, originalIndex: index });
+  });
+
+  for (const candidate of draft) {
+    if (nextCandidates.length >= 6) {
+      break;
+    }
+
+    const key = candidate.title.trim().toLowerCase();
+
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    nextCandidates.push({ candidate, originalIndex: rawCandidates.length + nextCandidates.length });
+  }
+
+  if (nextCandidates.length < 6) {
+    return draft;
+  }
+
+  return behaviorSwarmSchema.parse(sortBehaviorSwarmCandidates(nextCandidates).slice(0, 10).map(({ candidate }) => candidate));
+}
+
 export function buildRuleBasedBehaviorSwarm(input: OnboardingBaseInput, locale: Locale = "ko"): BehaviorSwarmCandidate[] {
   const classification = getGoalClassification(input.goal);
   const fallbackInput = buildBehaviorSwarmFallbackInput(input);
@@ -1117,6 +1834,12 @@ function deriveSelectedBehaviorFallback(
     if (/쓰기|적기/i.test(selectedBehavior.title)) return "메모 열기";
     if (/운동|스트레칭|걷기/i.test(selectedBehavior.title)) return "운동화 꺼내기";
     if (/정리|치우기/i.test(selectedBehavior.title)) return "물건 하나 집기";
+    if (/숨|호흡/i.test(selectedBehavior.title)) return "숨 한 번 쉬기";
+    if (/휴대폰|폰/i.test(selectedBehavior.title)) return "휴대폰 뒤집기";
+    if (/명상 앱/i.test(selectedBehavior.title)) return "명상 앱만 열기";
+    if (/노트|일기|저널|감사/i.test(selectedBehavior.title)) return "노트만 열기";
+    if (/불|조명/i.test(selectedBehavior.title)) return "스위치에 손 올리기";
+    if (/물|차|티/i.test(selectedBehavior.title)) return "컵만 꺼내기";
     return `"${input.goal}" 준비물 꺼내기`;
   }
 
@@ -1431,8 +2154,8 @@ export async function generateBehaviorSwarm(
       behaviorSwarmJsonSchema,
       modelPreference,
       (text) => {
-        const parsed = JSON.parse(text) as { candidates: BehaviorSwarmCandidate[] };
-        return behaviorSwarmSchema.parse(parsed.candidates);
+        const parsed = JSON.parse(text) as { candidates?: unknown };
+        return normalizeBehaviorSwarmCandidates(parsed.candidates, draft, input, locale);
       },
     );
 
@@ -1552,8 +2275,9 @@ export async function generateHabitDecomposition(
     const result = await callOpenAIStructured(prompt, habitDecompositionJsonSchema, modelPreference, (text) => {
       const parsed = JSON.parse(text) as Omit<HabitDecomposition, "source">;
       validateDecompositionLocale(parsed, input, locale);
-
-      return normalizeDecomposition(parsed, input, strategy === "hybrid" ? "hybrid" : "openai", failureReason, locale);
+      const normalized = normalizeDecomposition(parsed, input, strategy === "hybrid" ? "hybrid" : "openai", failureReason, locale);
+      assertAiDecompositionQuality(normalized, input, classification, locale, draft);
+      return normalized;
     });
     const openaiMs = Date.now() - openAIStartedAt;
 
@@ -1599,9 +2323,4 @@ export async function generateHabitDecomposition(
   } finally {
     releaseSlot();
   }
-}
-
-export async function generateMicroActions(input: OnboardingInput): Promise<MicroAction[]> {
-  const decomposition = await generateHabitDecomposition(input);
-  return decomposition.microActions.map((item) => microActionSchema.parse(item));
 }

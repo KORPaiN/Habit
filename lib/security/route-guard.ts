@@ -15,7 +15,7 @@ export const API_RATE_LIMITS = {
   read: [{ name: "minute", limit: 60, windowMs: 1000 * 60 }],
 } satisfies Record<string, RateLimitRule[]>;
 
-export type AuthenticatedRouteContext = {
+type AuthenticatedRouteContext = {
   requestId: string;
   user: User;
   client: Awaited<ReturnType<typeof getSupabaseServerClient>>;
@@ -34,7 +34,7 @@ export function getRequestId(request: Request) {
   return randomUUID();
 }
 
-export function getClientIp(request: Request) {
+function getClientIp(request: Request) {
   const forwardedFor = request.headers.get("x-forwarded-for");
 
   if (forwardedFor) {
@@ -54,7 +54,7 @@ export function isSameOriginRequest(request: Request) {
   return origin === new URL(request.url).origin;
 }
 
-export function assertSameOrigin(request: Request, requestId: string) {
+function assertSameOrigin(request: Request, requestId: string) {
   if (isSameOriginRequest(request)) {
     return;
   }
@@ -99,21 +99,32 @@ export async function requireAuthenticatedRoute(
   }
 
   const client = await getSupabaseServerClient();
-  const {
-    data: { user },
-    error,
-  } = await client.auth.getUser();
+  let user: User | null = null;
+  let authError: unknown = null;
 
-  if (error || !user) {
+  try {
+    const authResult = await client.auth.getUser();
+    user = authResult.data.user;
+    authError = authResult.error;
+  } catch (error) {
+    authError = error;
+  }
+
+  if (authError || !user) {
     logSecurityEvent({
-      type: "unauthenticated_request",
-      level: "warn",
+      type: authError ? "auth_unavailable" : "unauthenticated_request",
+      level: authError ? "error" : "warn",
       requestId,
       route: pathname,
       ip,
-      outcome: "blocked",
-      statusCode: 401,
+      outcome: authError ? "error" : "blocked",
+      statusCode: authError ? 503 : 401,
+      detail: authError instanceof Error ? { reason: authError.message.slice(0, 240) } : undefined,
     });
+
+    if (authError) {
+      throw new ApiError(503, "Authentication is temporarily unavailable.");
+    }
 
     throw new ApiError(401, "Authentication required.");
   }

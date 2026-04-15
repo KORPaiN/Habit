@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-export type SecurityEvent = {
+type SecurityEvent = {
   type: string;
   level?: "info" | "warn" | "error";
   requestId?: string;
@@ -48,7 +48,7 @@ function sanitizeDetail(detail?: Record<string, unknown>) {
   return Object.keys(sanitized).length > 0 ? sanitized : undefined;
 }
 
-export function hashIdentifier(value?: string | null) {
+function hashIdentifier(value?: string | null) {
   if (!value) {
     return undefined;
   }

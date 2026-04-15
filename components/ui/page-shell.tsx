@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { PropsWithChildren } from "react";
 import { ChevronDown, LogOut, Sprout } from "lucide-react";
@@ -24,17 +25,8 @@ type PageShellProps = PropsWithChildren<{
   showAuthControls?: boolean;
 }>;
 
-export function PageShell({
-  title,
-  eyebrow,
-  description,
-  className,
-  children,
-  locale,
-  path,
-  auth,
-  showAuthControls = true,
-}: PageShellProps) {
+export function PageShell(props: PageShellProps) {
+  const { className, children, locale, path, auth, showAuthControls = true } = props;
   const copy = commonCopy[locale];
   const profileLabel = auth?.displayName ?? auth?.email ?? (locale === "ko" ? "프로필" : "Profile");
 
@@ -79,11 +71,13 @@ export function PageShell({
                   <details className="group relative">
                     <summary className="flex list-none items-center gap-2 rounded-full border border-white/55 bg-white/80 px-2 py-2 text-sm font-medium text-[var(--foreground)] shadow-[var(--shadow-sm)] transition hover:bg-white [&::-webkit-details-marker]:hidden">
                       {auth.avatarUrl ? (
-                        <img
+                        <Image
                           alt={profileLabel}
                           className="h-9 w-9 rounded-full border border-white/80 object-cover"
                           referrerPolicy="no-referrer"
                           src={auth.avatarUrl}
+                          width={36}
+                          height={36}
                         />
                       ) : (
                         <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[var(--primary-soft)] text-sm font-semibold text-[var(--primary)]">
