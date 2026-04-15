@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
@@ -50,6 +51,13 @@ type DraftState = {
 };
 
 const DRAFT_KEY = "habit_onboarding_wizard_v3";
+const fieldIds = {
+  goal: "onboarding-goal",
+  desiredOutcome: "onboarding-desired-outcome",
+  primaryAnchor: "onboarding-primary-anchor",
+  recipeText: "onboarding-recipe",
+  celebrationText: "onboarding-celebration",
+} as const;
 const genericHabitExamples = ["커피 마신 뒤", "양치 뒤", "집에 들어오면", "책상 앞에 앉으면"] as const;
 
 function SubmitButton({ label }: { label: string }) {
@@ -405,14 +413,14 @@ export function OnboardingForm({
           <div className="flex gap-2">
             {effectiveStep === 4 ? (
               <Link
-                href={buildAnchorsHref(effectiveStep, isReselect) as any}
+                href={buildAnchorsHref(effectiveStep, isReselect) as Route}
                 className="inline-flex min-h-10 items-center rounded-full border border-white/60 bg-white/76 px-4 text-sm font-medium text-[var(--foreground)] transition hover:bg-white"
               >
                 저장된 루틴
               </Link>
             ) : null}
             <Link
-              href={buildHelpHref(effectiveStep, isReviewMode, isReselect) as any}
+              href={buildHelpHref(effectiveStep, isReviewMode, isReselect) as Route}
               className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/60 bg-white/76 text-[var(--foreground)] transition hover:bg-white"
               aria-label={locale === "ko" ? "도움말" : "Help"}
             >
@@ -448,12 +456,12 @@ export function OnboardingForm({
             <Card className="bg-[var(--surface-strong)]">
               <div className="grid gap-4">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-[var(--foreground-soft)]">시작할 목표</label>
-                  <Input value={values.goal} onChange={(event) => updateValue("goal", event.target.value)} placeholder="예: 책 읽는 습관 만들기" />
+                  <label htmlFor={fieldIds.goal} className="mb-2 block text-sm font-medium text-[var(--foreground-soft)]">시작할 목표</label>
+                  <Input id={fieldIds.goal} value={values.goal} onChange={(event) => updateValue("goal", event.target.value)} placeholder="예: 책 읽는 습관 만들기" />
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-[var(--foreground-soft)]">원하는 변화</label>
-                  <Input value={values.desiredOutcome} onChange={(event) => updateValue("desiredOutcome", event.target.value)} placeholder="예: 매일 조금이라도 읽고 싶어요" />
+                  <label htmlFor={fieldIds.desiredOutcome} className="mb-2 block text-sm font-medium text-[var(--foreground-soft)]">원하는 변화</label>
+                  <Input id={fieldIds.desiredOutcome} value={values.desiredOutcome} onChange={(event) => updateValue("desiredOutcome", event.target.value)} placeholder="예: 매일 조금이라도 읽고 싶어요" />
                 </div>
               </div>
             </Card>
@@ -516,8 +524,8 @@ export function OnboardingForm({
             <Card className="bg-[var(--surface-strong)]">
               <div className="grid gap-4">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-[var(--foreground-soft)]">붙일 루틴</label>
-                  <Input value={values.primaryAnchor} onChange={(event) => updateValue("primaryAnchor", event.target.value)} placeholder="예: 커피 마신 뒤" />
+                  <label htmlFor={fieldIds.primaryAnchor} className="mb-2 block text-sm font-medium text-[var(--foreground-soft)]">붙일 루틴</label>
+                  <Input id={fieldIds.primaryAnchor} value={values.primaryAnchor} onChange={(event) => updateValue("primaryAnchor", event.target.value)} placeholder="예: 커피 마신 뒤" />
                   <p className="mt-2 text-xs text-[var(--muted)]">이미 자주 하는 루틴 하나면 충분해요.</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -548,12 +556,12 @@ export function OnboardingForm({
                   </div>
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-[var(--foreground-soft)]">레시피</label>
-                  <Input value={values.recipeText} onChange={(event) => updateValue("recipeText", event.target.value)} />
+                  <label htmlFor={fieldIds.recipeText} className="mb-2 block text-sm font-medium text-[var(--foreground-soft)]">레시피</label>
+                  <Input id={fieldIds.recipeText} value={values.recipeText} onChange={(event) => updateValue("recipeText", event.target.value)} />
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-[var(--foreground-soft)]">축하 한마디</label>
-                  <Input value={values.celebrationText} onChange={(event) => updateValue("celebrationText", event.target.value)} placeholder="예: 좋아, 됐어." />
+                  <label htmlFor={fieldIds.celebrationText} className="mb-2 block text-sm font-medium text-[var(--foreground-soft)]">축하 한마디</label>
+                  <Input id={fieldIds.celebrationText} value={values.celebrationText} onChange={(event) => updateValue("celebrationText", event.target.value)} placeholder="예: 좋아, 됐어." />
                 </div>
                 {!isAuthenticated ? <p className="text-sm text-[var(--muted)]">저장하려면 로그인해주세요.</p> : null}
               </div>

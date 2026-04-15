@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import type { Locale } from "@/lib/locale";
@@ -54,7 +54,7 @@ export function GoogleAuthButton({
   const [isPending, setIsPending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  async function handleClick() {
+  const startGoogleAuth = useEffectEvent(async () => {
     const client = getSupabaseBrowserClient();
 
     if (!client) {
@@ -87,6 +87,10 @@ export function GoogleAuthButton({
       setErrorMessage(error.message);
       setIsPending(false);
     }
+  });
+
+  function handleClick() {
+    void startGoogleAuth();
   }
 
   useEffect(() => {
@@ -94,8 +98,8 @@ export function GoogleAuthButton({
       return;
     }
 
-    void handleClick();
-  }, [autoStart]);
+    void startGoogleAuth();
+  }, [autoStart, errorMessage, isPending, startGoogleAuth]);
 
   return (
     <div className="space-y-3">

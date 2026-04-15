@@ -1,0 +1,4 @@
+{
+  "ignoreBinaries": ["powershell"],
+  "ignoreDependencies": ["eslint-config-next"]
+}

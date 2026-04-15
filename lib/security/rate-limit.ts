@@ -4,7 +4,7 @@ export type RateLimitRule = {
   windowMs: number;
 };
 
-export type RateLimitResult = {
+type RateLimitResult = {
   allowed: boolean;
   limit: number;
   remaining: number;

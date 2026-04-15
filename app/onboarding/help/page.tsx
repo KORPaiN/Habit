@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -75,7 +76,7 @@ export default async function OnboardingHelpPage({ searchParams }: OnboardingHel
             {locale === "ko" ? "완벽한 계획보다 오늘 바로 할 수 있는 한 걸음이 더 중요해요." : "A tiny start matters more than a perfect plan."}
           </p>
           <div className="mt-4">
-            <Link href={buildBackHref(params) as any}>
+            <Link href={buildBackHref(params) as Route}>
               <Button>{locale === "ko" ? "온보딩으로" : "Back to onboarding"}</Button>
             </Link>
           </div>

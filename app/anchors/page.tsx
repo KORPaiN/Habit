@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import Link from "next/link";
 import { Trash2 } from "lucide-react";
 
@@ -68,7 +69,7 @@ export default async function AnchorsPage({ searchParams }: AnchorsPageProps) {
         <Card className="bg-[var(--surface-strong)]">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold">{locale === "ko" ? "저장된 루틴" : "Saved cues"}</h2>
-            <Link href={returnTo as any}>
+            <Link href={returnTo as Route}>
               <Button variant="ghost" size="sm">{locale === "ko" ? "온보딩으로" : "Back to onboarding"}</Button>
             </Link>
           </div>

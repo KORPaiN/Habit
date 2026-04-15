@@ -511,14 +511,3 @@ export interface Database {
     };
   };
 }
-
-export type UserRow = Database["public"]["Tables"]["users"]["Row"];
-export type GoalRow = Database["public"]["Tables"]["goals"]["Row"];
-export type AnchorRow = Database["public"]["Tables"]["anchors"]["Row"];
-export type GoalAnchorRow = Database["public"]["Tables"]["goal_anchors"]["Row"];
-export type BehaviorSwarmCandidateRow = Database["public"]["Tables"]["behavior_swarm_candidates"]["Row"];
-export type HabitPlanRow = Database["public"]["Tables"]["habit_plans"]["Row"];
-export type MicroActionRow = Database["public"]["Tables"]["micro_actions"]["Row"];
-export type DailyActionRow = Database["public"]["Tables"]["daily_actions"]["Row"];
-export type ActionLogRow = Database["public"]["Tables"]["action_logs"]["Row"];
-export type WeeklyReviewRow = Database["public"]["Tables"]["weekly_reviews"]["Row"];

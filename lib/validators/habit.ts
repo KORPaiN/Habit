@@ -57,8 +57,6 @@ const habitTextSchema = z
   .max(120)
   .refine(hasMeaningfulText, "숫자만 말고 익숙한 루틴을 적어주세요.");
 
-const shortTextSchema = z.string().trim().min(1);
-
 export const onboardingBaseSchema = z.object({
   goal: meaningfulGoalSchema,
   desiredOutcome: meaningfulOutcomeSchema.optional(),
@@ -131,9 +129,6 @@ export const habitDecompositionSchema = z.object({
   fallbackAction: z.string().min(3).refine(isConcreteAction, "Fallback action must be concrete and observable."),
   source: z.enum(["openai", "mock", "rules", "hybrid"]),
 });
-
-export const celebrationTextSchema = shortTextSchema.max(120);
-export const recipeTextSchema = z.string().trim().min(3).max(220);
 
 export type OnboardingInput = z.infer<typeof habitGenerationInputSchema>;
 export type OnboardingWizardInput = z.infer<typeof onboardingSchema>;

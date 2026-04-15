@@ -59,15 +59,15 @@ async function upsertAnchor(
   client: ServiceClient,
   input: { userId: string; cue: string; preferredTime: Database["public"]["Tables"]["anchors"]["Row"]["preferred_time"] },
 ) {
-  const anchorsTable = client.from("anchors" as never) as any;
+  const anchorsTable = client.from("anchors" as never);
   const { data, error } = await anchorsTable
     .upsert(
-      {
+      ({
         user_id: input.userId,
         label: input.cue,
         cue: input.cue,
         preferred_time: input.preferredTime,
-      } satisfies AnchorInsert,
+      } satisfies AnchorInsert) as never,
       {
         onConflict: "user_id,label,cue",
       },
@@ -97,8 +97,8 @@ async function syncGoalAnchors(
     preferredTime: input.preferredTime,
   });
 
-  const goalAnchorsTable = client.from("goal_anchors" as never) as any;
-  const goalsTable = client.from("goals" as never) as any;
+  const goalAnchorsTable = client.from("goal_anchors" as never);
+  const goalsTable = client.from("goals" as never);
 
   const { error: deleteError } = await goalAnchorsTable.delete().eq("goal_id", input.goalId);
 
@@ -115,13 +115,13 @@ async function syncGoalAnchors(
     },
   ];
 
-  const { error: insertError } = await goalAnchorsTable.insert(rows);
+  const { error: insertError } = await goalAnchorsTable.insert(rows as never);
 
   if (insertError) {
     throw new Error(insertError.message);
   }
 
-  const { error: goalUpdateError } = await goalsTable.update({ anchor_id: primary.id }).eq("id", input.goalId);
+  const { error: goalUpdateError } = await goalsTable.update(({ anchor_id: primary.id } as { anchor_id: string }) as never).eq("id", input.goalId);
 
   if (goalUpdateError) {
     throw new Error(goalUpdateError.message);
@@ -140,7 +140,7 @@ async function replaceSwarmCandidates(
     selectedBehavior: BehaviorSwarmCandidateInput;
   },
 ) {
-  const candidatesTable = client.from("behavior_swarm_candidates" as never) as any;
+  const candidatesTable = client.from("behavior_swarm_candidates" as never);
   const { error: deleteError } = await candidatesTable.delete().eq("goal_id", input.goalId);
 
   if (deleteError) {
@@ -159,7 +159,7 @@ async function replaceSwarmCandidates(
   }));
 
   const { data, error } = await candidatesTable
-    .insert(rows)
+    .insert(rows as never)
     .select("id, title, selected");
 
   if (error) {
@@ -184,8 +184,8 @@ async function createOnboardingGoalWithAnchorReuse(
   client: ServiceClient,
   input: AuthenticatedOnboardingRequest,
 ): Promise<OnboardingResult> {
-  const anchorsTable = client.from("anchors" as never) as any;
-  const goalsTable = client.from("goals" as never) as any;
+  const anchorsTable = client.from("anchors" as never);
+  const goalsTable = client.from("goals" as never);
 
   const existingAnchorQuery = await anchorsTable
     .select("id")
@@ -198,16 +198,16 @@ async function createOnboardingGoalWithAnchorReuse(
     throw new Error(existingAnchorQuery.error.message);
   }
 
-  let anchorId = existingAnchorQuery.data?.id;
+  let anchorId = (existingAnchorQuery.data as { id: string } | null)?.id;
 
   if (!anchorId) {
     const insertedAnchor = await anchorsTable
-      .insert({
+      .insert(({
         user_id: input.userId,
         label: input.anchorLabel,
         cue: input.anchorCue,
         preferred_time: input.preferredTime,
-      } satisfies AnchorInsert)
+      } satisfies AnchorInsert) as never)
       .select("id")
       .single();
 
@@ -215,12 +215,12 @@ async function createOnboardingGoalWithAnchorReuse(
       throw new Error(insertedAnchor.error.message);
     }
 
-    anchorId = insertedAnchor.data.id;
+    anchorId = (insertedAnchor.data as { id: string }).id;
   } else {
     const updatedAnchor = await anchorsTable
-      .update({
+      .update(({
         preferred_time: input.preferredTime,
-      } satisfies Partial<AnchorInsert>)
+      } satisfies Partial<AnchorInsert>) as never)
       .eq("id", anchorId)
       .select("id")
       .single();
@@ -231,7 +231,7 @@ async function createOnboardingGoalWithAnchorReuse(
   }
 
   const insertedGoal = await goalsTable
-    .insert({
+    .insert(({
       user_id: input.userId,
       anchor_id: anchorId,
       title: input.goalTitle,
@@ -240,7 +240,7 @@ async function createOnboardingGoalWithAnchorReuse(
       motivation_note: null,
       difficulty: input.difficulty,
       available_minutes: input.availableMinutes,
-    } satisfies GoalInsert)
+    } satisfies GoalInsert) as never)
     .select("id")
     .single();
 
@@ -249,7 +249,7 @@ async function createOnboardingGoalWithAnchorReuse(
   }
 
   return {
-    goal: { id: insertedGoal.data.id },
+    goal: { id: (insertedGoal.data as { id: string }).id },
     anchor: { id: anchorId },
   };
 }
@@ -364,16 +364,16 @@ export async function reselectGoalPlan(
   client: ServiceClient,
   input: AuthenticatedOnboardingRequest & { goalId: string; basedOnPlanId?: string | null },
 ) {
-  const goalsTable = client.from("goals" as never) as any;
+  const goalsTable = client.from("goals" as never);
   const { error } = await goalsTable
-    .update({
+    .update(({
       title: input.goalTitle,
       why: input.goalWhy ?? null,
       desired_outcome: input.desiredOutcome,
       motivation_note: null,
       difficulty: input.difficulty,
       available_minutes: input.availableMinutes,
-    } satisfies GoalUpdate)
+    } satisfies GoalUpdate) as never)
     .eq("id", input.goalId)
     .eq("user_id", input.userId);
 
@@ -408,7 +408,7 @@ export async function createPlanVersion(client: ServiceClient, input: Authentica
 }
 
 export async function getUserAnchors(client: ServiceClient, userId: string) {
-  const anchorsTable = client.from("anchors" as never) as any;
+  const anchorsTable = client.from("anchors" as never);
   const { data, error } = await anchorsTable
     .select("id, label, cue, preferred_time, updated_at")
     .eq("user_id", userId)
@@ -422,15 +422,15 @@ export async function getUserAnchors(client: ServiceClient, userId: string) {
 }
 
 export async function saveUserAnchor(client: ServiceClient, input: SavedAnchorInput & { userId: string }) {
-  const anchorsTable = client.from("anchors" as never) as any;
+  const anchorsTable = client.from("anchors" as never);
   const { data, error } = await anchorsTable
     .upsert(
-      {
+      ({
         user_id: input.userId,
         label: input.cue,
         cue: input.cue,
         preferred_time: "morning",
-      },
+      } as const) as never,
       {
         onConflict: "user_id,label,cue",
       },
@@ -446,7 +446,7 @@ export async function saveUserAnchor(client: ServiceClient, input: SavedAnchorIn
 }
 
 export async function deleteUserAnchor(client: ServiceClient, input: { userId: string; anchorId: string }) {
-  const anchorsTable = client.from("anchors" as never) as any;
+  const anchorsTable = client.from("anchors" as never);
   const { error } = await anchorsTable.delete().eq("user_id", input.userId).eq("id", input.anchorId);
 
   if (error) {
@@ -523,7 +523,7 @@ export async function getWeeklyReview(client: ServiceClient, input: { userId: st
   return data;
 }
 
-export function getWeekStart(date = new Date()) {
+function getWeekStart(date = new Date()) {
   const weekStart = new Date(date);
   const day = weekStart.getDay();
   const diff = day === 0 ? -6 : 1 - day;

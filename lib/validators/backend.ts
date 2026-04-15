@@ -7,10 +7,9 @@ import {
   hasMeaningfulText,
 } from "@/lib/validators/habit";
 
-export const difficultyLevelSchema = z.enum(["gentle", "steady", "hard"]);
-export const preferredTimeSchema = z.enum(["morning", "afternoon", "evening"]);
-export const anchorTypeSchema = z.enum(["primary", "backup"]);
-export const planSourceSchema = z.enum(["ai", "manual", "recovery", "seed"]);
+const difficultyLevelSchema = z.enum(["gentle", "steady", "hard"]);
+const preferredTimeSchema = z.enum(["morning", "afternoon", "evening"]);
+const planSourceSchema = z.enum(["ai", "manual", "recovery", "seed"]);
 export const failureReasonSchema = z.enum([
   "too_big",
   "too_tired",
@@ -22,8 +21,8 @@ export const failureReasonSchema = z.enum([
   "other",
 ]);
 
-export const uuidSchema = z.string().uuid();
-export const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expected YYYY-MM-DD date.");
+const uuidSchema = z.string().uuid();
+const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expected YYYY-MM-DD date.");
 const optionalTextSchema = z.string().max(500).optional().nullable();
 
 const meaningfulGoalSchema = z
@@ -51,13 +50,6 @@ export const behaviorSwarmCandidateInputSchema = z.object({
 });
 
 export const behaviorSwarmCandidatesSchema = z.array(behaviorSwarmCandidateInputSchema).min(6).max(10);
-
-export const goalAnchorInputSchema = z.object({
-  cue: z.string().min(2).max(120),
-  anchorType: anchorTypeSchema,
-  sortOrder: z.coerce.number().int().min(0).max(2),
-  preferredTime: preferredTimeSchema.optional(),
-});
 
 export const planMicroActionInputSchema = z.object({
   position: z.coerce.number().int().min(1).max(3),
@@ -171,9 +163,5 @@ export type PlanMicroActionInput = z.infer<typeof planMicroActionInputSchema>;
 export type OnboardingRequest = z.infer<typeof onboardingRequestSchema>;
 export type CreatePlanRequest = z.infer<typeof createPlanRequestSchema>;
 export type BehaviorSwarmCandidateInput = z.infer<typeof behaviorSwarmCandidateInputSchema>;
-export type GoalAnchorInput = z.infer<typeof goalAnchorInputSchema>;
-export type BehaviorSwarmRequest = z.infer<typeof behaviorSwarmRequestSchema>;
 export type AssignDailyActionRequest = z.infer<typeof assignDailyActionRequestSchema>;
-export type CompleteDailyActionRequest = z.infer<typeof completeDailyActionRequestSchema>;
-export type FailDailyActionRequest = z.infer<typeof failDailyActionRequestSchema>;
 export type WeeklyReviewRequest = z.infer<typeof weeklyReviewRequestSchema>;

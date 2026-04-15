@@ -1,7 +1,7 @@
 "use server";
 
+import type { Route } from "next";
 import { redirect } from "next/navigation";
-
 import { getLocale } from "@/lib/locale";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { deleteUserAnchor, saveUserAnchor } from "@/lib/supabase/habit-service";
@@ -15,7 +15,7 @@ export async function saveAnchorAction(formData: FormData) {
   const returnTo = sanitizeReturnPath(typeof formData.get("returnTo") === "string" ? String(formData.get("returnTo")) : undefined);
 
   if (!user) {
-    redirect(`/login?next=${encodeURIComponent(buildAnchorsPath({ returnTo }))}` as any);
+    redirect(`/login?next=${encodeURIComponent(buildAnchorsPath({ returnTo }))}`);
   }
 
   const parsed = savedAnchorSchema.parse({
@@ -35,10 +35,10 @@ export async function saveAnchorAction(formData: FormData) {
           ? "루틴을 저장하지 못했어요."
           : "We could not save your cue.";
 
-    redirect(buildAnchorsPath({ returnTo, error: message }) as any);
+    redirect(buildAnchorsPath({ returnTo, error: message }) as Route);
   }
 
-  redirect(buildAnchorsPath({ returnTo, saved: true }) as any);
+  redirect(buildAnchorsPath({ returnTo, saved: true }) as Route);
 }
 
 export async function deleteAnchorAction(formData: FormData) {
@@ -47,13 +47,13 @@ export async function deleteAnchorAction(formData: FormData) {
   const returnTo = sanitizeReturnPath(typeof formData.get("returnTo") === "string" ? String(formData.get("returnTo")) : undefined);
 
   if (!user) {
-    redirect(`/login?next=${encodeURIComponent(buildAnchorsPath({ returnTo }))}` as any);
+    redirect(`/login?next=${encodeURIComponent(buildAnchorsPath({ returnTo }))}`);
   }
 
   const anchorId = String(formData.get("anchorId") ?? "");
 
   if (!anchorId) {
-    redirect(buildAnchorsPath({ returnTo, error: locale === "ko" ? "삭제할 루틴을 찾지 못했어요." : "We could not find that cue." }) as any);
+    redirect(buildAnchorsPath({ returnTo, error: locale === "ko" ? "삭제할 루틴을 찾지 못했어요." : "We could not find that cue." }) as Route);
   }
 
   try {
@@ -69,8 +69,8 @@ export async function deleteAnchorAction(formData: FormData) {
           ? "루틴을 삭제하지 못했어요."
           : "We could not delete that cue.";
 
-    redirect(buildAnchorsPath({ returnTo, error: message }) as any);
+    redirect(buildAnchorsPath({ returnTo, error: message }) as Route);
   }
 
-  redirect(buildAnchorsPath({ returnTo, deleted: true }) as any);
+  redirect(buildAnchorsPath({ returnTo, deleted: true }) as Route);
 }

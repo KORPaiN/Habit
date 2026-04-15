@@ -23,7 +23,7 @@ export type RecoveryOption = {
   anchorCue?: string;
 };
 
-export type RecoveryPreparationResult = {
+type RecoveryPreparationResult = {
   reason: RecoveryReason;
   options: RecoveryOption[];
   savedFailure: boolean;

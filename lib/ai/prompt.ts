@@ -1,5 +1,5 @@
 import type { Locale } from "@/lib/locale";
-import type { BehaviorSwarmCandidate, HabitDecomposition, OnboardingBaseInput, OnboardingInput } from "@/lib/validators/habit";
+import type { HabitDecomposition, OnboardingBaseInput, OnboardingInput } from "@/lib/validators/habit";
 import type { FailureReason } from "@/types";
 import { buildStressPromptInstructions, detectAnchorCueType, isStressReliefGoal } from "@/lib/ai/anchor-patterns";
 
@@ -244,6 +244,8 @@ export function buildBehaviorSwarmPrompt(input: OnboardingBaseInput, locale: Loc
     "Generate 6 to 10 tiny behavior candidates.",
     "Every candidate must be concrete, observable, and easy to start now.",
     "Prefer low-resistance entry behaviors over larger outcome behaviors.",
+    "Make the candidates distinct from each other, with different first-step shapes.",
+    "Each title should describe a specific action the user can do today.",
     "Keep each candidate to 1 to 5 minutes.",
     "Do not use vague phrases like do your best, keep going, or work on it.",
     "Each candidate needs desireScore, abilityScore, and impactScore from 1 to 5.",
@@ -256,34 +258,6 @@ export function buildBehaviorSwarmPrompt(input: OnboardingBaseInput, locale: Loc
       availableMinutes: input.availableMinutes,
       preferredTime: input.preferredTime,
     })}`,
-  ].join("\n");
-}
-
-export function buildSelectedBehaviorPlanPrompt(
-  input: Pick<OnboardingInput, "goal" | "difficulty" | "availableMinutes" | "preferredTime" | "anchor">,
-  selectedBehavior: BehaviorSwarmCandidate,
-  failureReason?: FailureReason,
-  locale: Locale = "ko",
-) {
-  return [
-    buildAiOnlyHabitDecompositionPrompt(
-      {
-        goal: input.goal,
-        desiredOutcome: input.goal,
-        availableMinutes: input.availableMinutes,
-        difficulty: input.difficulty,
-        preferredTime: input.preferredTime,
-        anchor: input.anchor,
-      },
-      {
-        archetype: "generic",
-        intent: "start",
-      },
-      failureReason,
-      locale,
-    ),
-    `SELECTED_BEHAVIOR: ${JSON.stringify(selectedBehavior)}`,
-    "Keep the selected behavior as today's first action or make it slightly smaller if the failure reason demands it.",
   ].join("\n");
 }
 

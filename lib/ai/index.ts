@@ -4,7 +4,6 @@ import {
   buildBehaviorSwarmPrompt,
   buildAiOnlyHabitDecompositionPrompt,
   buildHybridRewritePrompt,
-  buildSelectedBehaviorPlanPrompt,
   behaviorSwarmJsonSchema,
   habitDecompositionJsonSchema,
   type GoalArchetype,
@@ -12,7 +11,7 @@ import {
   type GoalIntent,
 } from "@/lib/ai/prompt";
 import { detectAnchorCueType, getDefaultLearnedAnchor, isStressReliefGoal, type AnchorCueType } from "@/lib/ai/anchor-patterns";
-import { validateDecompositionLocale } from "@/lib/ai/locale-validation";
+import { isLocalizedString, validateDecompositionLocale } from "@/lib/ai/locale-validation";
 import { logSecurityEvent } from "@/lib/security/events";
 import { API_RATE_LIMITS } from "@/lib/security/route-guard";
 import { consumeRateLimits } from "@/lib/security/rate-limit";
@@ -104,16 +103,16 @@ declare global {
   var __habitAiInflightUsers: Set<string> | undefined;
 }
 
-export type GenerationStrategy = "hybrid" | "ai_only" | "rules_only";
-export type ModelPreference = "fast" | "quality" | "experimental";
-export type RecentContext = {
+type GenerationStrategy = "hybrid" | "ai_only" | "rules_only";
+type ModelPreference = "fast" | "quality" | "experimental";
+type RecentContext = {
   recentStatuses: string[];
   recentFailureReasons: string[];
   recentUsedFallbackCount: number;
   recentCompletedStreak: number;
   usedUserLevelPattern: boolean;
 };
-export type DraftTemplate = {
+type DraftTemplate = {
   archetype: GoalArchetype;
   intent: GoalIntent;
   microActions: MicroAction[];
@@ -146,10 +145,6 @@ function getInflightUsers() {
   }
 
   return globalThis.__habitAiInflightUsers;
-}
-
-function isRecentContext(value: unknown): value is RecentContext {
-  return typeof value === "object" && value !== null && "recentStatuses" in value;
 }
 
 function hasJsonContent(content: OpenAIContentItem): content is { type?: string; json?: unknown } {
@@ -1410,7 +1405,8 @@ function normalizeRuleBuildArgs(
 }
 
 function stripSource(decomposition: HabitDecomposition): Omit<HabitDecomposition, "source"> {
-  const { source: _source, ...rest } = decomposition;
+  const { source, ...rest } = decomposition;
+  void source;
   return rest;
 }
 
@@ -1492,11 +1488,12 @@ export function buildMockHabitDecomposition(
   return buildRuleBasedHabitDecomposition(input, failureReason, { locale });
 }
 
-export async function collectRecentContext(_: {
+export async function collectRecentContext(input: {
   userId?: string;
   goalId?: string;
   basedOnPlanId?: string;
 }): Promise<RecentContext> {
+  void input;
   return EMPTY_RECENT_CONTEXT;
 }
 
@@ -1703,6 +1700,93 @@ function fillBehaviorCandidates(
   }
 
   return nextCandidates.slice(0, 8);
+}
+
+function sortBehaviorSwarmCandidates(
+  candidates: Array<{
+    candidate: BehaviorSwarmCandidate;
+    originalIndex: number;
+  }>,
+) {
+  return candidates.sort((left, right) => {
+    if (left.candidate.durationMinutes !== right.candidate.durationMinutes) {
+      return left.candidate.durationMinutes - right.candidate.durationMinutes;
+    }
+
+    if (left.candidate.abilityScore !== right.candidate.abilityScore) {
+      return right.candidate.abilityScore - left.candidate.abilityScore;
+    }
+
+    if (left.candidate.impactScore !== right.candidate.impactScore) {
+      return right.candidate.impactScore - left.candidate.impactScore;
+    }
+
+    if (left.candidate.desireScore !== right.candidate.desireScore) {
+      return right.candidate.desireScore - left.candidate.desireScore;
+    }
+
+    return left.originalIndex - right.originalIndex;
+  });
+}
+
+function isLocalizedBehaviorSwarmCandidate(candidate: BehaviorSwarmCandidate, input: OnboardingBaseInput, locale: Locale) {
+  return isLocalizedString(candidate.title, locale, input.goal) && isLocalizedString(candidate.details ?? "", locale, input.goal);
+}
+
+function normalizeBehaviorSwarmCandidates(
+  rawCandidates: unknown,
+  draft: BehaviorSwarmCandidate[],
+  input: OnboardingBaseInput,
+  locale: Locale,
+) {
+  if (!Array.isArray(rawCandidates)) {
+    throw new Error("Behavior swarm candidates were not an array.");
+  }
+
+  const seen = new Set<string>();
+  const nextCandidates: Array<{ candidate: BehaviorSwarmCandidate; originalIndex: number }> = [];
+
+  rawCandidates.forEach((rawCandidate, index) => {
+    const parsed = behaviorSwarmCandidateSchema.safeParse(rawCandidate);
+
+    if (!parsed.success) {
+      return;
+    }
+
+    if (!isLocalizedBehaviorSwarmCandidate(parsed.data, input, locale)) {
+      return;
+    }
+
+    const key = parsed.data.title.trim().toLowerCase();
+
+    if (seen.has(key)) {
+      return;
+    }
+
+    seen.add(key);
+    nextCandidates.push({ candidate: parsed.data, originalIndex: index });
+  });
+
+  for (const candidate of draft) {
+    if (nextCandidates.length >= 6) {
+      break;
+    }
+
+    const key = candidate.title.trim().toLowerCase();
+
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    nextCandidates.push({ candidate, originalIndex: rawCandidates.length + nextCandidates.length });
+  }
+
+  if (nextCandidates.length < 6) {
+    return draft;
+  }
+
+  return behaviorSwarmSchema.parse(sortBehaviorSwarmCandidates(nextCandidates).slice(0, 10).map(({ candidate }) => candidate));
 }
 
 export function buildRuleBasedBehaviorSwarm(input: OnboardingBaseInput, locale: Locale = "ko"): BehaviorSwarmCandidate[] {
@@ -2070,8 +2154,8 @@ export async function generateBehaviorSwarm(
       behaviorSwarmJsonSchema,
       modelPreference,
       (text) => {
-        const parsed = JSON.parse(text) as { candidates: BehaviorSwarmCandidate[] };
-        return behaviorSwarmSchema.parse(parsed.candidates);
+        const parsed = JSON.parse(text) as { candidates?: unknown };
+        return normalizeBehaviorSwarmCandidates(parsed.candidates, draft, input, locale);
       },
     );
 
@@ -2239,9 +2323,4 @@ export async function generateHabitDecomposition(
   } finally {
     releaseSlot();
   }
-}
-
-export async function generateMicroActions(input: OnboardingInput): Promise<MicroAction[]> {
-  const decomposition = await generateHabitDecomposition(input);
-  return decomposition.microActions.map((item) => microActionSchema.parse(item));
 }
